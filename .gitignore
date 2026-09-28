@@ -33,6 +33,9 @@ GoogleService-Info.plist
 .idea/
 *.iml
 
+# Corporate CA bundle (machine-specific, not for version control)
+corporate-ca-bundle.pem
+
 # OS
 .DS_Store
 Thumbs.db

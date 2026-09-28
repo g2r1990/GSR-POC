@@ -42,3 +42,8 @@ variable "s3_bucket_suffix" {
   description = "Unique suffix for the S3 bucket name (use account ID or random string)"
   type        = string
 }
+
+variable "vpc_id" {
+  description = "VPC ID to deploy resources into"
+  type        = string
+}

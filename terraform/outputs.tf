@@ -9,8 +9,8 @@ output "ec2_instance_id" {
 }
 
 output "ec2_ami_used" {
-  description = "Ubuntu AMI ID used for this deployment"
-  value       = data.aws_ami.ubuntu_22_04.id
+  description = "Amazon Linux 2023 AMI ID used for this deployment"
+  value       = data.aws_ami.gsr_app_server_ami.id
 }
 
 output "s3_bucket_name" {
@@ -30,7 +30,7 @@ output "ec2_iam_role_arn" {
 
 output "ssh_command" {
   description = "SSH command to connect to the server"
-  value       = "ssh -i your-key.pem ubuntu@${aws_eip.gsr_eip.public_ip}"
+  value       = "ssh -i your-key.pem ec2-user@${aws_eip.gsr_eip.public_ip}"
 }
 
 output "api_base_url_http" {

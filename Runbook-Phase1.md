@@ -1,8 +1,26 @@
 # Project GSR — Phase 1 Runbook
-**Last Updated:** 2026-09-27  
+**Last Updated:** 2026-09-28  
 **Stack:** Flutter (Android) + FastAPI (Python) + PostgreSQL + AWS EC2 + S3  
 **Estimated Duration:** 8 Sprints (~8 weeks)  
 **Monthly Cost:** ~$32/month (EC2 t3.medium + S3, no ALB)
+
+---
+
+## Sprint Tracker
+
+| Sprint | Target | Status | Completed |
+|---|---|---|---|
+| **Day 0** | Tools, AWS CLI, Git setup | ✅ Done | 2026-09-27 |
+| **Sprint 1** | Terraform IaC, EC2, S3, Nginx, SSL | ✅ Done (infra) | 2026-09-28 |
+| **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | 🔲 Not Started | — |
+| **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | 🔲 Not Started | — |
+| **Sprint 4** | Owner registration, KYC, Admin panel | 🔲 Not Started | — |
+| **Sprint 5** | Menu management (Owner app) | 🔲 Not Started | — |
+| **Sprint 6** | Customer discovery (search + browse) | 🔲 Not Started | — |
+| **Sprint 7** | Ordering flow + push notifications | 🔲 Not Started | — |
+| **Sprint 8** | Testing, APK build, Play Store prep | 🔲 Not Started | — |
+
+**We are on track. Sprint 1 infrastructure completed Day 1.**
 
 ---
 
@@ -86,25 +104,160 @@ All items should show green. Fix any issues it reports before starting Sprint 3.
 - This gives you `https://api.yourdomain.in` for the app to call
 
 ### Git Repository
-- [ ] Create private GitHub repo: `project-gsr-backend`
-- [ ] Create private GitHub repo: `project-gsr-app`
-- [ ] Create private GitHub repo: `project-gsr-infra`
-- [ ] Add `.gitignore` to each (Python / Flutter / Terraform templates)
+- [x] Created private GitHub repo: `Project-GSR` under personal account (gurpreet18121990@gmail.com)
+- [x] Branch strategy: `main` = active working branch | `master` = validated/stable
+- [x] All Terraform code pushed to `main` branch
+- [x] `.gitignore` configured — never commits:
+  - `terraform.tfvars` (contains your IPs, VPC IDs)
+  - `*.pem` / `*.ppk` (SSH private keys)
+  - `*.tfstate` / `*.tfstate.backup` (local state files)
+  - `corporate-ca-bundle.pem` (QAD Zscaler CA — corporate only)
+
+> **Identity**: All Git commits use personal identity (`gurpreet18121990@gmail.com`) via local repo config only. QAD global git config is untouched.
 
 ---
 
 ## Sprint 1 — AWS Infrastructure (IaC with Terraform)
-**Duration:** 1 day (DevOps-familiar, this is straightforward)  
-**Goal:** EC2 running with Nginx + Docker, accessible via HTTPS
+**Duration:** 1 day  
+**Goal:** EC2 running with Nginx + Docker, accessible via HTTPS  
+**Status:** ✅ Infrastructure complete — 11/11 resources created
 
 ### What Gets Built
-- EC2 instance (t3.medium) in Default VPC
-- Security Group with correct inbound rules
-- Elastic IP (static public IP)
+- EC2 instance (t3.medium) in non-default VPC
+- Security Group with correct inbound rules (SSH/HTTP/HTTPS)
+- Elastic IP (static public IP — free while instance is running)
 - S3 bucket (photos + documents storage)
 - IAM Role for EC2 → S3 access (no hardcoded keys)
-- EBS volume encryption enabled
-- Nginx + Certbot (Let's Encrypt SSL) on EC2
+- EBS volume 30GB gp3, encryption enabled
+- Nginx + Docker (via cloud-init bootstrap)
+
+---
+
+### Sprint 1 — Day 1 Execution Log (2026-09-28)
+
+#### What Was Actually Deployed
+
+| Resource | Value |
+|---|---|
+| **Account** | QAD Lab / Support account (personal lab, not production) |
+| **Region** | `ap-south-1` (Mumbai) |
+| **EC2 Instance ID** | `i-02bb92a9fa97bd78b` |
+| **Instance Type** | `t3.medium` (2 vCPU, 4GB RAM) |
+| **AMI** | `ami-066c4849e6b3a1e3d` — Amazon Linux 2023 (kernel 6.18) |
+| **OS User** | `ec2-user` |
+| **Elastic IP** | `43.204.43.71` (static — point domain A record here) |
+| **S3 Bucket** | `project-gsr-qad-lab-test-storage-gsrpoc01` |
+| **IAM Role ARN** | `arn:aws:iam::423451069244:role/project-gsr-qad-lab-test-ec2-role` |
+| **VPC** | `vpc-06546e726a151b9ea` (QAD Lab non-default VPC) |
+| **Key Pair** | `g2r-poc` (created in ap-south-1 — region-specific!) |
+| **Local State File** | `C:\Claude\Project-GSR\terraform\terraform.tfstate` |
+
+#### Terraform State — Local (Not Remote)
+For this POC, state is stored **locally** on your machine.  
+Remote S3 backend (cost + complexity) is skipped for now.
+
+> **State file location:** `C:\Claude\Project-GSR\terraform\terraform.tfstate`  
+> It is gitignored. Back it up manually if needed: copy `.tfstate` to a safe folder.  
+> If you lose it: resources still exist in AWS; you'd need `terraform import` to re-link them.
+
+#### Terraform Commands Run
+
+```powershell
+# Set environment (run at the start of every new PowerShell session)
+$env:AWS_CA_BUNDLE = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
+$env:SSL_CERT_FILE = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
+# Set AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+
+cd C:\Claude\Project-GSR\terraform
+```
+
+```powershell
+# Step 1 — Initialize (downloads AWS provider, one-time per machine)
+terraform init
+```
+Expected output:
+```
+Terraform has been successfully initialized!
+Provider registry.terraform.io/hashicorp/aws v5.x installed.
+```
+
+```powershell
+# Step 2 — Preview what will be created (no changes made)
+terraform plan
+```
+Expected output (Sprint 1 shows ~11 resources to create):
+```
+Plan: 11 to add, 0 to change, 0 to destroy.
+  + aws_security_group.gsr_ec2_sg
+  + aws_instance.gsr_server
+  + aws_eip.gsr_eip
+  + aws_eip_association.gsr_eip_assoc
+  + aws_s3_bucket.gsr_storage
+  + aws_s3_bucket_server_side_encryption_configuration.gsr_s3_enc
+  + aws_s3_bucket_public_access_block.gsr_s3_block
+  + aws_s3_bucket_versioning.gsr_s3_versioning
+  + aws_s3_bucket_lifecycle_configuration.gsr_s3_lifecycle
+  + aws_iam_role.gsr_ec2_role
+  + aws_iam_instance_profile.gsr_ec2_profile
+```
+
+```powershell
+# Step 3 — Apply (creates all resources — takes ~2 minutes)
+terraform apply
+```
+Expected output:
+```
+Apply complete! Resources: 11 added, 0 changed, 0 destroyed.
+
+Outputs:
+  api_base_url_http  = "http://43.204.43.71"
+  ec2_ami_used       = "ami-066c4849e6b3a1e3d"
+  ec2_instance_id    = "i-02bb92a9fa97bd78b"
+  ec2_public_ip      = "43.204.43.71"
+  s3_bucket_arn      = "arn:aws:s3:::project-gsr-qad-lab-test-storage-gsrpoc01"
+  s3_bucket_name     = "project-gsr-qad-lab-test-storage-gsrpoc01"
+  ssh_command        = "ssh -i your-key.pem ec2-user@43.204.43.71"
+```
+
+#### SSH into EC2
+
+**PowerShell:**
+```powershell
+# Fix PEM permissions (Windows requires this — run once)
+$pemFile = "C:\Claude\Project-GSR\g2r-poc.pem"
+icacls $pemFile /inheritance:r
+icacls $pemFile /remove "NT AUTHORITY\Authenticated Users"
+icacls $pemFile /remove "BUILTIN\Users"
+icacls $pemFile /remove "Everyone"
+icacls $pemFile /grant:r "$($env:USERNAME):R"
+
+# Connect
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+```
+
+**PuTTY (alternative):**
+1. Open **PuTTYgen** → Load `g2r-poc.pem` → Save private key → `g2r-poc.ppk`
+2. Open **PuTTY** → Host: `43.204.43.71` → SSH → Auth → browse to `g2r-poc.ppk`
+3. Login as: `ec2-user`
+
+#### Issues Encountered & Resolved
+
+| Issue | Root Cause | Fix Applied |
+|---|---|---|
+| Terraform `required_version` mismatch | Had v1.3.6, code required ≥1.5.0 | Changed to `>= 1.3.0` in main.tf |
+| AWS CLI SSL error (Zscaler) | Corporate proxy intercepts HTTPS | Created `corporate-ca-bundle.pem` with Zscaler + QAD CA; set `AWS_CA_BUNDLE` env var |
+| VPC not found | QAD Lab has no default VPC | Changed `default = true` to `id = var.vpc_id` in networking.tf |
+| Em dash `—` in SG descriptions | AWS rejects non-ASCII characters | Replaced all `—` with `-` in security_groups.tf |
+| Key pair not found | g2r-poc key was in us-east-2, not ap-south-1 | Created new key pair `g2r-poc` in ap-south-1 |
+| SSH bad permissions on .pem | Windows ACL too permissive | Removed Authenticated Users / BUILTIN\Users with icacls |
+| `ubuntu@` in SSH output | Old Ubuntu reference not updated | Fixed in outputs.tf → `ec2-user@` |
+
+#### Pending — Sprint 1 Day 2
+- [ ] Fix bootstrap (cloud-init) — Docker + Nginx + Certbot not yet installed (user_data script failed silently)
+- [ ] Run bootstrap manually or re-apply with fixed user_data
+- [ ] Configure Nginx once Docker is installed
+
+---
 
 ### Terraform File Structure
 ```
@@ -302,11 +455,11 @@ terraform apply
 
 # 4. Note the output: EC2 public IP + S3 bucket name
 
-# 5. SSH into EC2
-ssh -i your-key.pem ubuntu@<EC2_PUBLIC_IP>
+# 5. SSH into EC2 (Amazon Linux 2023 uses ec2-user, not ubuntu)
+ssh -i your-key.pem ec2-user@<EC2_PUBLIC_IP>
 
-# 6. On EC2 — configure Nginx
-sudo nano /etc/nginx/sites-available/gsr-api
+# 6. On EC2 — configure Nginx (Amazon Linux 2023 path)
+sudo nano /etc/nginx/conf.d/gsr-api.conf
 
 # 7. On EC2 — get SSL certificate (replace with your domain)
 sudo certbot --nginx -d api.yourdomain.in
@@ -336,11 +489,13 @@ server {
 ```
 
 **Sprint 1 Done when:**
-- [ ] EC2 is running, accessible via SSH
-- [ ] Elastic IP is attached
-- [ ] S3 bucket created, encryption enabled
-- [ ] Nginx running, SSL certificate installed
-- [ ] `https://api.yourdomain.in` returns a response
+- [x] EC2 is running, accessible via SSH — `ec2-user@43.204.43.71` ✅
+- [x] Elastic IP is attached — `43.204.43.71` ✅
+- [x] S3 bucket created, encryption enabled ✅
+- [x] IAM Role attached to EC2 (EC2 can access S3 without hardcoded keys) ✅
+- [ ] Docker + Nginx installed on EC2 (cloud-init bootstrap failed — fix in Day 2)
+- [ ] SSL certificate installed (requires domain + Nginx running)
+- [ ] `https://api.yourdomain.in` returns a response (requires SSL setup)
 
 ---
 

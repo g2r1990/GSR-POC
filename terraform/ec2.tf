@@ -1,11 +1,11 @@
-# Look up the latest Ubuntu 22.04 LTS AMI (Canonical official)
-data "aws_ami" "ubuntu_22_04" {
+# Look up the latest Amazon Linux 2023 AMI (Amazon official)
+data "aws_ami" "gsr_app_server_ami" {
   most_recent = true
-  owners      = ["099720109477"] # Canonical
+  owners      = ["137112412989"] # Amazon
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+    values = ["al2023-ami-2023*-kernel-*-x86_64"]
   }
 
   filter {
@@ -20,7 +20,7 @@ data "aws_ami" "ubuntu_22_04" {
 }
 
 resource "aws_instance" "gsr_server" {
-  ami                    = data.aws_ami.ubuntu_22_04.id
+  ami                    = data.aws_ami.gsr_app_server_ami.id
   instance_type          = var.instance_type
   key_name               = var.key_pair_name
   subnet_id              = tolist(data.aws_subnets.default.ids)[0]
@@ -30,7 +30,7 @@ resource "aws_instance" "gsr_server" {
   root_block_device {
     volume_size           = var.ebs_volume_size
     volume_type           = "gp3"
-    encrypted             = true   # EBS encryption at rest
+    encrypted             = true
     delete_on_termination = true
   }
 
@@ -42,39 +42,37 @@ resource "aws_instance" "gsr_server" {
 
     echo "=== GSR Bootstrap started at $(date) ==="
 
-    # Prevent apt-get from hanging on interactive prompts
-    export DEBIAN_FRONTEND=noninteractive
-
     # System update
-    apt-get update -y
-    apt-get upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+    dnf update -y
 
-    # Install Docker (official script)
-    curl -fsSL https://get.docker.com | sh
-    usermod -aG docker ubuntu
+    # Install Docker (available in AL2023 default repos)
+    dnf install -y docker
     systemctl enable docker
     systemctl start docker
+    usermod -aG docker ec2-user
 
     # Install Docker Compose plugin
-    apt-get install -y docker-compose-plugin
+    dnf install -y docker-compose-plugin
 
     # Install Nginx
-    apt-get install -y nginx
+    dnf install -y nginx
     systemctl enable nginx
     systemctl start nginx
 
     # Install Certbot for Let's Encrypt SSL
-    apt-get install -y certbot python3-certbot-nginx
+    dnf install -y python3-pip
+    pip3 install certbot certbot-nginx
 
     # Install useful tools
-    apt-get install -y htop curl wget git unzip postgresql-client
+    dnf install -y htop curl wget git unzip
+    dnf install -y postgresql15
 
     # Create application directory
     mkdir -p /opt/project-gsr
-    chown ubuntu:ubuntu /opt/project-gsr
+    chown ec2-user:ec2-user /opt/project-gsr
 
-    # Default Nginx config — proxies port 80 to FastAPI on 8000
-    cat > /etc/nginx/sites-available/gsr-api << 'NGINXEOF'
+    # Nginx config — AL2023 uses conf.d, not sites-available
+    cat > /etc/nginx/conf.d/gsr-api.conf << 'NGINXEOF'
 server {
     listen 80;
     server_name _;
@@ -93,8 +91,6 @@ server {
 }
 NGINXEOF
 
-    ln -sf /etc/nginx/sites-available/gsr-api /etc/nginx/sites-enabled/gsr-api
-    rm -f /etc/nginx/sites-enabled/default
     nginx -t && systemctl reload nginx
 
     echo "=== GSR Bootstrap complete at $(date) ==="
@@ -114,6 +110,5 @@ resource "aws_eip" "gsr_eip" {
     Name = "${var.project_name}-${var.environment}-eip"
   }
 
-  # Ensure instance is running before EIP association
   depends_on = [aws_instance.gsr_server]
 }

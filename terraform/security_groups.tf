@@ -1,6 +1,6 @@
 resource "aws_security_group" "gsr_ec2_sg" {
   name        = "${var.project_name}-${var.environment}-ec2-sg"
-  description = "Project GSR EC2 Security Group — SSH, HTTP, HTTPS"
+  description = "Project GSR EC2 Security Group - SSH, HTTP, HTTPS"
   vpc_id      = data.aws_vpc.default.id
 
   # SSH — restricted to your IP only
@@ -14,7 +14,7 @@ resource "aws_security_group" "gsr_ec2_sg" {
 
   # HTTP — allow all (Nginx redirects to HTTPS)
   ingress {
-    description = "HTTP — redirects to HTTPS via Nginx"
+    description = "HTTP - redirects to HTTPS via Nginx"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -23,7 +23,7 @@ resource "aws_security_group" "gsr_ec2_sg" {
 
   # HTTPS — allow all (Flutter app + browser)
   ingress {
-    description = "HTTPS — Flutter app and browser traffic"
+    description = "HTTPS - Flutter app and browser traffic"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"

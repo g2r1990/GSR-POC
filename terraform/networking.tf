@@ -1,16 +1,12 @@
-# Use the default VPC that AWS creates automatically in every account
+# Look up the VPC by ID provided in tfvars
 data "aws_vpc" "default" {
-  default = true
+  id = var.vpc_id
 }
 
-# Get all default subnets in the default VPC
+# Get all subnets in the specified VPC
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-  filter {
-    name   = "defaultForAz"
-    values = ["true"]
+    values = [var.vpc_id]
   }
 }
