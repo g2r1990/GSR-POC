@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+
+aws_region       = "ap-south-1"
+instance_type    = "t3.medium"
+key_pair_name    = "your-key-pair-name"       # Must exist in AWS account
+project_name     = "project-gsr"
+environment      = "qad-lab-test"             # Change to "poc" for personal account
+allowed_ssh_cidr = "1.2.3.4/32"              # Replace with your public IP
+ebs_volume_size  = 30
+s3_bucket_suffix = "abc123"                   # Use AWS account ID or any unique string

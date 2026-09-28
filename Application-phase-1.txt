@@ -1,0 +1,13 @@
+1. First focus on building the application on Android base
+2. The application should provide two type of login.
+	a. Restaurant owner login ( Can only update a specific database, which is the Menu of his restaurant)
+	b. Developer login ( Super user access to Database and all other component)
+
+3. Restaurant login
+	a. Initially we will perform the restaurant owner registration. which will generate a unique RestOwnerID
+	b. Then each Restaurant will have a single username for accessing and updating his account. 
+
+4. Developer login
+Access to update/delete/alter anything in the application. 
+
+

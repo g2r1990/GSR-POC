@@ -1,0 +1,38 @@
+﻿# Terraform — never commit state or real variable values
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!terraform.tfvars.example
+crash.log
+.terraform.lock.hcl
+
+# AWS keys
+*.pem
+*.ppk
+
+# Python / FastAPI
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+venv/
+.venv/
+
+# Flutter / Android
+app/.dart_tool/
+app/build/
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

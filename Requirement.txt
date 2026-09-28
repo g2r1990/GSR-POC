@@ -1,0 +1,10 @@
+1. The project requirement is to create a application ( Andriod ) first 
+2. The ask is to create a basic application that the restaurant owner want to use to provide the online platform to sell their food online. 
+3. This is what I think we should have 
+	a. The application should provide an interface for the owner to setup the menu and its cost . 
+	b. Restaurant owner should have the ownership of updating the menu and its price
+	c. Restaurant owner has their own riders ( bike riders) 
+	d. so as soon as the client place the food order, then the restaurant owner will accept it, prepare food and bike rider will deliver it. 
+
+4. we will need to develop the application  ( we need to build the light weight application) 
+5. now, our role as a devops engineer, we need to deploy this using AWS services
