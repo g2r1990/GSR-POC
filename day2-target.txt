@@ -1,0 +1,26 @@
+================================================================================
+DAY 2 TARGET — 29th September 2026
+Work Window: 8:00 AM to 12:00 PM (4 hours)
+Goal: Finish Sprint 1 + Complete Sprint 2 (FastAPI + PostgreSQL)
+================================================================================
+
+PRIORITY 1 — Sprint 1 Finish (8:00 - 8:30 AM)
+  Fix EC2 bootstrap: install Docker + Nginx manually via SSH
+
+PRIORITY 2 — Sprint 2: FastAPI Backend (8:30 AM - 12:00 PM)
+  [ ] Write FastAPI app skeleton (main.py, models.py, database.py)
+  [ ] Write Dockerfile + docker-compose.yml (API + PostgreSQL)
+  [ ] Write Alembic migration (7 tables)
+  [ ] Push code to GitHub (main branch)
+  [ ] Deploy on EC2: docker compose up -d
+  [ ] Verify: curl http://43.204.43.71/health -> 200 OK
+  [ ] Configure Nginx reverse proxy (port 80 -> 8000)
+  [ ] Test from Postman
+
+SPRINT 2 DONE WHEN:
+  - FastAPI + PostgreSQL running in Docker on EC2
+  - GET /health returns {"status": "ok", "db": "connected"}
+  - Nginx serving traffic on port 80
+
+EC2 SSH: ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+================================================================================
