@@ -1,0 +1,135 @@
+================================================================================
+PROJECT GSR — DAY 3 ACTUAL UPDATE
+Date       : 1st October 2026 (Thursday) — continued from Day 2 same session
+Sprint     : Sprint 3 — Authentication (Admin TOTP complete; Firebase pending)
+Work Hours : Non-working hours (personal learning / upskilling)
+Status     : PARTIAL — Admin auth DONE, Firebase OTP pending next session
+================================================================================
+
+------------------------------------------------------------------------
+SPRINT 3 TASKS COMPLETED TODAY
+------------------------------------------------------------------------
+
+[DONE] T1  New Python packages added to requirements.txt
+           bcrypt==4.1.3          — password hashing backend for passlib
+           qrcode==7.4.2          — TOTP QR code generation
+           firebase-admin==6.5.0  — Firebase token verification (wired, not active yet)
+
+[DONE] T2  Admin model added to models.py
+           New table: admin
+           Fields: id (UUID), username, password_hash, totp_secret,
+                   totp_enabled (bool), is_active (bool), created_at
+           Alembic migration: 9bb830ad942d_add_admin_table.py
+
+[DONE] T3  Security utilities written — backend/app/core/security.py
+           hash_password()         — bcrypt hashing via passlib
+           verify_password()       — bcrypt verify
+           create_access_token()   — JWT creation (HS256, 8hr expiry)
+           decode_token()          — JWT decode + verify
+           generate_totp_secret()  — random base32 secret (pyotp)
+           get_totp_uri()          — otpauth:// URI for Google Authenticator
+           verify_totp()           — verify 6-digit code (valid_window=1)
+
+[DONE] T4  Pydantic schemas written — backend/app/schemas/auth.py
+           AdminLoginRequest       — username, password, optional totp_code
+           AdminLoginResponse      — access_token + totp_setup_required flag
+           SetupTotpResponse       — secret + qr_uri + message
+           ConfirmTotpRequest      — code (6-digit string)
+           FirebaseLoginRequest    — firebase_id_token, mobile, optional name
+           TokenResponse           — access_token + is_new_user flag
+
+[DONE] T5  Auth router written — backend/app/routers/auth.py
+           POST /auth/admin/login          — Step 1: password check
+                                             If TOTP not set up: returns JWT
+                                             with totp_setup_required=True
+                                             If TOTP enabled: requires totp_code
+           POST /auth/admin/setup-totp     — Protected: generates TOTP secret,
+                                             stores in DB, returns secret + qr_uri
+           POST /auth/admin/confirm-totp   — Protected: verifies first code,
+                                             sets totp_enabled=True in DB
+           POST /auth/owner/login          — Firebase token verify → JWT
+                                             (returns 503 if Firebase not configured)
+           POST /auth/customer/login       — Firebase token verify → auto-register
+                                             new customer if first login → JWT
+
+[DONE] T6  FastAPI app updated — backend/app/main.py
+           auth router included
+           version bumped 0.1.0 → 0.2.0
+
+[DONE] T7  Admin seed script — backend/scripts/seed_admin.py
+           Creates first admin user (username=admin, password=Admin@GSR2026)
+           Run once inside container — skips if admin already exists
+
+[DONE] T8  docker-compose.yml updated
+           JWT_SECRET_KEY env var passed to api container
+           FIREBASE_SERVICE_ACCOUNT_PATH env var passed (empty for now)
+
+[DONE] T9  .env.example updated with new vars
+
+[DONE] T10 Deployed on EC2 — full flow tested end-to-end
+           1. docker-compose down + up --build (new packages installed)
+           2. Alembic migration run → admin table created
+           3. seed_admin.py run → admin user created
+           4. Swagger: POST /auth/admin/login → got JWT (totp_setup_required=True)
+           5. POST /auth/admin/setup-totp → got secret YBSQN43UNUXX7F4BEE7IBEZD63H7KMDZ
+           6. Added to Google Authenticator manually (enter setup key)
+           7. POST /auth/admin/confirm-totp → TOTP enabled
+           8. POST /auth/admin/login with totp_code → clean JWT ✅
+
+------------------------------------------------------------------------
+ISSUES ENCOUNTERED & RESOLVED
+------------------------------------------------------------------------
+
+Issue 1 : Swagger "Authorize" button not sending Bearer token
+          curl showed no Authorization header even after clicking Authorize
+Fix     : Page needed a refresh after authorizing. After refresh, the per-endpoint
+          lock icon worked. Used PowerShell Invoke-RestMethod as fallback for
+          confirm-totp and verify flows (faster + reliable)
+
+Issue 2 : bcrypt version warning on passlib startup
+          "(trapped) error reading bcrypt version — module 'bcrypt' has no __about__"
+Fix     : Harmless — bcrypt >= 4.0 removed the __about__ module. passlib still
+          works correctly for hashing. Not a blocker.
+
+Issue 3 : TOTP code expires in 30 seconds
+Fix     : Used PowerShell (faster than Swagger forms) to hit confirm-totp
+          before the code expired. If expired: just use the next code from app.
+
+------------------------------------------------------------------------
+ADMIN AUTH CREDENTIALS (EC2 — keep safe)
+------------------------------------------------------------------------
+
+Username  : admin
+Password  : Admin@GSR2026
+TOTP      : Google Authenticator → "GSR Admin" entry
+            Secret (backup): YBSQN43UNUXX7F4BEE7IBEZD63H7KMDZ
+JWT expiry: 8 hours (ACCESS_TOKEN_EXPIRE_MINUTES=480)
+
+------------------------------------------------------------------------
+SPRINT 3 COMPLETION STATUS
+------------------------------------------------------------------------
+
+[DONE] Admin model + Alembic migration
+[DONE] Password hashing (bcrypt via passlib)
+[DONE] JWT creation and verification (HS256)
+[DONE] TOTP setup flow (generate secret → scan → confirm → enabled)
+[DONE] Admin full login with TOTP → JWT verified
+[PENDING] Owner login via Firebase OTP (code written, Firebase project not set up)
+[PENDING] Customer login via Firebase OTP (code written, Firebase project not set up)
+
+------------------------------------------------------------------------
+NEXT — DAY 4: SPRINT 3 (finish) + SPRINT 4
+------------------------------------------------------------------------
+
+Option A — Finish Sprint 3 Firebase (15 min Firebase setup):
+  [ ] Create Firebase project at console.firebase.google.com
+  [ ] Enable Phone Authentication
+  [ ] Download service account JSON → copy to EC2
+  [ ] Set FIREBASE_SERVICE_ACCOUNT_PATH in .env on EC2
+  [ ] Test Owner login via Postman with a real phone OTP
+
+Option B — Skip Firebase for now, move to Sprint 4 (Owner KYC + Admin Panel)
+
+================================================================================
+END OF DAY 3 UPDATE
+================================================================================

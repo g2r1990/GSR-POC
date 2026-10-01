@@ -13,7 +13,7 @@
 | **Day 0** | Tools, AWS CLI, Git setup | ✅ Done | 2026-09-27 |
 | **Sprint 1** | Terraform IaC, EC2, S3, Nginx, SSL | ✅ Done (infra) | 2026-09-28 |
 | **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | ✅ Done | 2026-10-01 |
-| **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | 🔲 Not Started | — |
+| **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | 🔶 In Progress | Admin TOTP done 2026-10-01 |
 | **Sprint 4** | Owner registration, KYC, Admin panel | 🔲 Not Started | — |
 | **Sprint 5** | Menu management (Owner app) | 🔲 Not Started | — |
 | **Sprint 6** | Customer discovery (search + browse) | 🔲 Not Started | — |
@@ -789,65 +789,126 @@ sudo docker-compose -f /opt/project-gsr/backend/docker-compose.yml exec \
 ---
 
 ## Sprint 3 — Authentication
-**Duration:** 3–4 days  
-**Goal:** All three login types working
+**Duration:** 1 day (2026-10-01)  
+**Goal:** All three login types working  
+**Status:** 🔶 Admin TOTP complete. Firebase (Owner/Customer) pending.
 
-### Admin Login (Username + Password + Google Authenticator)
+### New Files Added
+| File | Purpose |
+|---|---|
+| `backend/app/core/security.py` | bcrypt hashing, JWT create/decode, TOTP generate/verify |
+| `backend/app/schemas/auth.py` | Pydantic request/response models |
+| `backend/app/routers/auth.py` | Auth endpoints |
+| `backend/scripts/seed_admin.py` | Seeds first admin user (run once) |
 
-**How Google Authenticator works:**
-1. Admin logs in with username + password → server returns a TOTP QR code URL
-2. Admin scans QR code with Google Authenticator app (one-time setup)
-3. Every login after: username + password → then 6-digit code from app → JWT issued
-4. Server uses `pyotp` library — completely free, no external API
+### Auth Endpoints
+| Endpoint | Purpose |
+|---|---|
+| `POST /auth/admin/login` | Step 1 — verify password, require TOTP code if enabled |
+| `POST /auth/admin/setup-totp` | Protected — generate TOTP secret + QR URI |
+| `POST /auth/admin/confirm-totp` | Protected — verify first code, activate TOTP |
+| `POST /auth/owner/login` | Firebase token → JWT (503 until Firebase configured) |
+| `POST /auth/customer/login` | Firebase token → auto-register + JWT |
 
-```python
-import pyotp
+### Sprint 3 Day 3 Execution Log (2026-10-01)
 
-# Generate secret for admin (store in DB, one time)
-secret = pyotp.random_base32()
-
-# Generate QR code URL (scan with Google Authenticator)
-totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-    name="admin@projectgsr.com",
-    issuer_name="Project GSR Admin"
-)
-
-# Verify code at login
-totp = pyotp.TOTP(secret)
-is_valid = totp.verify("123456")  # code from Google Authenticator app
+#### Step 1 — Rebuild container with new packages
+```bash
+cd /opt/project-gsr/backend
+sudo docker-compose down
+sudo docker-compose up -d --build
 ```
 
-### Owner + Customer Login (Mobile OTP via Firebase)
+#### Step 2 — Run Alembic migration (adds admin table)
+```bash
+sudo docker-compose exec -e PYTHONPATH=/app api \
+  alembic revision --autogenerate -m "add_admin_table"
+sudo docker-compose exec -e PYTHONPATH=/app api alembic upgrade head
+```
 
-**Firebase Auth Setup (free):**
+#### Step 3 — Add JWT secret + seed admin user
+```bash
+echo "JWT_SECRET_KEY=GsrJwtSecret2026MumbaiPhase1" >> /opt/project-gsr/backend/.env
+sudo docker-compose exec -e PYTHONPATH=/app api python scripts/seed_admin.py
+```
+
+#### Step 4 — First login (password only — TOTP not set up yet)
+```powershell
+Invoke-RestMethod -Uri "http://43.204.43.71/auth/admin/login" -Method POST `
+  -Headers @{Accept="application/json"} -ContentType "application/json" `
+  -Body '{"username":"admin","password":"Admin@GSR2026"}'
+# Returns: access_token + totp_setup_required: true
+```
+
+#### Step 5 — Get TOTP secret
+```powershell
+$token = "<access_token_from_step_4>"
+Invoke-RestMethod -Uri "http://43.204.43.71/auth/admin/setup-totp" -Method POST `
+  -Headers @{Authorization="Bearer $token"; Accept="application/json"}
+# Returns: secret + qr_uri
+```
+
+#### Step 6 — Add to Google Authenticator
+1. Open app → tap **+** → **Enter a setup key**
+2. Account name: `GSR Admin`, Key: paste the `secret`, Type: Time-based → **Add**
+
+#### Step 7 — Confirm TOTP (get 6-digit code from app, act within 30s)
+```powershell
+Invoke-RestMethod -Uri "http://43.204.43.71/auth/admin/confirm-totp" -Method POST `
+  -Headers @{Authorization="Bearer $token"; Accept="application/json"} `
+  -ContentType "application/json" -Body '{"code":"123456"}'
+# Returns: "TOTP enabled. Future logins require the 6-digit code."
+```
+
+#### Step 8 — Full login (all future logins use this)
+```powershell
+Invoke-RestMethod -Uri "http://43.204.43.71/auth/admin/login" -Method POST `
+  -Headers @{Accept="application/json"} -ContentType "application/json" `
+  -Body '{"username":"admin","password":"Admin@GSR2026","totp_code":"123456"}'
+# Returns: clean access_token — no totp_setup_required flag
+```
+
+### Admin Credentials (EC2)
+| Item | Value |
+|---|---|
+| Username | `admin` |
+| Password | `Admin@GSR2026` |
+| TOTP | Google Authenticator — "GSR Admin" entry |
+| TOTP secret backup | `YBSQN43UNUXX7F4BEE7IBEZD63H7KMDZ` |
+| JWT expiry | 8 hours |
+
+### Sprint 3 Issues & Fixes
+| Issue | Fix |
+|---|---|
+| Swagger Authorize not sending Bearer header | Page refresh fixes it. Use PowerShell as reliable fallback. |
+| `bcrypt` warning — no `__about__` attribute | Harmless — bcrypt ≥ 4.0 removed it. Hashing still works. |
+| TOTP code expires in 30s | Use PowerShell (faster). If expired, use the next rotating code. |
+
+### Owner + Customer Login (Firebase OTP) — Pending
+
+**Firebase Auth Setup (free — ~15 min):**
 1. Go to console.firebase.google.com → Create project "Project-GSR"
 2. Enable Authentication → Phone Sign-In
-3. Download `google-services.json` → put in Flutter `android/app/` folder
-4. Add Firebase Admin SDK to FastAPI for token verification
+3. Download service account JSON → copy to EC2
+4. Add path to `.env`: `FIREBASE_SERVICE_ACCOUNT_PATH=/app/firebase-service-account.json`
+5. Restart containers
 
-**Login flow:**
+**Login flow (already coded — just needs Firebase configured):**
 ```
-User enters mobile number in Flutter app
-        ↓
-Flutter sends OTP via Firebase (SMS to user)
-        ↓
-User enters 6-digit OTP in app
-        ↓
-Firebase verifies → returns Firebase ID Token
-        ↓
-Flutter sends Firebase ID Token to FastAPI
-        ↓
-FastAPI verifies token with Firebase Admin SDK
-        ↓
-FastAPI issues its own JWT → stored in app
+Flutter → enter mobile number
+  → Firebase sends SMS OTP
+  → User enters OTP → Firebase returns ID Token
+  → FastAPI: POST /auth/owner/login {firebase_id_token, mobile}
+  → FastAPI verifies token via Firebase Admin SDK
+  → FastAPI issues JWT
 ```
 
 **Sprint 3 Done when:**
-- [ ] Admin can log in with username + password + Google Authenticator code
-- [ ] Owner can log in via mobile OTP
-- [ ] Customer can log in or order as guest
-- [ ] JWT tokens issued and verified correctly
-- [ ] Test all flows in Postman
+- [x] Admin can log in with username + password + Google Authenticator code ✅
+- [ ] Owner can log in via mobile OTP (Firebase setup needed)
+- [ ] Customer can log in or order as guest (Firebase setup needed)
+- [x] JWT tokens issued and verified correctly ✅
+- [ ] All flows tested end-to-end
 
 ---
 
