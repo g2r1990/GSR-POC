@@ -2,11 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.database import engine, SessionLocal
+from app.routers import auth
 
 app = FastAPI(
     title="Project GSR API",
     description="Food ordering API for small Indian restaurants — Chhatrapati Sambhajinagar Phase 1",
-    version="0.1.0"
+    version="0.2.0"
 )
 
 app.add_middleware(
@@ -15,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router)
 
 
 @app.get("/health")

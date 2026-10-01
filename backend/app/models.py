@@ -1,12 +1,23 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Numeric, Boolean, DateTime, Text, ForeignKey, Enum as PgEnum
+from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 def new_uuid():
     return str(uuid.uuid4())
+
+
+class Admin(Base):
+    __tablename__ = "admin"
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    username      = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    totp_secret   = Column(String(64), nullable=True)
+    totp_enabled  = Column(Boolean, default=False)
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
 
 
 class Owner(Base):
