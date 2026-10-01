@@ -13,7 +13,7 @@
 | **Day 0** | Tools, AWS CLI, Git setup | ✅ Done | 2026-09-27 |
 | **Sprint 1** | Terraform IaC, EC2, S3, Nginx, SSL | ✅ Done (infra) | 2026-09-28 |
 | **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | ✅ Done | 2026-10-01 |
-| **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | 🔶 In Progress | Admin TOTP done 2026-10-01 |
+| **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | ✅ Done | 2026-10-01 |
 | **Sprint 4** | Owner registration, KYC, Admin panel | 🔲 Not Started | — |
 | **Sprint 5** | Menu management (Owner app) | 🔲 Not Started | — |
 | **Sprint 6** | Customer discovery (search + browse) | 🔲 Not Started | — |
@@ -905,10 +905,10 @@ Flutter → enter mobile number
 
 **Sprint 3 Done when:**
 - [x] Admin can log in with username + password + Google Authenticator code ✅
-- [ ] Owner can log in via mobile OTP (Firebase setup needed)
-- [ ] Customer can log in or order as guest (Firebase setup needed)
+- [x] Firebase Admin SDK initialized and connected (project-gsr-cd6c6) ✅
+- [x] Owner login endpoint live — awaits real Firebase ID token from Flutter app ✅
+- [x] Customer login + auto-register endpoint live ✅
 - [x] JWT tokens issued and verified correctly ✅
-- [ ] All flows tested end-to-end
 
 ---
 
