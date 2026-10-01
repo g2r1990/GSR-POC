@@ -127,14 +127,48 @@ Verification test result:
   ✅ Firebase is initialized and active — real tokens from Flutter will work
 
 ------------------------------------------------------------------------
-NEXT — DAY 4: SPRINT 4 — Owner KYC + Admin Panel
+SPRINT 4 PREP — GITHUB ACTIONS + FLUTTER SCAFFOLD (same session)
 ------------------------------------------------------------------------
 
-  [ ] Owner registration API (multi-step: personal → restaurant → docs)
-  [ ] Document upload to S3 (photo ID + GSTIN)
-  [ ] Admin: view pending KYC list
-  [ ] Admin: approve → Inspection record auto-created
-  [ ] Admin: reject → owner cannot log in
+[DONE] Flutter SDK installed on EC2 (/opt/flutter — Flutter 3.47.5, Dart 3.13.4)
+[DONE] Flutter project scaffolded: flutter create --org com.gsr --project-name gsr_app gsr_app
+       131 files written, project pushed to GitHub (main branch)
+[DONE] GitHub Actions workflow created: .github/workflows/build-apk.yml
+       Triggers: push to main/master when gsr_app/** changes + manual dispatch
+       Steps: Java 17 → Flutter 3.47.5 → pub get → build apk --debug → upload artifact
+[DONE] First APK build: Build #1 — SUCCESS in 6m 44s
+       Artifact: GSR-debug-1 (66.8 MB) — downloaded to C:\Claude\Project-GSR\App-GSR-APK\
+[DONE] APK shared to phone for installation test
+
+Firebase JSON on EC2: /opt/project-gsr/backend/firebase-service-account.json
+GitHub Actions URL : https://github.com/gurupreet18121990/GSR-Project/actions
+
+------------------------------------------------------------------------
+EC2 STATUS
+------------------------------------------------------------------------
+
+EC2 stopped at end of Day 3 (cost saving — ~$1/day saved while idle)
+To restart: AWS Console → EC2 → i-02bb92a9fa97bd78b → Start instance
+SSH command: ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+
+------------------------------------------------------------------------
+NEXT — DAY 4: SPRINT 4 — Owner KYC + Admin Panel + Flutter Screens
+------------------------------------------------------------------------
+
+Backend (FastAPI):
+  [ ] Owner registration API (name, mobile, GSTIN, address)
+  [ ] Restaurant registration linked to owner
+  [ ] Document upload to S3 (photo ID + GSTIN scan)
+  [ ] GET /admin/kyc/pending — list of owners awaiting approval
+  [ ] POST /admin/kyc/{owner_id}/approve — sets status=active, creates Inspection record
+  [ ] POST /admin/kyc/{owner_id}/reject — sets status=rejected with reason
+
+Flutter (gsr_app):
+  [ ] Splash screen + role selector (Admin / Owner / Customer)
+  [ ] Admin login screen (username + password + TOTP)
+  [ ] Admin KYC dashboard (pending list + approve/reject)
+  [ ] Owner registration form (multi-step)
+  [ ] Push code → GitHub Actions auto-builds APK
 
 ================================================================================
 END OF DAY 3 UPDATE

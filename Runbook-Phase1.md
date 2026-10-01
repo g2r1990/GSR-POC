@@ -14,13 +14,13 @@
 | **Sprint 1** | Terraform IaC, EC2, S3, Nginx, SSL | ✅ Done (infra) | 2026-09-28 |
 | **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | ✅ Done | 2026-10-01 |
 | **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | ✅ Done | 2026-10-01 |
-| **Sprint 4** | Owner registration, KYC, Admin panel | 🔲 Not Started | — |
+| **Sprint 4** | Owner registration, KYC, Admin panel + Flutter screens | 🔲 Not Started | — |
 | **Sprint 5** | Menu management (Owner app) | 🔲 Not Started | — |
 | **Sprint 6** | Customer discovery (search + browse) | 🔲 Not Started | — |
 | **Sprint 7** | Ordering flow + push notifications | 🔲 Not Started | — |
 | **Sprint 8** | Testing, APK build, Play Store prep | 🔲 Not Started | — |
 
-**We are on track. Sprint 1 + Sprint 2 both complete as of 2026-10-01.**
+**Sprints 1 + 2 + 3 all complete as of 2026-10-01. GitHub Actions APK pipeline live. EC2 stopped (restart before Day 4).**
 
 ---
 
@@ -909,6 +909,44 @@ Flutter → enter mobile number
 - [x] Owner login endpoint live — awaits real Firebase ID token from Flutter app ✅
 - [x] Customer login + auto-register endpoint live ✅
 - [x] JWT tokens issued and verified correctly ✅
+
+---
+
+## Sprint 4 Prep — GitHub Actions APK Pipeline + Flutter Scaffold
+**Completed:** 2026-10-01 (same session as Sprint 3)
+
+### What Was Set Up
+
+| Item | Detail |
+|---|---|
+| Flutter project | `gsr_app/` — created with `flutter create --org com.gsr --project-name gsr_app` on EC2 |
+| Flutter version | 3.47.5 (stable) / Dart 3.13.4 |
+| Package ID | `com.gsr.gsr_app` |
+| GitHub Actions workflow | `.github/workflows/build-apk.yml` |
+| Trigger | Push to main/master when `gsr_app/**` changes, or manual dispatch |
+| Build output | `gsr_app/build/app/outputs/flutter-apk/app-debug.apk` |
+| First build | Build #1 — SUCCESS — 6m 44s — 66.8 MB |
+| APK download | GitHub → Actions → Build #1 → Artifacts → GSR-debug-1 |
+
+### How to Get a Fresh APK (every time you push Flutter code)
+1. Push any change to `gsr_app/` → GitHub Actions auto-starts
+2. Wait ~6–7 min → green checkmark
+3. Click the run → scroll to **Artifacts** → download **GSR-debug-1**
+4. Unzip → get `app-debug.apk` → send to phone via WhatsApp → install
+
+### How to Manually Trigger a Build
+GitHub → Actions → **Build Flutter APK** → **Run workflow** → Run workflow
+
+### Stop/Start EC2 (cost saving)
+```powershell
+# Check your current AWS-visible IP before starting (Zscaler changes it)
+(Invoke-WebRequest -Uri "https://checkip.amazonaws.com" -UseBasicParsing).Content.Trim()
+
+# SSH after starting
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+```
+> EC2 stopped at end of Day 3. Restart from AWS Console → EC2 → i-02bb92a9fa97bd78b → Start.
+> Elastic IP (43.204.43.71) stays the same after restart — no config changes needed.
 
 ---
 
