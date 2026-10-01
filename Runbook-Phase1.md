@@ -1,5 +1,5 @@
 # Project GSR — Phase 1 Runbook
-**Last Updated:** 2026-09-28  
+**Last Updated:** 2026-10-01  
 **Stack:** Flutter (Android) + FastAPI (Python) + PostgreSQL + AWS EC2 + S3  
 **Estimated Duration:** 8 Sprints (~8 weeks)  
 **Monthly Cost:** ~$32/month (EC2 t3.medium + S3, no ALB)
@@ -12,7 +12,7 @@
 |---|---|---|---|
 | **Day 0** | Tools, AWS CLI, Git setup | ✅ Done | 2026-09-27 |
 | **Sprint 1** | Terraform IaC, EC2, S3, Nginx, SSL | ✅ Done (infra) | 2026-09-28 |
-| **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | 🔲 Not Started | — |
+| **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | ✅ Done | 2026-10-01 |
 | **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | 🔲 Not Started | — |
 | **Sprint 4** | Owner registration, KYC, Admin panel | 🔲 Not Started | — |
 | **Sprint 5** | Menu management (Owner app) | 🔲 Not Started | — |
@@ -20,7 +20,7 @@
 | **Sprint 7** | Ordering flow + push notifications | 🔲 Not Started | — |
 | **Sprint 8** | Testing, APK build, Play Store prep | 🔲 Not Started | — |
 
-**We are on track. Sprint 1 infrastructure completed Day 1.**
+**We are on track. Sprint 1 + Sprint 2 both complete as of 2026-10-01.**
 
 ---
 
@@ -252,10 +252,67 @@ ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
 | SSH bad permissions on .pem | Windows ACL too permissive | Removed Authenticated Users / BUILTIN\Users with icacls |
 | `ubuntu@` in SSH output | Old Ubuntu reference not updated | Fixed in outputs.tf → `ec2-user@` |
 
-#### Pending — Sprint 1 Day 2
-- [ ] Fix bootstrap (cloud-init) — Docker + Nginx + Certbot not yet installed (user_data script failed silently)
-- [ ] Run bootstrap manually or re-apply with fixed user_data
-- [ ] Configure Nginx once Docker is installed
+#### Sprint 1 Day 2 (2026-10-01) — Bootstrap Fix
+Cloud-init had failed silently on Day 1 (VPC DNS couldn't resolve external hostnames). All items resolved manually.
+
+**Problem 1: SSH timeout — IP check method matters**
+
+Behind Zscaler, `ipify.org` returns the non-AWS exit IP. Always use AWS's own checker:
+```powershell
+# From PowerShell on your Windows machine
+(Invoke-WebRequest -Uri "https://checkip.amazonaws.com" -UseBasicParsing).Content.Trim()
+# Returns: 165.225.120.238  ← this is what AWS SG must allow
+```
+Update `terraform.tfvars` `allowed_ssh_cidr` to match, then update Security Group in AWS Console (or re-apply Terraform).
+
+**Problem 2: EC2 can't resolve external hostnames (VPC DNS)**
+
+QAD Lab VPC uses internal-only DNS — it can't resolve `github.com`, `dl.fedoraproject.org`, etc.
+
+```bash
+# Quick fix (survives until next reboot)
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+# Permanent fix — Amazon Linux 2023 uses systemd-resolved
+sudo sed -i 's/#DNS=/DNS=8.8.8.8 8.8.4.4/' /etc/systemd/resolved.conf
+sudo sed -i 's/#FallbackDNS=/FallbackDNS=1.1.1.1/' /etc/systemd/resolved.conf
+sudo systemctl restart systemd-resolved
+```
+
+**Problem 3: dnf lock held by stale background process**
+```bash
+# Find and kill the process holding the lock
+sudo lsof /var/cache/dnf | head
+sudo kill -9 <PID>
+```
+
+**Installing Docker, Nginx, Git on Amazon Linux 2023**
+```bash
+sudo dnf update -y
+sudo dnf install -y docker nginx git
+
+# Start and enable Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add ec2-user to docker group (takes effect on next login)
+sudo usermod -aG docker ec2-user
+```
+
+**Verify installed versions**
+```bash
+docker --version    # Docker version 25.0.16
+nginx -v            # nginx/1.30.4
+git --version       # git version 2.50.1
+```
+
+**Install Docker Compose v2 (not in AL2023 dnf repos)**
+```bash
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-$(uname -s)-$(uname -m)" \
+  -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+docker-compose --version    # Docker Compose version v2.27.0
+```
 
 ---
 
@@ -493,21 +550,28 @@ server {
 - [x] Elastic IP is attached — `43.204.43.71` ✅
 - [x] S3 bucket created, encryption enabled ✅
 - [x] IAM Role attached to EC2 (EC2 can access S3 without hardcoded keys) ✅
-- [ ] Docker + Nginx installed on EC2 (cloud-init bootstrap failed — fix in Day 2)
-- [ ] SSL certificate installed (requires domain + Nginx running)
-- [ ] `https://api.yourdomain.in` returns a response (requires SSL setup)
+- [x] Docker 25.0.16 + Nginx 1.30.4 installed on EC2 ✅ (fixed Day 2)
+- [ ] SSL certificate installed (requires domain — deferred, using HTTP for POC)
+- [ ] `https://api.yourdomain.in` returns a response (deferred until domain purchased)
 
 ---
 
 ## Sprint 2 — FastAPI Backend Skeleton + PostgreSQL
-**Duration:** 3–4 days  
-**Goal:** API running in Docker on EC2, database connected, health check working
+**Duration:** 1 day (2026-10-01)  
+**Goal:** API running in Docker on EC2, database connected, health check working  
+**Status:** ✅ COMPLETE
 
-### Tools Needed
-- Python 3.11
-- Docker + Docker Compose
-- VS Code with Python extension
-- Postman (for testing endpoints)
+### What Was Built
+
+| Component | Detail |
+|---|---|
+| FastAPI app | `backend/app/main.py` — `/health` + `/` endpoints, CORS middleware |
+| Database layer | `backend/app/database.py` — SQLAlchemy engine, `get_db()` dependency |
+| ORM models | `backend/app/models.py` — 6 tables: Owner, Restaurant, MenuItem, Customer, Order, Inspection |
+| Docker Compose | `backend/docker-compose.yml` — `api` + `db` services with healthcheck |
+| Dockerfile | `backend/Dockerfile` — python:3.11-slim, uvicorn |
+| Alembic | Migrations configured, initial migration applied — all 6 tables created |
+| Nginx proxy | Port 80 → 127.0.0.1:8000 |
 
 ### Key Python Packages (requirements.txt)
 ```
@@ -516,54 +580,211 @@ uvicorn==0.29.0
 sqlalchemy==2.0.30
 alembic==1.13.1
 psycopg2-binary==2.9.9
-python-jose==3.3.0        # JWT tokens
-passlib==1.7.4            # password hashing
-pyotp==2.9.0              # Google Authenticator TOTP
-python-multipart==0.0.9   # file uploads
-boto3==1.34.0             # S3 uploads
-pydantic-settings==2.2.1  # .env config
+python-jose==3.3.0
+passlib==1.7.4
+pyotp==2.9.0
+python-multipart==0.0.9
+boto3==1.34.0
+pydantic-settings==2.2.1
 ```
 
-### Docker Compose (on EC2)
-```yaml
-version: '3.8'
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: gsr_db
-      POSTGRES_USER: gsr_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+---
 
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql://gsr_user:${DB_PASSWORD}@db:5432/gsr_db
-    depends_on:
-      - db
-    volumes:
-      - .:/app
+### Sprint 2 — Execution Log (2026-10-01)
 
-volumes:
-  postgres_data:
+#### Step 1 — Clone repo on EC2
+
+GitHub SSH (port 22) is blocked from EC2 outbound. Use HTTPS with a Personal Access Token (PAT):
+```bash
+# On EC2 — clone via HTTPS + PAT (SSH port 22 to GitHub is blocked)
+git clone https://<YOUR_PAT>@github.com/gurupreet18121990/GSR-Project.git /opt/project-gsr
+cd /opt/project-gsr/backend
+```
+> PAT: generate at GitHub → Settings → Developer Settings → Personal access tokens → Tokens (classic)  
+> Scopes needed: `repo` (full repo access)
+
+#### Step 2 — Create .env on EC2 (NEVER commit this file)
+```bash
+cat > /opt/project-gsr/backend/.env << 'EOF'
+DB_PASSWORD=GsrMumbai2026
+DATABASE_URL=postgresql://gsr_user:GsrMumbai2026@db:5432/gsr_db
+EOF
+```
+> **Password rule:** Do NOT use special characters like `@` in the DB password.  
+> SQLAlchemy parses the DATABASE_URL and a second `@` breaks the host parsing.  
+> Example of what breaks: `postgresql://gsr_user:Gsr@Mumbai2026@db:5432/gsr_db`  
+> → SQLAlchemy reads host as `Mumbai2026@db` — wrong. Use alphanumeric passwords only.
+
+#### Step 3 — Start containers
+```bash
+cd /opt/project-gsr/backend
+sudo docker-compose up -d --build
+```
+Expected output:
+```
+[+] Running 2/2
+ ✔ Container gsr_db   Healthy
+ ✔ Container gsr_api  Started
 ```
 
-### Database Tables Created (Alembic migrations)
-All tables from the data model:
-`owner`, `restaurant`, `menu_item`, `customer`, `order`, `order_item`, `inspection`
+Check containers are running:
+```bash
+sudo docker-compose ps
+sudo docker-compose logs api     # check for startup errors
+```
+
+> **Note:** `sudo` is required until you log out and back in after `usermod -aG docker ec2-user`.  
+> After your next SSH login, you can drop `sudo` from docker commands.
+
+#### Step 4 — Run Alembic migrations (create all 6 tables)
+```bash
+cd /opt/project-gsr/backend
+
+# Create the versions directory (git doesn't track empty dirs)
+mkdir -p alembic/versions
+
+# Generate initial migration — detects all 6 models automatically
+sudo docker-compose exec -e PYTHONPATH=/app api \
+  alembic revision --autogenerate -m "initial_tables"
+
+# Apply the migration
+sudo docker-compose exec -e PYTHONPATH=/app api \
+  alembic upgrade head
+```
+> `PYTHONPATH=/app` is required so Alembic can import `app.models` inside the container.
+
+Verify tables were created:
+```bash
+sudo docker-compose exec db \
+  psql -U gsr_user -d gsr_db -c "\dt"
+```
+Expected output:
+```
+           List of relations
+ Schema |      Name       | Type  |  Owner
+--------+-----------------+-------+----------
+ public | alembic_version | table | gsr_user
+ public | customer        | table | gsr_user
+ public | inspection      | table | gsr_user
+ public | menu_item       | table | gsr_user
+ public | order           | table | gsr_user
+ public | owner           | table | gsr_user
+ public | restaurant      | table | gsr_user
+(7 rows)
+```
+
+#### Step 5 — Configure Nginx reverse proxy
+```bash
+sudo tee /etc/nginx/conf.d/gsr-api.conf << 'EOF'
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 60s;
+    }
+}
+EOF
+
+# Test config and reload
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+#### Step 6 — Verify end-to-end
+```bash
+# Health check from inside EC2
+curl http://localhost:8000/health
+# Expected: {"status":"ok","db":"connected","version":"0.1.0"}
+
+# Health check through Nginx (port 80)
+curl http://43.204.43.71/health
+# Expected: {"status":"ok","db":"connected","version":"0.1.0"}
+```
+
+Swagger UI in browser: **http://43.204.43.71/docs**
+
+#### Step 7 — Commit migration file and push to GitHub
+```bash
+cd /opt/project-gsr
+git add backend/alembic/versions/
+git commit -m "Sprint 2: Alembic initial migration - 6 tables created"
+git push https://<YOUR_PAT>@github.com/gurupreet18121990/GSR-Project.git main
+```
+
+---
+
+### Sprint 2 Issues Encountered & Resolved
+
+| Issue | Root Cause | Fix |
+|---|---|---|
+| `@` in DB password broke DATABASE_URL | SQLAlchemy parses `@` as host delimiter | Changed password to `GsrMumbai2026` (no special chars) |
+| `No module named 'app'` in Alembic | Container PYTHONPATH not set | Add `-e PYTHONPATH=/app` to docker-compose exec |
+| `alembic/versions` dir missing | Git doesn't track empty directories | `mkdir -p alembic/versions` on EC2 before running autogenerate |
+| `docker-compose restart` didn't re-read .env | restart re-uses existing container config | Use `docker-compose down && docker-compose up -d` to recreate |
+| GitHub SSH port 22 blocked from EC2 | Outbound 22 blocked in VPC/SG | Clone via HTTPS + PAT instead |
+| `git push` to master failed from EC2 | EC2 local branch is `main`, not `master` | Push to `main`: `git push origin main` |
+| Permission denied on docker socket | `ec2-user` not in docker group yet | Use `sudo docker-compose` until next login |
+
+---
+
+### Useful Day-to-Day Commands (EC2)
+
+```bash
+# Check containers status
+sudo docker-compose -f /opt/project-gsr/backend/docker-compose.yml ps
+
+# Tail API logs
+sudo docker-compose -f /opt/project-gsr/backend/docker-compose.yml logs -f api
+
+# Restart API only (if you pushed new code)
+cd /opt/project-gsr
+git pull https://<PAT>@github.com/gurupreet18121990/GSR-Project.git main
+cd backend
+sudo docker-compose up -d --build api
+
+# Connect to PostgreSQL directly
+sudo docker-compose -f /opt/project-gsr/backend/docker-compose.yml exec db \
+  psql -U gsr_user -d gsr_db
+
+# Run a new Alembic migration after adding models
+sudo docker-compose -f /opt/project-gsr/backend/docker-compose.yml exec \
+  -e PYTHONPATH=/app api alembic revision --autogenerate -m "describe_change"
+sudo docker-compose -f /opt/project-gsr/backend/docker-compose.yml exec \
+  -e PYTHONPATH=/app api alembic upgrade head
+```
+
+---
+
+### Running EC2 State (as of 2026-10-01)
+
+| Item | Value |
+|---|---|
+| EC2 Public IP | `43.204.43.71` (Elastic IP) |
+| API Health | http://43.204.43.71/health |
+| Swagger UI | http://43.204.43.71/docs |
+| Working dir on EC2 | `/opt/project-gsr/backend/` |
+| DB name | `gsr_db` / user `gsr_user` |
+| DB password | In `.env` on EC2 (not in git) |
+| Docker containers | `gsr_api` (port 8000), `gsr_db` (port 5432 internal only) |
+| DB volume | `backend_postgres_data` (persistent — survives container restart) |
+| GitHub branch | `main` = active working | `master` = validated/stable |
+
+---
 
 **Sprint 2 Done when:**
-- [ ] FastAPI running in Docker on EC2
-- [ ] PostgreSQL running in Docker on EC2
-- [ ] All database tables created
-- [ ] `GET /health` returns `{"status": "ok", "db": "connected"}`
-- [ ] Postman can hit the EC2 via HTTPS
+- [x] FastAPI running in Docker on EC2 ✅
+- [x] PostgreSQL running in Docker on EC2 ✅
+- [x] All 6 database tables created via Alembic ✅
+- [x] `GET /health` returns `{"status":"ok","db":"connected","version":"0.1.0"}` ✅
+- [x] Nginx proxying port 80 → FastAPI ✅
+- [x] Swagger UI accessible at http://43.204.43.71/docs ✅
+- [x] Code + migration pushed to GitHub ✅
 
 ---
 
