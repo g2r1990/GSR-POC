@@ -41,7 +41,10 @@ def _verify_firebase_token(id_token: str) -> dict:
             detail="Firebase not configured on this server. Set FIREBASE_SERVICE_ACCOUNT_PATH env var."
         )
     import firebase_admin
-    from firebase_admin import auth as fb_auth
+    from firebase_admin import auth as fb_auth, credentials as fb_creds
+    if not firebase_admin._apps:
+        cred = fb_creds.Certificate(os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH"))
+        firebase_admin.initialize_app(cred)
     try:
         return fb_auth.verify_id_token(id_token)
     except Exception as e:
