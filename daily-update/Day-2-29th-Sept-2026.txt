@@ -1,125 +1,136 @@
 ================================================================================
-PROJECT GSR — DAY 2 PLAN
-Date       : 29th September 2026 (Sunday)
+PROJECT GSR — DAY 2 ACTUAL UPDATE
+Date       : 1st October 2026 (Thursday) — originally planned 29th Sept
 Sprint     : Sprint 1 (finish) + Sprint 2 — FastAPI + PostgreSQL
-Work Hours : 8:00 AM to 12:00 PM (4 hours)
-Target     : Complete Sprint 2 by end of day
+Work Hours : Non-working hours (personal learning / upskilling)
+Status     : COMPLETED
 ================================================================================
 
 ------------------------------------------------------------------------
-CARRY-OVER FROM DAY 1 (Sprint 1 finish — ~30 min)
+CARRY-OVER FROM DAY 1 — Sprint 1 Finish
 ------------------------------------------------------------------------
 
-[ ] T0  Fix Docker + Nginx bootstrap on EC2
-         SSH in: ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
-         Run install script manually (Claude will provide the exact commands)
-         Verify: docker --version, nginx -v
-         Estimated time: 20-30 minutes
+[DONE] Fixed Docker + Nginx bootstrap
+         - cloud-init script had failed silently on Day 1
+         - Root cause 1: Zscaler DNS — VPC uses internal DNS, can't resolve
+           external hostnames. Fixed: echo "nameserver 8.8.8.8" > /etc/resolv.conf
+           Made permanent via /etc/systemd/resolved.conf
+         - Root cause 2: dnf lock held by stale background process (kill -9)
+         - Installed: docker-25.0.16, nginx-1.30.4, git-2.50.1
+         - Docker Compose: downloaded binary v2.27.0 (not in AL2023 dnf repos)
+         - Both services enabled and running via systemd
+
+[DONE] Fixed SSH access (IP changed)
+         - Public IP via ipify.org : 116.72.80.5  (wrong — non-AWS traffic)
+         - Public IP via checkip.amazonaws.com : 165.225.120.238 (correct)
+         - Zscaler presents different exit IPs for AWS vs general traffic
+         - SG updated to 165.225.120.238/32, terraform.tfvars updated
+         - Lesson: always use checkip.amazonaws.com for AWS SG IP check
 
 ------------------------------------------------------------------------
-SPRINT 2 TASKS — FastAPI Backend + PostgreSQL (Day 2 target)
+SPRINT 2 TASKS COMPLETED
 ------------------------------------------------------------------------
 
-[ ] T1  Set up project folder structure on EC2          (8:00 - 8:15 AM)
-         /opt/project-gsr/
-         ├── api/              <- FastAPI app code
-         ├── docker-compose.yml
-         └── .env              <- secrets (never committed)
+[DONE] T1  Backend folder structure created
+           /opt/project-gsr/backend/ on EC2
 
-[ ] T2  Write FastAPI skeleton locally                  (8:15 - 9:00 AM)
-         Files to create:
-           api/main.py         <- FastAPI app, /health endpoint
-           api/database.py     <- SQLAlchemy engine + session
-           api/models.py       <- all DB table models (ORM)
-           api/requirements.txt
-           api/Dockerfile
-         Claude will write all code — you review and push to GitHub
+[DONE] T2  FastAPI skeleton written (local Windows machine)
+           backend/app/main.py     — FastAPI app, /health + / endpoints
+           backend/app/database.py — SQLAlchemy engine + session
+           backend/app/models.py   — 6 tables (Owner, Restaurant, MenuItem,
+                                     Customer, Order, Inspection)
+           backend/app/__init__.py
 
-[ ] T3  Write docker-compose.yml                        (9:00 - 9:15 AM)
-         Services: api (FastAPI) + db (PostgreSQL 16)
-         Volumes: postgres_data (persistent)
-         Ports: 8000 (API), 5432 internal only
+[DONE] T3  Docker Compose written
+           Services: api (FastAPI/python:3.11-slim) + db (postgres:16-alpine)
+           Healthcheck on db before api starts
+           Persistent volume: backend_postgres_data
 
-[ ] T4  Write Alembic migration — create all tables     (9:15 - 9:30 AM)
-         Tables: owner, restaurant, menu_item,
-                 customer, order, order_item, inspection
-         Run: alembic upgrade head
+[DONE] T4  Code pushed to GitHub
+           Pushed to master (Windows) + main (EC2) branches
+           Migration file: backend/alembic/versions/e3168e1b38b9_initial_tables.py
 
-[ ] T5  Push Sprint 2 code to GitHub (main branch)      (9:30 - 9:45 AM)
-         git add api/ docker-compose.yml .env.example
-         Confirm .env is gitignored before pushing
+[DONE] T5  EC2 deployment
+           git clone via HTTPS + PAT token
+           .env created on EC2 (not committed)
+           docker-compose up -d --build — both containers healthy
 
-[ ] T6  Deploy to EC2                                   (9:45 - 10:15 AM)
-         git pull on EC2 (or scp files)
-         docker compose up -d --build
-         Check logs: docker compose logs -f api
+[DONE] T6  Alembic migrations run — 6 tables created in PostgreSQL
+           customer | inspection | menu_item | order | owner | restaurant
 
-[ ] T7  Verify API is running                           (10:15 - 10:30 AM)
-         curl http://43.204.43.71/health
-         Expected: {"status": "ok", "db": "connected"}
+[DONE] T7  Nginx reverse proxy configured
+           /etc/nginx/conf.d/gsr-api.conf
+           Port 80 → 127.0.0.1:8000 (FastAPI)
 
-[ ] T8  Configure Nginx reverse proxy                   (10:30 - 10:45 AM)
-         /etc/nginx/conf.d/gsr-api.conf
-         Proxy: 80 -> 127.0.0.1:8000
-         Reload: sudo systemctl reload nginx
-
-[ ] T9  Test from Postman                               (10:45 - 11:00 AM)
-         GET http://43.204.43.71/health   -> 200 OK
-         GET http://43.204.43.71/docs     -> Swagger UI
-
-[ ] T10 Update Runbook + push to GitHub                 (11:00 - 11:30 AM)
-         Mark Sprint 2 done in runbook
-         Document EC2 folder structure, docker-compose commands
-         Push to master branch
-
-[ ] T11 Update daily-update files                       (11:30 - 11:45 AM)
-         Fill in Day-2-29th-Sept-2026.txt with actuals
-         Create Day-3 plan file
-
-[ ] T12 Buffer / troubleshoot / wrap up                 (11:45 AM - 12:00 PM)
+[DONE] T8  API verified from public internet
+           curl http://43.204.43.71/health
+           Response: {"status":"ok","db":"connected","version":"0.1.0"}
+           Swagger UI: http://43.204.43.71/docs  ← accessible in browser
 
 ------------------------------------------------------------------------
-DATABASE TABLES TO BE CREATED (Sprint 2)
+ISSUES ENCOUNTERED & RESOLVED
 ------------------------------------------------------------------------
 
-owner        — id, name, mobile, email, password_hash, totp_secret, status
-restaurant   — id, owner_id, name, address, pincode, area, type, status, photo_url
-menu_item    — id, restaurant_id, category, name, description, price, photo_url, is_available
-customer     — id, name, mobile, firebase_uid
-order        — id, restaurant_id, customer_id, status, items_snapshot (JSONB), total, created_at
-order_item   — id, order_id, menu_item_id, qty, unit_price
-inspection   — id, restaurant_id, result, notes, inspector, due_date, inspected_at
+Issue 1 : SSH timeout — IP changed since Day 1
+Fix     : Use checkip.amazonaws.com (not ipify.org) for real AWS-facing IP
+
+Issue 2 : dnf install timing out — DNS resolution failing
+Fix     : VPC internal DNS can't resolve external hostnames
+          echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+          Made permanent: sudo sed -i 's/#DNS=/DNS=8.8.8.8/' /etc/systemd/resolved.conf
+
+Issue 3 : docker-compose-plugin not in AL2023 dnf repos
+Fix     : Downloaded binary from GitHub releases (v2.27.0)
+
+Issue 4 : git clone failing — "could not resolve host: github.com"
+Fix     : Same DNS issue — resolved after DNS fix above
+
+Issue 5 : DB_PASSWORD with @ in URL causes parse error
+          postgresql://gsr_user:Gsr@Mumbai2026@db:5432/gsr_db
+          SQLAlchemy confused by two @ signs
+Fix     : Changed password to GsrMumbai2026 (no special chars in URL)
+
+Issue 6 : Alembic "No module named app"
+Fix     : PYTHONPATH=/app needed — run as:
+          docker-compose exec -e PYTHONPATH=/app api alembic ...
+
+Issue 7 : alembic/versions/ directory missing (git doesn't track empty dirs)
+Fix     : mkdir -p /opt/project-gsr/backend/alembic/versions
+
+Issue 8 : docker group not active (permission denied on docker socket)
+Fix     : sudo docker-compose ... (sudo until next login)
 
 ------------------------------------------------------------------------
-ENVIRONMENT SETUP REMINDER (do this first, every session)
+SPRINT 2 COMPLETION STATUS
 ------------------------------------------------------------------------
 
-# In PowerShell — set before running any AWS CLI / Terraform command:
-$env:AWS_CA_BUNDLE = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
-$env:SSL_CERT_FILE  = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
-# Then set AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, etc.)
+[DONE] FastAPI running in Docker on EC2
+[DONE] PostgreSQL running in Docker, all 6 tables created
+[DONE] GET /health → {"status":"ok","db":"connected","version":"0.1.0"}
+[DONE] Nginx proxying port 80 → FastAPI port 8000
+[DONE] Swagger UI accessible at http://43.204.43.71/docs
+[DONE] Code in GitHub (main + master branches)
 
 ------------------------------------------------------------------------
-SPRINT 2 DONE WHEN
+RUNNING SERVICES ON EC2 (43.204.43.71)
 ------------------------------------------------------------------------
 
-[ ] FastAPI running in Docker on EC2
-[ ] PostgreSQL running in Docker, all 7 tables created
-[ ] GET /health returns {"status": "ok", "db": "connected"}
-[ ] Nginx proxying traffic: http://43.204.43.71 -> FastAPI
-[ ] Postman can reach the API and hit the health endpoint
-[ ] Code pushed to GitHub (main branch)
+Container gsr_api  : FastAPI + Uvicorn on port 8000
+Container gsr_db   : PostgreSQL 16 on port 5432 (internal only)
+Nginx              : Reverse proxy on port 80 → 8000
+Volume             : backend_postgres_data (persistent DB storage)
+Working dir        : /opt/project-gsr/backend/
 
 ------------------------------------------------------------------------
-NOTES
+NEXT — DAY 3: SPRINT 3 — Authentication
 ------------------------------------------------------------------------
 
-- Work window: 8:00 AM to 12:00 PM (4 hours only)
-- EC2 IP: 43.204.43.71 | User: ec2-user | Key: g2r-poc.pem
-- State file local: C:\Claude\Project-GSR\terraform\terraform.tfstate
-- Never commit: .env, *.pem, terraform.tfvars, *.tfstate
-- Git identity: gurpreet18121990@gmail.com (local config, not global)
+[ ] Admin login: username + password + Google Authenticator (TOTP/pyotp)
+[ ] Owner login: Firebase OTP (mobile number)
+[ ] Customer login: Firebase OTP or guest
+[ ] JWT token issuance and verification
+[ ] Test all flows in Swagger / Postman
 
 ================================================================================
-END OF DAY 2 PLAN
+END OF DAY 2 UPDATE
 ================================================================================
