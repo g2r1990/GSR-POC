@@ -22,15 +22,19 @@ class Admin(Base):
 
 class Owner(Base):
     __tablename__ = "owner"
-    id            = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
-    name          = Column(String(100), nullable=False)
-    mobile        = Column(String(15), unique=True, nullable=False)
-    email         = Column(String(150), unique=True, nullable=True)
-    password_hash = Column(String(255), nullable=False)
-    totp_secret   = Column(String(64), nullable=True)
-    status        = Column(String(20), default="pending")   # pending | active | suspended
-    created_at    = Column(DateTime, default=datetime.utcnow)
-    restaurants   = relationship("Restaurant", back_populates="owner")
+    id                = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    name              = Column(String(100), nullable=False)
+    mobile            = Column(String(15), unique=True, nullable=False)
+    email             = Column(String(150), unique=True, nullable=True)
+    password_hash     = Column(String(255), nullable=False)
+    totp_secret       = Column(String(64), nullable=True)
+    status            = Column(String(20), default="pending")   # pending | active | suspended | rejected
+    gstin             = Column(String(15), nullable=True)
+    doc_url           = Column(String(500), nullable=True)      # S3 URL of KYC document
+    rejection_reason  = Column(Text, nullable=True)
+    firebase_uid      = Column(String(128), nullable=True)
+    created_at        = Column(DateTime, default=datetime.utcnow)
+    restaurants       = relationship("Restaurant", back_populates="owner")
 
 
 class Restaurant(Base):
