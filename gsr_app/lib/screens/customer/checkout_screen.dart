@@ -105,63 +105,68 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFFDE68A), width: 2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFECACA)),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFFDE68A), width: 2)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline,
+                          color: Color(0xFFDC2626), size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(_error!,
+                              style: const TextStyle(
+                                  color: Color(0xFFDC2626), fontSize: 12))),
+                    ]),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.error_outline,
-                        color: Color(0xFFDC2626), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text(_error!,
-                            style: const TextStyle(
-                                color: Color(0xFFDC2626), fontSize: 12))),
-                  ]),
+                ),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _placing ? null : _place,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _amber,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _placing
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text(
+                          'Place Order  •  ₹${_grandTotal.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _placing ? null : _place,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _amber,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: _placing
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text(
-                        'Place Order  •  ₹${_grandTotal.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -283,6 +288,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 16),
             ],
           ),
+        ),
         ),
       ),
     );
