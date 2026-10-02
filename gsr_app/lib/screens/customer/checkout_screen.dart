@@ -144,43 +144,56 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               // Order summary
               _SectionHeader('Order Summary'),
               Container(
-                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
                 child: Column(children: [
-                  for (final item in CartService.items)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(children: [
-                        Expanded(
-                            child: Text('${item.qty}× ${item.name}',
+                  // Scrollable items list capped at 120px
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 120),
+                    child: Scrollbar(
+                      thumbVisibility: CartService.items.length > 3,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                        shrinkWrap: true,
+                        children: CartService.items.map((item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(children: [
+                            Expanded(
+                                child: Text('${item.qty}× ${item.name}',
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF374151)))),
+                            Text(
+                                '₹${(item.price * item.qty).toStringAsFixed(0)}',
                                 style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF374151)))),
-                        Text(
-                            '₹${(item.price * item.qty).toStringAsFixed(0)}',
+                                    fontSize: 13, color: Color(0xFF78716C))),
+                          ]),
+                        )).toList(),
+                      ),
+                    ),
+                  ),
+                  // Total always visible
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${CartService.itemCount} item${CartService.itemCount == 1 ? '' : 's'}',
                             style: const TextStyle(
                                 fontSize: 13, color: Color(0xFF78716C))),
-                      ]),
-                    ),
-                  const Divider(height: 16),
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A))),
-                        Text(
-                            '₹${CartService.total.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFD97706))),
-                      ]),
+                          Text(
+                              '₹${CartService.total.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFD97706))),
+                        ]),
+                  ),
                 ]),
               ),
 
