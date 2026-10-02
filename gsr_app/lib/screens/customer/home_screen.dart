@@ -37,6 +37,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   bool _detectingLocation = false;
   int? _restaurantCount;
 
+  // Offers + nearby restaurants
+  List<Map<String, dynamic>> _offers = [];
+  List<Map<String, dynamic>> _nearbyRestaurants = [];
+
   // Controllers
   late TextEditingController _pincodeCtrl;
   late TextEditingController _foodQueryCtrl;
@@ -70,6 +74,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     });
     _loadRecentOrder();
     _loadRestaurantCount();
+    _loadOffers();
   }
 
   Future<void> _loadRecentOrder() async {
@@ -96,7 +101,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     if (_pincode.isEmpty) return;
     try {
       final list = await ApiService.searchRestaurants(_pincode);
-      if (mounted) setState(() => _restaurantCount = list.length);
+      if (mounted) setState(() {
+        _restaurantCount = list.length;
+        _nearbyRestaurants = list;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadOffers() async {
+    if (_pincode.isEmpty) return;
+    try {
+      final offers = await ApiService.getCustomerOffers(_pincode);
+      if (mounted) setState(() => _offers = offers);
     } catch (_) {}
   }
 
@@ -177,7 +193,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       setState(() => _searchError = 'Enter a valid 6-digit pincode.');
       return;
     }
-    setState(() { _searching = true; _searchError = null; _editingPincode = false; });
+    setState(() { _searching = true; _searchError = null; });
     try {
       final restaurants = await ApiService.searchRestaurants(pincode);
       if (!mounted) return;
@@ -437,6 +453,94 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
 
+              // ── Offers ──────────────────────────────────────────────
+              if (_offers.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Row(children: [
+                    const Icon(Icons.local_offer,
+                        size: 17, color: Color(0xFF7C3AED)),
+                    const SizedBox(width: 6),
+                    const Text('Offers',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1C1917))),
+                  ]),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _offers.length,
+                    itemBuilder: (ctx, i) => _OfferCard(offer: _offers[i]),
+                  ),
+                ),
+              ],
+
+              // ── Restaurants Near You ─────────────────────────────────
+              if (_nearbyRestaurants.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Row(children: [
+                    const Expanded(
+                      child: Text('Restaurants Near You',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1C1917))),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_nearbyRestaurants.length} open',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF166534)),
+                      ),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 10),
+                for (final r in _nearbyRestaurants.take(3))
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: _NearbyRestaurantTile(
+                      restaurant: r,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RestaurantListScreen(
+                            pincode: _pincode,
+                            restaurants: _nearbyRestaurants,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_nearbyRestaurants.length > 3)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    child: TextButton.icon(
+                      onPressed: _findRestaurants,
+                      icon: const Icon(Icons.storefront_outlined,
+                          size: 16, color: _amber),
+                      label: Text(
+                        'See all ${_nearbyRestaurants.length} restaurants →',
+                        style: const TextStyle(fontSize: 13, color: _amber),
+                      ),
+                    ),
+                  ),
+              ],
+
               // ── Active order banner ──────────────────────────────────
               if (_activeOrderId != null)
                 Padding(
@@ -654,6 +758,133 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Offer + restaurant widgets ────────────────────────────────────────────────
+
+class _OfferCard extends StatelessWidget {
+  final Map<String, dynamic> offer;
+  const _OfferCard({required this.offer});
+
+  @override
+  Widget build(BuildContext context) {
+    final discount = offer['discount_pct'];
+    final restaurant = offer['restaurant_name'] as String? ?? '';
+    final title = offer['title'] as String? ?? '';
+    return Container(
+      width: 200,
+      margin: const EdgeInsets.only(right: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.local_offer, color: Colors.white70, size: 14),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(restaurant,
+                  style: const TextStyle(
+                      fontSize: 11, color: Colors.white70),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+          const Spacer(),
+          if (discount != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(51),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('$discount% OFF',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NearbyRestaurantTile extends StatelessWidget {
+  final Map<String, dynamic> restaurant;
+  final VoidCallback onTap;
+  const _NearbyRestaurantTile(
+      {required this.restaurant, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final foodType = restaurant['food_type'] as String? ?? 'both';
+    final foodLabel = foodType == 'veg'
+        ? 'Pure Veg'
+        : foodType == 'nonveg'
+            ? 'Non-Veg'
+            : 'Veg & Non-Veg';
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withAlpha(10),
+                blurRadius: 6,
+                offset: const Offset(0, 2))
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.storefront,
+                color: Color(0xFFD97706), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(restaurant['name'] as String? ?? '',
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1C1917))),
+                Text(
+                    '${restaurant['area'] ?? ''}  •  $foodLabel',
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF78716C)),
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: Color(0xFFD6D3D1)),
+        ]),
       ),
     );
   }

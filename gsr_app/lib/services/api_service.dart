@@ -445,6 +445,64 @@ class ApiService {
     return {};
   }
 
+  // ── Offers ────────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getCustomerOffers(
+      String pincode) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/customer/offers?pincode=$pincode'),
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<List<Map<String, dynamic>>> getOwnerOffers() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/offers'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load offers');
+  }
+
+  static Future<void> createOffer(Map<String, dynamic> payload) async {
+    final token = await getToken();
+    final res = await http
+        .post(
+          Uri.parse('$_base/owner/offers'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode == 201) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to create offer');
+  }
+
+  static Future<void> deleteOffer(String id) async {
+    final token = await getToken();
+    final res = await http.delete(
+      Uri.parse('$_base/owner/offers/$id'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(
+          body['detail']?.toString() ?? 'Failed to delete offer');
+    }
+  }
+
   static Future<void> updateOrderStatus(
       String orderId, String status) async {
     final token = await getToken();

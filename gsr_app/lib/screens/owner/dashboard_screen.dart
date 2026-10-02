@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'menu_list_screen.dart';
 import 'orders_screen.dart';
+import 'offers_screen.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String ownerName;
@@ -146,6 +147,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       );
                       _loadStats();
                     },
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.local_offer,
+                    title: 'My Offers',
+                    subtitle: 'Push deals to nearby customers',
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const OwnerOffersScreen()),
+                    ),
                   ),
                 ],
               ),

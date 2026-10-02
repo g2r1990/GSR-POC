@@ -57,6 +57,7 @@ class Restaurant(Base):
     menu_items  = relationship("MenuItem", back_populates="restaurant")
     orders      = relationship("Order", back_populates="restaurant")
     inspections = relationship("Inspection", back_populates="restaurant")
+    offers      = relationship("Offer", back_populates="restaurant")
 
 
 class MenuItem(Base):
@@ -101,6 +102,19 @@ class Order(Base):
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     restaurant      = relationship("Restaurant", back_populates="orders")
     customer        = relationship("Customer", back_populates="orders")
+
+
+class Offer(Base):
+    __tablename__ = "offer"
+    id            = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    restaurant_id = Column(UUID(as_uuid=False), ForeignKey("restaurant.id"), nullable=False)
+    title         = Column(String(200), nullable=False)
+    description   = Column(Text, nullable=True)
+    discount_pct  = Column(Numeric(5, 2), nullable=True)
+    valid_until   = Column(DateTime, nullable=True)
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+    restaurant    = relationship("Restaurant", back_populates="offers")
 
 
 class Inspection(Base):

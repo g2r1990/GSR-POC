@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from jose import JWTError
 
 from app.database import get_db
-from app.models import Owner, Restaurant
+from datetime import datetime as _dt
+from app.models import Owner, Restaurant, Offer
 from app.core.security import decode_token, hash_password, verify_password, create_access_token
 from app.schemas.owner import (
     OwnerRegisterRequest, OwnerRegisterResponse,
@@ -191,6 +192,92 @@ async def upload_document(
     owner.doc_url = doc_url
     db.commit()
     return {"doc_url": doc_url, "message": "Document uploaded successfully."}
+
+
+# ── Offers ─────────────────────────────────────────────────────────────────────
+
+@router.post("/offers", status_code=201)
+def create_offer(
+    body: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner or not owner.restaurants:
+        raise HTTPException(status_code=404, detail="No restaurant found for this owner.")
+    restaurant = owner.restaurants[0]
+    if not body.get("title"):
+        raise HTTPException(status_code=422, detail="title is required.")
+    valid_until = None
+    if body.get("valid_until"):
+        try:
+            valid_until = _dt.fromisoformat(body["valid_until"])
+        except ValueError:
+            pass
+    offer = Offer(
+        restaurant_id=restaurant.id,
+        title=body["title"],
+        description=body.get("description"),
+        discount_pct=body.get("discount_pct"),
+        valid_until=valid_until,
+        is_active=True,
+    )
+    db.add(offer)
+    db.commit()
+    db.refresh(offer)
+    return {"id": offer.id, "title": offer.title, "message": "Offer created."}
+
+
+@router.get("/offers")
+def get_owner_offers(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner or not owner.restaurants:
+        return []
+    restaurant = owner.restaurants[0]
+    offers = (
+        db.query(Offer)
+        .filter(Offer.restaurant_id == restaurant.id)
+        .order_by(Offer.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": o.id,
+            "title": o.title,
+            "description": o.description,
+            "discount_pct": float(o.discount_pct) if o.discount_pct else None,
+            "valid_until": o.valid_until.isoformat() if o.valid_until else None,
+            "is_active": o.is_active,
+            "created_at": o.created_at.isoformat(),
+        }
+        for o in offers
+    ]
+
+
+@router.delete("/offers/{offer_id}")
+def delete_offer(
+    offer_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner or not owner.restaurants:
+        raise HTTPException(status_code=404, detail="Not found.")
+    restaurant = owner.restaurants[0]
+    offer = db.query(Offer).filter(
+        Offer.id == offer_id, Offer.restaurant_id == restaurant.id
+    ).first()
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found.")
+    db.delete(offer)
+    db.commit()
+    return {"message": "Offer deleted."}
 
 
 # ── Owner profile ──────────────────────────────────────────────────────────────

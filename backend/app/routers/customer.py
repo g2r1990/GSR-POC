@@ -8,10 +8,42 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.models import Restaurant, MenuItem, Customer
+from datetime import datetime as _dt
+from app.models import Restaurant, MenuItem, Customer, Offer
 from app.schemas.customer import RestaurantResponse, CustomerMenuItemResponse
 
 router = APIRouter(prefix="/customer", tags=["Customer"])
+
+
+@router.get("/offers")
+def get_customer_offers(pincode: str, db: Session = Depends(get_db)):
+    prefix = pincode[:5] if len(pincode) >= 5 else pincode
+    now = _dt.utcnow()
+    offers = (
+        db.query(Offer)
+        .join(Restaurant)
+        .filter(
+            Offer.is_active == True,
+            Restaurant.status == "active",
+            Restaurant.pincode.like(prefix + "%"),
+            or_(Offer.valid_until == None, Offer.valid_until > now),
+        )
+        .order_by(Offer.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    return [
+        {
+            "id": o.id,
+            "title": o.title,
+            "description": o.description,
+            "discount_pct": float(o.discount_pct) if o.discount_pct else None,
+            "valid_until": o.valid_until.isoformat() if o.valid_until else None,
+            "restaurant_name": o.restaurant.name,
+            "restaurant_id": o.restaurant_id,
+        }
+        for o in offers
+    ]
 
 logger = logging.getLogger(__name__)
 
