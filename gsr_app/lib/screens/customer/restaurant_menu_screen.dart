@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../services/cart_service.dart';
+import 'cart_screen.dart';
 
 class RestaurantMenuScreen extends StatefulWidget {
   final String restaurantId;
@@ -42,8 +44,17 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     }
   }
 
+  void _refreshCart() => setState(() {});
+
   @override
   Widget build(BuildContext context) {
+    final cartCount = CartService.restaurantId == widget.restaurantId
+        ? CartService.itemCount
+        : 0;
+    final cartTotal = CartService.restaurantId == widget.restaurantId
+        ? CartService.total
+        : 0.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7ED),
       appBar: AppBar(
@@ -54,6 +65,21 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
         centerTitle: true,
         elevation: 0,
       ),
+      floatingActionButton: cartCount > 0
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => const CartScreen()));
+                _refreshCart();
+              },
+              backgroundColor: _amber,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.shopping_cart),
+              label: Text(
+                  '$cartCount item${cartCount == 1 ? '' : 's'} · ₹${cartTotal.toStringAsFixed(0)}'),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: _amber))
@@ -118,16 +144,20 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (ctx, i) {
-                  final items =
-                      menuRaw[cat] as List<dynamic>;
-                  return _MenuItemTile(item: items[i] as Map<String, dynamic>);
+                  final items = menuRaw[cat] as List<dynamic>;
+                  return _MenuItemTile(
+                    item: items[i] as Map<String, dynamic>,
+                    restaurantId: widget.restaurantId,
+                    restaurantName: widget.restaurantName,
+                    onCartChanged: _refreshCart,
+                  );
                 },
                 childCount: (menuRaw[cat] as List).length,
               ),
             ),
           ],
           const SliverToBoxAdapter(
-            child: SizedBox(height: 32),
+            child: SizedBox(height: 96),
           ),
         ],
       ),
@@ -270,15 +300,54 @@ class _CategoryHeader extends StatelessWidget {
   }
 }
 
-class _MenuItemTile extends StatelessWidget {
+class _MenuItemTile extends StatefulWidget {
   final Map<String, dynamic> item;
-  const _MenuItemTile({required this.item});
+  final String restaurantId;
+  final String restaurantName;
+  final VoidCallback onCartChanged;
+
+  const _MenuItemTile({
+    required this.item,
+    required this.restaurantId,
+    required this.restaurantName,
+    required this.onCartChanged,
+  });
+
+  @override
+  State<_MenuItemTile> createState() => _MenuItemTileState();
+}
+
+class _MenuItemTileState extends State<_MenuItemTile> {
+  int get _qty => CartService.restaurantId == widget.restaurantId
+      ? CartService.qtyFor(widget.item['id'] as String)
+      : 0;
+
+  void _add() {
+    final item = widget.item;
+    CartService.add(
+      widget.restaurantId,
+      widget.restaurantName,
+      item['id'] as String,
+      item['name'] as String,
+      item['category'] as String? ?? '',
+      (item['price'] as num).toDouble(),
+    );
+    setState(() {});
+    widget.onCartChanged();
+  }
+
+  void _remove() {
+    CartService.remove(widget.item['id'] as String);
+    setState(() {});
+    widget.onCartChanged();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final name = item['name'] as String? ?? '';
-    final description = item['description'] as String?;
-    final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+    final name = widget.item['name'] as String? ?? '';
+    final description = widget.item['description'] as String?;
+    final price = (widget.item['price'] as num?)?.toDouble() ?? 0.0;
+    final qty = _qty;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -313,20 +382,77 @@ class _MenuItemTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
+                  const SizedBox(height: 4),
+                  Text(
+                    '₹${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFD97706),
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              '₹${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFD97706),
-              ),
-            ),
+            qty == 0
+                ? GestureDetector(
+                    onTap: _add,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFD97706)),
+                      ),
+                      child: const Text('ADD',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD97706))),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Btn(icon: Icons.remove, onTap: _remove),
+                      SizedBox(
+                        width: 28,
+                        child: Text('$qty',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1C1917))),
+                      ),
+                      _Btn(icon: Icons.add, onTap: _add),
+                    ],
+                  ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Btn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _Btn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD97706),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon, size: 16, color: Colors.white),
       ),
     );
   }

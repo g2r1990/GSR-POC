@@ -33,6 +33,8 @@ class Owner(Base):
     doc_url           = Column(String(500), nullable=True)      # S3 URL of KYC document
     rejection_reason  = Column(Text, nullable=True)
     firebase_uid      = Column(String(128), nullable=True)
+    fcm_token         = Column(String(500), nullable=True)
+    tnc_accepted      = Column(Boolean, default=False)
     created_at        = Column(DateTime, default=datetime.utcnow)
     restaurants       = relationship("Restaurant", back_populates="owner")
 

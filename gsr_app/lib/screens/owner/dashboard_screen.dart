@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import 'menu_list_screen.dart';
+import 'orders_screen.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String ownerName;
@@ -12,6 +13,7 @@ class OwnerDashboardScreen extends StatefulWidget {
 
 class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   int _menuCount = 0;
+  int _activeOrders = 0;
   bool _loading = true;
 
   @override
@@ -22,8 +24,24 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _loadStats() async {
     try {
-      final items = await ApiService.getMenu();
-      if (mounted) setState(() { _menuCount = items.length; _loading = false; });
+      final results = await Future.wait([
+        ApiService.getMenu(),
+        ApiService.getOwnerOrders(),
+      ]);
+      final items = results[0] as List<Map<String, dynamic>>;
+      final orders = results[1] as List<Map<String, dynamic>>;
+      final active = orders
+          .where((o) =>
+              ['placed', 'accepted', 'ready', 'out_for_delivery']
+                  .contains(o['status']))
+          .length;
+      if (mounted) {
+        setState(() {
+          _menuCount = items.length;
+          _activeOrders = active;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -70,14 +88,28 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                           fontSize: 14, color: Color(0xFF64748B))),
                   const SizedBox(height: 28),
 
-                  // Stat card — menu items
-                  _StatCard(
-                    icon: Icons.restaurant_menu,
-                    color: const Color(0xFF166534),
-                    bgColor: const Color(0xFFDCFCE7),
-                    label: 'Menu Items',
-                    value: '$_menuCount',
-                  ),
+                  // Stat cards
+                  Row(children: [
+                    Expanded(
+                      child: _StatCard(
+                        icon: Icons.restaurant_menu,
+                        color: const Color(0xFF166534),
+                        bgColor: const Color(0xFFDCFCE7),
+                        label: 'Menu Items',
+                        value: '$_menuCount',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        icon: Icons.receipt_long,
+                        color: const Color(0xFFD97706),
+                        bgColor: const Color(0xFFFEF3C7),
+                        label: 'Active Orders',
+                        value: '$_activeOrders',
+                      ),
+                    ),
+                  ]),
                   const SizedBox(height: 28),
 
                   // Quick actions
@@ -97,6 +129,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       await Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (_) => const MenuListScreen()),
+                      );
+                      _loadStats();
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.receipt_long,
+                    title: 'View Orders',
+                    subtitle: 'Accept, track and update orders',
+                    color: const Color(0xFFD97706),
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const OwnerOrdersScreen()),
                       );
                       _loadStats();
                     },

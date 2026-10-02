@@ -8,16 +8,16 @@ import 'screens/owner/login_screen.dart';
 import 'screens/customer/home_screen.dart';
 
 void main() {
-  runApp(const GsrApp());
+  runApp(const BossBiteApp());
 }
 
-class GsrApp extends StatelessWidget {
-  const GsrApp({super.key});
+class BossBiteApp extends StatelessWidget {
+  const BossBiteApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'GSR Inspection',
+      title: 'BossBite',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E40AF)),

@@ -207,6 +207,61 @@ class ApiService {
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     throw ApiException(body['detail']?.toString() ?? 'Failed to load menu');
   }
+
+  // ── Orders (customer) ─────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> placeOrder(
+      Map<String, dynamic> payload) async {
+    final res = await http
+        .post(
+          Uri.parse('$_base/orders'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 20));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 201) return body;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to place order');
+  }
+
+  // ── Orders (owner) ────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getOwnerOrders(
+      {String statusFilter = ''}) async {
+    final token = await getToken();
+    final uri = statusFilter.isEmpty
+        ? Uri.parse('$_base/orders/owner')
+        : Uri.parse('$_base/orders/owner?status_filter=$statusFilter');
+    final res = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
+  }
+
+  static Future<void> updateOrderStatus(
+      String orderId, String status) async {
+    final token = await getToken();
+    final res = await http
+        .patch(
+          Uri.parse('$_base/orders/owner/$orderId/status'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'status': status}),
+        )
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(
+          body['detail']?.toString() ?? 'Failed to update status');
+    }
+  }
 }
 
 class ApiException implements Exception {

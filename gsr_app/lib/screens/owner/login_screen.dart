@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'dashboard_screen.dart';
+import 'tnc_screen.dart';
 
 class OwnerLoginScreen extends StatefulWidget {
   const OwnerLoginScreen({super.key});
@@ -28,8 +30,15 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
       );
       await ApiService.saveToken(data['access_token'] as String, 'owner');
       if (!mounted) return;
+      final ownerId = data['owner_id'] as String? ?? data['id'] as String? ?? '';
+      final ownerName = data['name'] as String;
+      final prefs = await SharedPreferences.getInstance();
+      final tncDone = prefs.getBool('tnc_accepted_$ownerId') ?? false;
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (_) => OwnerDashboardScreen(ownerName: data['name'] as String),
+        builder: (_) => tncDone
+            ? OwnerDashboardScreen(ownerName: ownerName)
+            : TncScreen(ownerName: ownerName, ownerId: ownerId),
       ));
     } on ApiException catch (e) {
       setState(() => _error = e.message);
