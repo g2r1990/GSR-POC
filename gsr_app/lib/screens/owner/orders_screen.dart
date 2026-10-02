@@ -12,10 +12,11 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   static const _amber = Color(0xFFD97706);
   static const _green = Color(0xFF166534);
 
-  List<Map<String, dynamic>> _orders = [];
+  List<Map<String, dynamic>> _allOrders = [];
   bool _loading = true;
   String? _error;
-  String _filter = '';
+  String _statusFilter = '';
+  String _dateFilter = 'today';
 
   static const _statuses = [
     '',
@@ -27,7 +28,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     'cancelled',
   ];
 
-  static const _labels = {
+  static const _statusLabels = {
     '': 'All',
     'placed': 'New',
     'accepted': 'Accepted',
@@ -36,6 +37,45 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     'delivered': 'Delivered',
     'cancelled': 'Cancelled',
   };
+
+  static const _dateOptions = [
+    ('today', 'Today'),
+    ('yesterday', 'Yesterday'),
+    ('7days', 'Last 7 days'),
+    ('all', 'All time'),
+  ];
+
+  List<Map<String, dynamic>> get _filtered {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final yesterdayStart = todayStart.subtract(const Duration(days: 1));
+    final sevenDaysStart = todayStart.subtract(const Duration(days: 6));
+
+    return _allOrders.where((o) {
+      // Date filter
+      final raw = o['created_at'] as String? ?? '';
+      final dt = raw.isEmpty ? null : DateTime.tryParse(raw)?.toLocal();
+      if (dt != null) {
+        switch (_dateFilter) {
+          case 'today':
+            if (dt.isBefore(todayStart)) return false;
+          case 'yesterday':
+            if (dt.isBefore(yesterdayStart) || !dt.isBefore(todayStart))
+              return false;
+          case '7days':
+            if (dt.isBefore(sevenDaysStart)) return false;
+        }
+      }
+      // Status filter
+      if (_statusFilter.isNotEmpty && o['status'] != _statusFilter) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  String get _dateLabel =>
+      _dateOptions.firstWhere((d) => d.$1 == _dateFilter).$2;
 
   @override
   void initState() {
@@ -46,8 +86,8 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ApiService.getOwnerOrders(statusFilter: _filter);
-      if (mounted) setState(() { _orders = data; _loading = false; });
+      final data = await ApiService.getOwnerOrders();
+      if (mounted) setState(() { _allOrders = data; _loading = false; });
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (_) {
@@ -85,34 +125,111 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   Widget _filterBar() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: _statuses.map((s) {
-            final selected = _filter == s;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(_labels[s] ?? s),
-                selected: selected,
-                onSelected: (_) {
-                  setState(() => _filter = s);
-                  _load();
-                },
-                selectedColor: const Color(0xFFDCFCE7),
-                checkmarkColor: _green,
-                labelStyle: TextStyle(
-                  color: selected ? _green : const Color(0xFF64748B),
-                  fontWeight:
-                      selected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 12,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Date dropdown row
+          Row(children: [
+            const Icon(Icons.calendar_today,
+                size: 15, color: Color(0xFF64748B)),
+            const SizedBox(width: 6),
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () async {
+                final picked = await showModalBottomSheet<String>(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (ctx) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Text('Filter by date',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A))),
+                        ),
+                        for (final opt in _dateOptions)
+                          ListTile(
+                            title: Text(opt.$2),
+                            trailing: _dateFilter == opt.$1
+                                ? const Icon(Icons.check,
+                                    color: Color(0xFF166534))
+                                : null,
+                            onTap: () => Navigator.pop(ctx, opt.$1),
+                          ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                );
+                if (picked != null && mounted) {
+                  setState(() => _dateFilter = picked);
+                }
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(_dateLabel,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A))),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down,
+                      size: 18, color: Color(0xFF64748B)),
+                ]),
               ),
-            );
-          }).toList(),
-        ),
+            ),
+            const Spacer(),
+            Text(
+              '${_filtered.length} order${_filtered.length == 1 ? '' : 's'}',
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF94A3B8)),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          // Status chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _statuses.map((s) {
+                final selected = _statusFilter == s;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(_statusLabels[s] ?? s),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _statusFilter = s),
+                    selectedColor: const Color(0xFFDCFCE7),
+                    checkmarkColor: _green,
+                    labelStyle: TextStyle(
+                      color: selected ? _green : const Color(0xFF64748B),
+                      fontWeight:
+                          selected ? FontWeight.w600 : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -146,16 +263,29 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
         ),
       );
     }
-    if (_orders.isEmpty) {
-      return const Center(
+    final orders = _filtered;
+    if (orders.isEmpty) {
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.receipt_long_outlined,
+            const Icon(Icons.receipt_long_outlined,
                 size: 56, color: Color(0xFFD6D3D1)),
-            SizedBox(height: 12),
-            Text('No orders yet.',
-                style: TextStyle(color: Color(0xFF78716C), fontSize: 15)),
+            const SizedBox(height: 12),
+            Text(
+              _allOrders.isEmpty
+                  ? 'No orders yet.'
+                  : 'No orders for $_dateLabel.',
+              style: const TextStyle(color: Color(0xFF78716C), fontSize: 15),
+            ),
+            if (_allOrders.isNotEmpty && _dateFilter != 'all') ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => setState(() => _dateFilter = 'all'),
+                child: const Text('View all orders',
+                    style: TextStyle(color: Color(0xFFD97706))),
+              ),
+            ],
           ],
         ),
       );
@@ -166,9 +296,9 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
       color: _green,
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
-        itemCount: _orders.length,
+        itemCount: orders.length,
         itemBuilder: (ctx, i) => _OrderCard(
-          order: _orders[i],
+          order: orders[i],
           onStatusChanged: _load,
         ),
       ),
