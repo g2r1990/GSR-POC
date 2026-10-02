@@ -184,16 +184,20 @@ class _StatCard extends StatelessWidget {
           decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
           child: Icon(icon, color: color, size: 28),
         ),
-        const SizedBox(width: 16),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 28, fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A))),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF64748B))),
-        ]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A))),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 12, color: Color(0xFF64748B)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ]),
+        ),
       ]),
     );
   }
