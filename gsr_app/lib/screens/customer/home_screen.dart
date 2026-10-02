@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../services/api_service.dart';
 import 'restaurant_list_screen.dart';
 
@@ -12,11 +13,18 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   static const _amber = Color(0xFFD97706);
-  static const _amberDark = Color(0xFFB45309);
 
   final _pincodeCtrl = TextEditingController();
-  bool _loading = false;
+  bool _searching = false;
+  bool _detecting = false;
   String? _error;
+  String? _detectedPincode;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoDetect();
+  }
 
   @override
   void dispose() {
@@ -24,13 +32,67 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     super.dispose();
   }
 
-  Future<void> _search() async {
+  Future<void> _autoDetect() async {
+    setState(() { _detecting = true; _error = null; });
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          setState(() {
+            _detecting = false;
+            _error = 'Location permission denied. Enter pincode manually.';
+          });
+        }
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final pincode =
+          await ApiService.getPincodeFromCoords(pos.latitude, pos.longitude);
+
+      if (mounted) {
+        if (pincode != null && pincode.length == 6) {
+          setState(() {
+            _detectedPincode = pincode;
+            _pincodeCtrl.text = pincode;
+            _detecting = false;
+          });
+          await _search(auto: true);
+        } else {
+          setState(() {
+            _detecting = false;
+            _error = 'Could not detect pincode. Enter manually.';
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _detecting = false;
+          _error = 'Location unavailable. Enter pincode manually.';
+        });
+      }
+    }
+  }
+
+  Future<void> _search({bool auto = false}) async {
     final pincode = _pincodeCtrl.text.trim();
     if (pincode.length != 6) {
       setState(() => _error = 'Please enter a valid 6-digit pincode.');
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() { _searching = true; _error = null; });
     try {
       final restaurants = await ApiService.searchRestaurants(pincode);
       if (!mounted) return;
@@ -44,11 +106,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ),
       );
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Could not connect. Check your network.');
+      if (mounted) setState(() => _error = 'Could not connect. Check your network.');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _searching = false);
     }
   }
 
@@ -59,7 +121,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       appBar: AppBar(
         backgroundColor: _amber,
         foregroundColor: Colors.white,
-        title: const Text('GSR Food'),
+        title: const Text('BossBite'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -81,12 +143,62 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Enter your pincode to discover local restaurants',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Color(0xFF78716C)),
-              ),
-              const SizedBox(height: 40),
+
+              // Location status message
+              if (_detecting)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: _amber)),
+                      SizedBox(width: 8),
+                      Text('Detecting your location…',
+                          style: TextStyle(fontSize: 13, color: _amber)),
+                    ],
+                  ),
+                )
+              else if (_detectedPincode != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.location_on,
+                          size: 15, color: Color(0xFF166534)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Detected: $_detectedPincode',
+                        style: const TextStyle(
+                            fontSize: 13, color: Color(0xFF166534)),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _autoDetect,
+                        child: const Text('Re-detect',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: _amber,
+                                decoration: TextDecoration.underline)),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Text(
+                  'Enter your pincode to discover local restaurants',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 14, color: Color(0xFF78716C)),
+                ),
+
+              const SizedBox(height: 28),
+
+              // Pincode field
               TextField(
                 controller: _pincodeCtrl,
                 keyboardType: TextInputType.number,
@@ -100,7 +212,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   color: Color(0xFF1C1917),
                 ),
                 decoration: InputDecoration(
-                  hintText: '431003',
+                  hintText: '431005',
                   hintStyle: const TextStyle(
                     color: Color(0xFFD6D3D1),
                     letterSpacing: 8,
@@ -110,7 +222,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   counterText: '',
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFFDE68A), width: 2),
+                    borderSide:
+                        const BorderSide(color: Color(0xFFFDE68A), width: 2),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -118,13 +231,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   filled: true,
                   fillColor: Colors.white,
+                  suffixIcon: _detectedPincode != null
+                      ? const Icon(Icons.location_on,
+                          color: Color(0xFF166534), size: 20)
+                      : null,
                 ),
                 onSubmitted: (_) => _search(),
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 12),
+
               if (_error != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFEF2F2),
                     borderRadius: BorderRadius.circular(8),
@@ -133,55 +253,67 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   child: Text(
                     _error!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13),
+                    style: const TextStyle(
+                        color: Color(0xFFDC2626), fontSize: 13),
                   ),
                 ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 12),
+
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : _search,
+                  onPressed: (_searching || _detecting) ? null : _search,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _amber,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: _amber.withAlpha(128),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  child: _loading
+                  child: (_searching || _detecting)
                       ? const SizedBox(
                           width: 22,
                           height: 22,
                           child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : const Text(
-                          'Find Restaurants',
+                              color: Colors.white, strokeWidth: 2.5))
+                      : const Text('Find Restaurants',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
-              const SizedBox(height: 48),
+
+              // Re-detect button when location was denied
+              if (!_detecting && _detectedPincode == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextButton.icon(
+                    onPressed: _autoDetect,
+                    icon: const Icon(Icons.my_location,
+                        size: 16, color: _amber),
+                    label: const Text('Use my location',
+                        style: TextStyle(color: _amber, fontSize: 13)),
+                  ),
+                ),
+
+              const SizedBox(height: 36),
               const _TipCard(
-                icon: Icons.search,
-                text: 'Search by pincode to see all active restaurants in your area.',
+                icon: Icons.location_on,
+                text:
+                    'BossBite auto-detects your location. You can also enter pincode manually.',
               ),
               const SizedBox(height: 12),
               const _TipCard(
                 icon: Icons.visibility,
-                text: 'Browse the menu before ordering — no login required.',
+                text:
+                    'Browse the menu before ordering — no login required.',
               ),
               const SizedBox(height: 12),
               const _TipCard(
                 icon: Icons.payments_outlined,
-                text: 'Pay by cash or UPI (PhonePe / Google Pay) on delivery.',
+                text:
+                    'Pay by cash or UPI (PhonePe / Google Pay) on delivery.',
               ),
             ],
           ),
@@ -212,7 +344,8 @@ class _TipCard extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF44403C)),
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF44403C)),
             ),
           ),
         ],

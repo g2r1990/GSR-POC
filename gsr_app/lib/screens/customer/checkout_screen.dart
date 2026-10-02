@@ -52,6 +52,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => OrderConfirmScreen(
+            orderId: result['order_id'] as String,
             shortId: result['short_id'] as String,
             total: (result['total'] as num).toDouble(),
           ),

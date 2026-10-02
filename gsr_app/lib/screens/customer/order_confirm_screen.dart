@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'order_status_screen.dart';
 
 class OrderConfirmScreen extends StatelessWidget {
+  final String orderId;
   final String shortId;
   final double total;
 
   const OrderConfirmScreen({
     super.key,
+    required this.orderId,
     required this.shortId,
     required this.total,
   });
@@ -85,18 +88,32 @@ class OrderConfirmScreen extends StatelessWidget {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () => Navigator.of(context)
-                        .pushNamedAndRemoveUntil('/', (_) => false),
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(MaterialPageRoute(
+                        builder: (_) => OrderStatusScreen(
+                          orderId: orderId,
+                          shortId: shortId,
+                          total: total,
+                        ),
+                      ));
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD97706),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Back to Home',
+                    child: const Text('Track My Order',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () => Navigator.of(context)
+                      .pushNamedAndRemoveUntil('/', (_) => false),
+                  child: const Text('Back to Home',
+                      style: TextStyle(color: Color(0xFF78716C))),
                 ),
               ],
             ),

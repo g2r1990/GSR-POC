@@ -191,6 +191,16 @@ def owner_update_status(
     return {"order_id": order.id, "status": order.status, "message": "Status updated."}
 
 
+# ── Customer: get order status (public, poll) ─────────────────────────────────
+
+@router.get("/{order_id}", response_model=OrderResponse)
+def get_order_status(order_id: str, db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    return _order_to_response(order)
+
+
 # ── Owner: store FCM token ─────────────────────────────────────────────────────
 
 @router.post("/owner/fcm-token", status_code=200)

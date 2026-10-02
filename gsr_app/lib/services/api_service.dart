@@ -243,6 +243,33 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
   }
 
+  static Future<Map<String, dynamic>> getOrderStatus(String orderId) async {
+    final res = await http.get(
+      Uri.parse('$_base/orders/$orderId'),
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Order not found');
+  }
+
+  static Future<String?> getPincodeFromCoords(double lat, double lon) async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+            'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json'),
+        headers: {'User-Agent': 'BossBite/1.0'},
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final address = data['address'] as Map<String, dynamic>?;
+        return address?['postcode'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static Future<void> updateOrderStatus(
       String orderId, String status) async {
     final token = await getToken();
