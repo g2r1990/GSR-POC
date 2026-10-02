@@ -77,6 +77,12 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Image.asset(
+              'assets/icon/bossbite_logo.png',
+              width: 88,
+              height: 88,
+            ),
+            const SizedBox(height: 20),
             RichText(
               text: TextSpan(
                 children: [
