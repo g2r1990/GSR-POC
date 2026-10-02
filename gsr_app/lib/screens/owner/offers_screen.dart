@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../utils/validators.dart';
 
@@ -265,6 +267,11 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   List<Map<String, dynamic>> _menuItems = [];
   String? _selectedMenuItemId;
 
+  // Past offer templates (stored locally)
+  List<Map<String, dynamic>> _templates = [];
+
+  static const _prefsKey = 'owner_offer_templates';
+
   static const _months = [
     '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -274,6 +281,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   void initState() {
     super.initState();
     _loadMenu();
+    _loadTemplates();
   }
 
   Future<void> _loadMenu() async {
@@ -281,6 +289,43 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       final items = await ApiService.getMenu();
       if (mounted) setState(() => _menuItems = items);
     } catch (_) {}
+  }
+
+  Future<void> _loadTemplates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefsKey);
+      if (raw != null && mounted) {
+        final list = (jsonDecode(raw) as List)
+            .cast<Map<String, dynamic>>();
+        setState(() => _templates = list);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveTemplate(Map<String, dynamic> payload) async {
+    try {
+      final template = {
+        'title': payload['title'],
+        if (payload['description'] != null) 'description': payload['description'],
+        if (payload['discount_pct'] != null) 'discount_pct': payload['discount_pct'],
+      };
+      final updated = [
+        template,
+        ..._templates.where((t) => t['title'] != template['title']),
+      ].take(5).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefsKey, jsonEncode(updated));
+    } catch (_) {}
+  }
+
+  void _applyTemplate(Map<String, dynamic> t) {
+    setState(() {
+      _titleCtrl.text = t['title'] as String? ?? '';
+      _descCtrl.text = t['description'] as String? ?? '';
+      final disc = t['discount_pct'];
+      _discCtrl.text = disc != null ? disc.toString() : '';
+    });
   }
 
   @override
@@ -345,6 +390,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
           'valid_until': utcDt.toIso8601String(),
       };
       await ApiService.createOffer(payload);
+      await _saveTemplate(payload);
       widget.onCreated();
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = e.message; _saving = false; });
@@ -374,6 +420,40 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
               style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
             ),
             const SizedBox(height: 16),
+
+            // ── Recent / reuse past offers ─────────────────────────
+            if (_templates.isNotEmpty) ...[
+              const Text('Reuse a Past Offer',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151))),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _templates.map((t) {
+                    final disc = t['discount_pct'];
+                    final label = disc != null
+                        ? '${t['title']} (${disc}% off)'
+                        : t['title'] as String? ?? '';
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(label,
+                            style: const TextStyle(fontSize: 12)),
+                        onPressed: () => _applyTemplate(t),
+                        backgroundColor: const Color(0xFFF5F3FF),
+                        side: const BorderSide(color: Color(0xFFEDE9FE)),
+                        avatar: const Icon(Icons.history,
+                            size: 16, color: Color(0xFF7C3AED)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Optional: link to a menu item
             if (_menuItems.isNotEmpty) ...[
@@ -412,7 +492,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                   ..._menuItems.map((m) => DropdownMenuItem<String?>(
                         value: m['id'] as String?,
                         child: Text(
-                          '${m['name']} — ₹${(m['price'] as num?)?.toStringAsFixed(0) ?? ''}',
+                          m['name'] as String? ?? '',
                           overflow: TextOverflow.ellipsis,
                         ),
                       )),

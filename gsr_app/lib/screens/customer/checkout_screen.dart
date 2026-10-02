@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/offer_service.dart';
 import '../../utils/validators.dart';
 import '../../services/cart_service.dart';
 import 'order_confirm_screen.dart';
@@ -18,6 +19,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   static const _amber = Color(0xFFD97706);
   static const _deliveryFee = 20.0;
 
+  // Applied offer (only counts if for the same restaurant)
+  bool get _offerApplied =>
+      OfferService.hasOffer &&
+      OfferService.restaurantId == CartService.restaurantId;
+  double get _offerDiscount => _offerApplied ? OfferService.discountPct : 0;
+
   final _formKey = GlobalKey<FormState>();
   final _nameCtr = TextEditingController();
   final _phoneCtr = TextEditingController();
@@ -29,8 +36,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _error;
 
   double get _itemTotal => CartService.total;
-  double get _gst => double.parse((_itemTotal * 0.05).toStringAsFixed(2));
-  double get _grandTotal => _itemTotal + _deliveryFee + _gst;
+  double get _discountAmount =>
+      double.parse((_itemTotal * _offerDiscount / 100).toStringAsFixed(2));
+  double get _discountedItemTotal => _itemTotal - _discountAmount;
+  double get _gst =>
+      double.parse((_discountedItemTotal * 0.05).toStringAsFixed(2));
+  double get _grandTotal => _discountedItemTotal + _deliveryFee + _gst;
 
   @override
   void initState() {
@@ -110,6 +121,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       });
 
       CartService.clear();
+      OfferService.clear();
 
       // Persist active order so home screen can show "Track Order" banner
       final orderId = result['order_id'] as String;
@@ -219,6 +231,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Offer banner
+              if (_offerApplied) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F3FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFEDE9FE)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.local_offer,
+                        color: Color(0xFF7C3AED), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${OfferService.discountPct.toStringAsFixed(0)}% off applied!  ${OfferService.title}',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6D28D9),
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Items ordered
               _SectionHeader('Items Ordered'),
               Container(
@@ -269,6 +309,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     label: 'Item total',
                     value: '₹${_itemTotal.toStringAsFixed(0)}',
                   ),
+                  if (_offerApplied) ...[
+                    const SizedBox(height: 8),
+                    _BillRow(
+                      label: 'Offer discount (${_offerDiscount.toStringAsFixed(0)}%)',
+                      value: '-₹${_discountAmount.toStringAsFixed(0)}',
+                      valueColor: const Color(0xFF166534),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   _BillRow(
                     label: 'Delivery fee',

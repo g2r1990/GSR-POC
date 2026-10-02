@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/offer_service.dart';
 import 'order_status_screen.dart';
 import 'order_history_screen.dart';
 import 'profile_screen.dart';
 import 'restaurant_list_screen.dart';
+import 'restaurant_menu_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -540,7 +542,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   )
                 else
                   SizedBox(
-                    height: 100,
+                    height: 130,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -842,56 +844,88 @@ class _OfferCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final discount = offer['discount_pct'];
+    final restaurantId = offer['restaurant_id'] as String? ?? '';
     final restaurant = offer['restaurant_name'] as String? ?? '';
     final title = offer['title'] as String? ?? '';
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () {
+        if (restaurantId.isEmpty) return;
+        OfferService.apply(offer);
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => RestaurantMenuScreen(
+            restaurantId: restaurantId,
+            restaurantName: restaurant,
+          ),
+        ));
+      },
+      child: Container(
+        width: 210,
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
         ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const Icon(Icons.local_offer, color: Colors.white70, size: 14),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(restaurant,
-                  style: const TextStyle(
-                      fontSize: 11, color: Colors.white70),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
-          const Spacer(),
-          if (discount != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(51),
-                borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.local_offer, color: Colors.white70, size: 14),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(restaurant,
+                    style: const TextStyle(
+                        fontSize: 11, color: Colors.white70),
+                    overflow: TextOverflow.ellipsis),
               ),
-              child: Text('$discount% OFF',
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
-            ),
-        ],
+            ]),
+            const SizedBox(height: 6),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
+            const Spacer(),
+            Row(children: [
+              if (discount != null) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(51),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('$discount% OFF',
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                ),
+                const SizedBox(width: 6),
+              ],
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(38),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text('Order →',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+              ),
+            ]),
+          ],
+        ),
       ),
     );
   }

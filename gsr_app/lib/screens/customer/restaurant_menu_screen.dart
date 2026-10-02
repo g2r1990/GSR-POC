@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../services/cart_service.dart';
+import '../../services/offer_service.dart';
 import 'cart_screen.dart';
 
 class RestaurantMenuScreen extends StatefulWidget {
@@ -128,12 +129,52 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     }
 
     final categories = menuRaw.keys.toList()..sort();
+    final offerApplied = OfferService.hasOffer &&
+        OfferService.restaurantId == widget.restaurantId;
 
     return RefreshIndicator(
       onRefresh: _load,
       color: _amber,
       child: CustomScrollView(
         slivers: [
+          if (offerApplied)
+            SliverToBoxAdapter(
+              child: StatefulBuilder(
+                builder: (ctx, setSt) {
+                  if (!OfferService.hasOffer ||
+                      OfferService.restaurantId != widget.restaurantId) {
+                    return const SizedBox.shrink();
+                  }
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    color: const Color(0xFF7C3AED),
+                    child: Row(children: [
+                      const Icon(Icons.local_offer,
+                          color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${OfferService.discountPct.toStringAsFixed(0)}% off applied — ${OfferService.title}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          OfferService.clear();
+                          setSt(() {});
+                        },
+                        child: const Icon(Icons.close,
+                            color: Colors.white70, size: 18),
+                      ),
+                    ]),
+                  );
+                },
+              ),
+            ),
           SliverToBoxAdapter(
             child: _RestaurantHeader(restaurant: restaurant),
           ),
