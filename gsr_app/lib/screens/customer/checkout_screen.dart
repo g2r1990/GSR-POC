@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../services/cart_service.dart';
@@ -23,6 +24,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _notesCtr = TextEditingController();
 
   bool _placing = false;
+  bool _detectingAddress = false;
   String? _error;
 
   double get _itemTotal => CartService.total;
@@ -39,12 +41,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('customer_name') ?? '';
     final phone = prefs.getString('customer_phone') ?? '';
-    if (mounted && name.isNotEmpty) {
-      _nameCtr.text = name;
+    final savedAddress = prefs.getString('customer_address') ?? '';
+    if (mounted && name.isNotEmpty) _nameCtr.text = name;
+    if (mounted && phone.isNotEmpty) _phoneCtr.text = phone;
+    if (savedAddress.isNotEmpty) {
+      if (mounted) _addressCtr.text = savedAddress;
+    } else {
+      // Compose a basic address from stored location data
+      final district = prefs.getString('customer_district') ?? '';
+      final state = prefs.getString('customer_state') ?? '';
+      final pincode = prefs.getString('customer_pincode') ?? '';
+      final parts = [district, state, pincode].where((s) => s.isNotEmpty).toList();
+      if (parts.isNotEmpty && mounted) _addressCtr.text = parts.join(', ');
+      // Then try GPS for a more precise address
+      _detectAddress();
     }
-    if (mounted && phone.isNotEmpty) {
-      _phoneCtr.text = phone;
-    }
+  }
+
+  Future<void> _detectAddress() async {
+    if (mounted) setState(() => _detectingAddress = true);
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _detectingAddress = false);
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 10)),
+      );
+      final address =
+          await ApiService.getFullAddressFromCoords(pos.latitude, pos.longitude);
+      if (address != null && address.isNotEmpty && mounted) {
+        _addressCtr.text = address;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('customer_address', address);
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _detectingAddress = false);
   }
 
   @override
@@ -276,14 +314,41 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              _Field(
-                label: 'Delivery Address',
-                hint: 'Full delivery address',
-                controller: _addressCtr,
-                maxLines: 3,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Text('Delivery Address',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+                  const Spacer(),
+                  _detectingAddress
+                      ? const SizedBox(width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706)))
+                      : GestureDetector(
+                          onTap: _detectAddress,
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.my_location, size: 14, color: Color(0xFFD97706)),
+                            SizedBox(width: 4),
+                            Text('Detect', style: TextStyle(fontSize: 12, color: Color(0xFFD97706), fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                ]),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _addressCtr,
+                  maxLines: 3,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  decoration: const InputDecoration(
+                    hintText: 'Full delivery address',
+                    hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10)), borderSide: BorderSide(color: Color(0xFFFDE68A))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10)), borderSide: BorderSide(color: Color(0xFFFDE68A))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10)), borderSide: BorderSide(color: Color(0xFFD97706), width: 2)),
+                    errorBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10)), borderSide: BorderSide(color: Color(0xFFDC2626))),
+                  ),
+                ),
+              ]),
               const SizedBox(height: 12),
               _Field(
                 label: 'Special Instructions (optional)',

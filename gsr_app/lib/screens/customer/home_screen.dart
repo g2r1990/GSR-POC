@@ -35,21 +35,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   bool _searching = false;
   String? _searchError;
   bool _detectingLocation = false;
+  int? _restaurantCount;
 
-  // Pincode override (editable inline)
+  // Controllers
   late TextEditingController _pincodeCtrl;
-  bool _editingPincode = false;
+  late TextEditingController _foodQueryCtrl;
 
   @override
   void initState() {
     super.initState();
     _pincodeCtrl = TextEditingController();
+    _foodQueryCtrl = TextEditingController();
     _loadAll();
   }
 
   @override
   void dispose() {
     _pincodeCtrl.dispose();
+    _foodQueryCtrl.dispose();
     super.dispose();
   }
 
@@ -66,6 +69,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       _pincodeCtrl.text = _pincode;
     });
     _loadRecentOrder();
+    _loadRestaurantCount();
   }
 
   Future<void> _loadRecentOrder() async {
@@ -85,6 +89,47 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         _activeOrderId = prefs.getString('active_order_id');
         _activeOrderShortId = prefs.getString('active_order_short_id');
       });
+    }
+  }
+
+  Future<void> _loadRestaurantCount() async {
+    if (_pincode.isEmpty) return;
+    try {
+      final list = await ApiService.searchRestaurants(_pincode);
+      if (mounted) setState(() => _restaurantCount = list.length);
+    } catch (_) {}
+  }
+
+  Future<void> _search() async {
+    final query = _foodQueryCtrl.text.trim();
+    if (_pincode.isEmpty) {
+      setState(() => _searchError = 'Please detect your location first.');
+      return;
+    }
+    if (query.isEmpty) {
+      _findRestaurants();
+      return;
+    }
+    setState(() { _searching = true; _searchError = null; });
+    try {
+      final results = await ApiService.searchFood(query, _pincode);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantListScreen(
+            pincode: _pincode,
+            restaurants: results,
+            searchLabel: 'Results for "$query"',
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _searchError = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _searchError = 'Could not connect. Check your network.');
+    } finally {
+      if (mounted) setState(() => _searching = false);
     }
   }
 
@@ -257,7 +302,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
 
-              // ── Find restaurants card ─────────────────────────────────
+              // ── Food search card ─────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: Container(
@@ -276,20 +321,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        const Icon(Icons.storefront_outlined,
-                            color: _amber, size: 20),
+                        const Icon(Icons.search, color: _amber, size: 20),
                         const SizedBox(width: 8),
-                        const Text('Find Restaurants',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1C1917))),
-                        const Spacer(),
-                        // Location detect icon
+                        const Expanded(
+                          child: Text('Find Food or Restaurants',
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1C1917))),
+                        ),
                         _detectingLocation
                             ? const SizedBox(
-                                width: 20,
-                                height: 20,
+                                width: 20, height: 20,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: _amber))
                             : IconButton(
@@ -301,118 +344,91 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                 onPressed: _detectLocation,
                               ),
                       ]),
-                      const SizedBox(height: 12),
-
-                      // Pincode row — display or edit mode
-                      _editingPincode
-                          ? TextField(
-                              controller: _pincodeCtrl,
-                              autofocus: true,
-                              keyboardType: TextInputType.number,
-                              maxLength: 6,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly
-                              ],
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 6,
-                                  color: Color(0xFF1C1917)),
-                              decoration: InputDecoration(
-                                counterText: '',
-                                hintText: '431005',
-                                hintStyle: const TextStyle(
-                                    color: Color(0xFFD6D3D1),
-                                    letterSpacing: 6,
-                                    fontWeight: FontWeight.normal,
-                                    fontSize: 22),
-                                enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(
-                                        color: Color(0xFFFDE68A), width: 2)),
-                                focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(
-                                        color: _amber, width: 2)),
-                                filled: true,
-                                fillColor: const Color(0xFFFFFBEB),
-                              ),
-                              onSubmitted: (_) => _findRestaurants(),
-                            )
-                          : GestureDetector(
-                              onTap: () =>
-                                  setState(() => _editingPincode = true),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFFBEB),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                      color: const Color(0xFFFDE68A),
-                                      width: 1.5),
-                                ),
-                                child: Row(children: [
-                                  const Icon(Icons.pin_drop_outlined,
-                                      size: 18, color: _amber),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    _pincode.isNotEmpty
-                                        ? _pincode
-                                        : 'Tap to enter pincode',
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing:
-                                            _pincode.isNotEmpty ? 4 : 0,
-                                        color: _pincode.isNotEmpty
-                                            ? const Color(0xFF1C1917)
-                                            : const Color(0xFFA8A29E)),
-                                  ),
-                                  const Spacer(),
-                                  const Text('Change',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: _amber,
-                                          decoration:
-                                              TextDecoration.underline)),
-                                ]),
-                              ),
-                            ),
-
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _foodQueryCtrl,
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: 'biryani, naan, pizza...',
+                          hintStyle: const TextStyle(
+                              color: Color(0xFF94A3B8), fontSize: 14),
+                          prefixIcon: const Icon(Icons.restaurant_menu,
+                              color: _amber, size: 20),
+                          filled: true,
+                          fillColor: const Color(0xFFFFFBEB),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFFDE68A))),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFFDE68A))),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  const BorderSide(color: _amber, width: 2)),
+                        ),
+                        onSubmitted: (_) => _search(),
+                      ),
+                      if (_pincode.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          const Icon(Icons.location_on,
+                              size: 12, color: Color(0xFFA8A29E)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Near $_pincode${_district.isNotEmpty ? ' · $_district' : ''}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFFA8A29E)),
+                          ),
+                        ]),
+                      ],
                       if (_searchError != null) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(_searchError!,
                             style: const TextStyle(
                                 color: Color(0xFFDC2626), fontSize: 12)),
                       ],
-
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         height: 46,
                         child: ElevatedButton.icon(
-                          onPressed: _searching ? null : _findRestaurants,
+                          onPressed: _searching ? null : _search,
                           icon: _searching
                               ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
+                                  width: 18, height: 18,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
                               : const Icon(Icons.search, size: 20),
                           label: Text(
-                              _searching ? 'Searching…' : 'Find Restaurants',
+                              _searching ? 'Searching…' : 'Search Food',
                               style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold)),
+                                  fontSize: 15, fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _amber,
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: _searching ? null : _findRestaurants,
+                          icon: const Icon(Icons.storefront_outlined,
+                              size: 16, color: _amber),
+                          label: Text(
+                            _restaurantCount != null
+                                ? 'Browse all restaurants ($_restaurantCount accepting orders)'
+                                : 'Browse all restaurants',
+                            style: const TextStyle(
+                                fontSize: 13, color: _amber),
                           ),
                         ),
                       ),

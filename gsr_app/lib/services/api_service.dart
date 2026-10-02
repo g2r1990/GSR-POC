@@ -248,6 +248,51 @@ class ApiService {
     return uuid;
   }
 
+  static Future<List<Map<String, dynamic>>> searchFood(
+      String query, String pincode) async {
+    final res = await http.get(
+      Uri.parse(
+          '$_base/customer/search?q=${Uri.encodeComponent(query)}&pincode=$pincode'),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Search failed');
+  }
+
+  static Future<String?> getFullAddressFromCoords(
+      double lat, double lon) async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+            'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json'),
+        headers: {'User-Agent': 'BossBite/1.0'},
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final addr = data['address'] as Map<String, dynamic>? ?? {};
+        final road = addr['road'] as String? ??
+            addr['footway'] as String? ??
+            addr['path'] as String? ??
+            '';
+        final suburb = addr['suburb'] as String? ??
+            addr['neighbourhood'] as String? ??
+            '';
+        final city = addr['city'] as String? ??
+            addr['town'] as String? ??
+            addr['county'] as String? ??
+            '';
+        final postcode = addr['postcode'] as String? ?? '';
+        final parts = [road, suburb, city, postcode]
+            .where((s) => s.isNotEmpty)
+            .toList();
+        return parts.isNotEmpty ? parts.join(', ') : null;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static Future<bool> customerCheckDevice(
       String mobile, String deviceId) async {
     try {

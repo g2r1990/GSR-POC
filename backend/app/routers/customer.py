@@ -3,6 +3,7 @@ import random
 import time
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -46,6 +47,46 @@ def _send_otp_sms(mobile: str, otp: str) -> bool:
     except Exception as exc:
         logger.warning("Fast2SMS send failed: %s", exc)
         return False
+
+
+@router.get("/search")
+def search_food(q: str, pincode: str, db: Session = Depends(get_db)):
+    """Search menu items by name/category and return matching active restaurants in the pincode area."""
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Search query is required.")
+    prefix = pincode[:5] if len(pincode) >= 5 else pincode
+    items = (
+        db.query(MenuItem)
+        .join(Restaurant)
+        .filter(
+            MenuItem.is_available == True,
+            MenuItem.is_deleted == False,
+            Restaurant.status == "active",
+            Restaurant.pincode.like(prefix + "%"),
+            or_(
+                MenuItem.name.ilike(f"%{q}%"),
+                MenuItem.category.ilike(f"%{q}%"),
+            )
+        )
+        .all()
+    )
+    restaurant_map: dict = {}
+    for item in items:
+        r = item.restaurant
+        rid = r.id
+        if rid not in restaurant_map:
+            restaurant_map[rid] = {
+                "id": r.id,
+                "name": r.name,
+                "address": r.address or "",
+                "area": r.area or "",
+                "pincode": r.pincode,
+                "food_type": r.food_type or "both",
+                "matching_items": [],
+            }
+        if item.name not in restaurant_map[rid]["matching_items"]:
+            restaurant_map[rid]["matching_items"].append(item.name)
+    return list(restaurant_map.values())
 
 
 @router.get("/restaurants", response_model=List[RestaurantResponse])
@@ -112,19 +153,29 @@ def customer_order_history(mobile: str, db: Session = Depends(get_db)):
         .order_by(OrderModel.created_at.desc())
         .all()
     )
-    return [
-        {
+    result = []
+    for o in orders:
+        items_data = (o.items_snapshot or {}).get("items", [])
+        item_total = sum(float(i.get("price", 0)) * int(i.get("qty", 1)) for i in items_data)
+        delivery_fee = 20.0
+        gst = round(item_total * 0.05, 2)
+        result.append({
             "order_id": o.id,
             "short_id": o.id[:8].upper(),
             "status": o.status,
             "total": float(o.total),
             "restaurant_name": o.restaurant.name if o.restaurant else "",
-            "items_count": len((o.items_snapshot or {}).get("items", [])),
+            "items_count": len(items_data),
             "created_at": o.created_at.isoformat() if o.created_at else None,
             "delivery_address": o.delivery_address or "",
-        }
-        for o in orders
-    ]
+            "items": [
+                {"name": i.get("name", ""), "qty": int(i.get("qty", 1)), "price": float(i.get("price", 0))}
+                for i in items_data
+            ],
+            "delivery_fee": delivery_fee,
+            "gst": gst,
+        })
+    return result
 
 
 @router.post("/send-otp")

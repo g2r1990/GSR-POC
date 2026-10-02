@@ -4,11 +4,13 @@ import 'restaurant_menu_screen.dart';
 class RestaurantListScreen extends StatelessWidget {
   final String pincode;
   final List<Map<String, dynamic>> restaurants;
+  final String? searchLabel;
 
   const RestaurantListScreen({
     super.key,
     required this.pincode,
     required this.restaurants,
+    this.searchLabel,
   });
 
   static const _amber = Color(0xFFD97706);
@@ -20,7 +22,7 @@ class RestaurantListScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: _amber,
         foregroundColor: Colors.white,
-        title: Text('Restaurants — $pincode'),
+        title: Text(searchLabel ?? 'Restaurants — $pincode'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -137,6 +139,17 @@ class _RestaurantCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     _FoodTypeBadge(foodType: foodType),
+                    Builder(builder: (_) {
+                      final matching = (data['matching_items'] as List<dynamic>?)?.cast<String>();
+                      if (matching == null || matching.isEmpty) return const SizedBox.shrink();
+                      final preview = matching.take(3).join(', ');
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text('Serves: $preview',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                            overflow: TextOverflow.ellipsis),
+                      );
+                    }),
                   ],
                 ),
               ),

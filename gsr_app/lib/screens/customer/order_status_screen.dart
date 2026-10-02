@@ -148,7 +148,9 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     final isCancelled = _status == 'cancelled';
     final currentIdx = _steps.indexOf(_status);
 
-    return SingleChildScrollView(
+    return Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,6 +369,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           const SizedBox(height: 16),
         ],
       ),
-    );
+      ), // SingleChildScrollView
+    ); // Scrollbar
   }
 }

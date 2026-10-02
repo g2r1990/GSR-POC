@@ -164,14 +164,22 @@ class _SectionLabel extends StatelessWidget {
       );
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final String mobile;
   const _OrderCard({required this.order, required this.mobile});
 
+  @override
+  State<_OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends State<_OrderCard> {
+  bool _showBill = false;
+
   static const _amber = Color(0xFFD97706);
 
   static const _statusLabel = {
+
     'placed': 'Placed',
     'accepted': 'Accepted',
     'ready': 'Ready',
@@ -217,6 +225,7 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final order = widget.order;
     final status = order['status'] as String? ?? 'placed';
     final shortId = order['short_id'] as String? ?? '';
     final restaurant = order['restaurant_name'] as String? ?? '';
@@ -224,117 +233,183 @@ class _OrderCard extends StatelessWidget {
     final itemsCount = (order['items_count'] as int?) ?? 0;
     final createdAt = order['created_at'] as String?;
     final isDone = status == 'delivered' || status == 'cancelled';
+    final items = (order['items'] as List<dynamic>?) ?? [];
+    final deliveryFee = (order['delivery_fee'] as num?)?.toDouble() ?? 20.0;
+    final gst = (order['gst'] as num?)?.toDouble() ?? 0.0;
 
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => OrderStatusScreen(
-            orderId: order['order_id'] as String,
-            shortId: shortId,
-            total: total,
-          ),
-        ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDE68A)),
       ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFDE68A)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text('#$shortId',
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1C1917))),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _statusBg[status] ?? const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      _statusLabel[status] ?? status,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: _statusColor[status] ?? _amber),
-                    ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: order id + status badge
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => OrderStatusScreen(
+                  orderId: order['order_id'] as String,
+                  shortId: shortId,
+                  total: total,
+                ),
+              )),
+              child: Row(children: [
+                Text('#$shortId',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1C1917))),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusBg[status] ?? const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(children: [
-                const Icon(Icons.restaurant, size: 14, color: Color(0xFF78716C)),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(restaurant,
-                      style: const TextStyle(
-                          fontSize: 13, color: Color(0xFF374151)),
-                      overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    _statusLabel[status] ?? status,
+                    style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold,
+                        color: _statusColor[status] ?? _amber),
+                  ),
                 ),
               ]),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Icon(Icons.restaurant, size: 14, color: Color(0xFF78716C)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(restaurant,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF374151)),
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            Row(children: [
+              const Icon(Icons.fastfood_outlined, size: 14, color: Color(0xFF78716C)),
+              const SizedBox(width: 5),
+              Text('$itemsCount item${itemsCount == 1 ? '' : 's'}  •  ₹${total.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
+            ]),
+            if (createdAt != null) ...[
               const SizedBox(height: 4),
               Row(children: [
-                const Icon(Icons.fastfood_outlined,
-                    size: 14, color: Color(0xFF78716C)),
+                const Icon(Icons.access_time, size: 14, color: Color(0xFFA8A29E)),
                 const SizedBox(width: 5),
-                Text('$itemsCount item${itemsCount == 1 ? '' : 's'}  •  ₹${total.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                        fontSize: 13, color: Color(0xFF374151))),
+                Text(_formatDate(createdAt),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFFA8A29E))),
               ]),
-              if (createdAt != null) ...[
-                const SizedBox(height: 4),
-                Row(children: [
-                  const Icon(Icons.access_time,
-                      size: 14, color: Color(0xFFA8A29E)),
-                  const SizedBox(width: 5),
-                  Text(_formatDate(createdAt),
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFFA8A29E))),
-                ]),
-              ],
-              if (!isDone) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 36,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => OrderStatusScreen(
-                          orderId: order['order_id'] as String,
-                          shortId: shortId,
-                          total: total,
-                        ),
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _amber,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Track Order',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
             ],
-          ),
+
+            // View Bill toggle
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => setState(() => _showBill = !_showBill),
+              child: Row(children: [
+                const Icon(Icons.receipt_outlined, size: 14, color: Color(0xFF78716C)),
+                const SizedBox(width: 4),
+                Text(_showBill ? 'Hide Bill' : 'View Bill',
+                    style: const TextStyle(
+                        fontSize: 12, color: _amber, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Icon(_showBill ? Icons.expand_less : Icons.expand_more,
+                    size: 18, color: _amber),
+              ]),
+            ),
+
+            // Expandable bill
+            if (_showBill) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  for (final item in items)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(children: [
+                        Expanded(
+                          child: Text(
+                            '${item['qty']}×  ${item['name']}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                          ),
+                        ),
+                        Text(
+                          '₹${((item['price'] as num) * (item['qty'] as num)).toStringAsFixed(0)}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF78716C)),
+                        ),
+                      ]),
+                    ),
+                  const Divider(height: 12),
+                  _BillLine('Delivery fee', '₹${deliveryFee.toStringAsFixed(0)}'),
+                  const SizedBox(height: 2),
+                  _BillLine('GST (5%)', '₹${gst.toStringAsFixed(2)}'),
+                  const Divider(height: 10),
+                  _BillLine('Total', '₹${total.toStringAsFixed(0)}', bold: true),
+                ]),
+              ),
+            ],
+
+            // Track Order button (active only)
+            if (!isDone) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 36,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => OrderStatusScreen(
+                      orderId: order['order_id'] as String,
+                      shortId: shortId,
+                      total: total,
+                    ),
+                  )),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _amber,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Track Order',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
+  }
+}
+
+class _BillLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool bold;
+  const _BillLine(this.label, this.value, {this.bold = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Expanded(
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                  color: const Color(0xFF374151)))),
+      Text(value,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              color: bold ? const Color(0xFFD97706) : const Color(0xFF374151))),
+    ]);
   }
 }
