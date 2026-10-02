@@ -4,6 +4,7 @@ import 'screens/role_selector.dart';
 import 'screens/admin/login_screen.dart';
 import 'screens/admin/kyc_dashboard.dart';
 import 'screens/owner/register_screen.dart';
+import 'screens/owner/login_screen.dart';
 import 'screens/customer/home_screen.dart';
 
 void main() {
@@ -32,6 +33,7 @@ class GsrApp extends StatelessWidget {
         '/admin/login': (ctx) => const AdminLoginScreen(),
         '/admin/dashboard': (ctx) => const AdminDashboardScreen(),
         '/owner/register': (ctx) => const OwnerRegisterScreen(),
+        '/owner/login': (ctx) => const OwnerLoginScreen(),
         '/customer/home': (ctx) => const CustomerHomeScreen(),
       },
     );

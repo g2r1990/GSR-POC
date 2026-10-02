@@ -26,7 +26,7 @@ class Owner(Base):
     name              = Column(String(100), nullable=False)
     mobile            = Column(String(15), unique=True, nullable=False)
     email             = Column(String(150), unique=True, nullable=True)
-    password_hash     = Column(String(255), nullable=False)
+    password_hash     = Column(String(255), nullable=True)
     totp_secret       = Column(String(64), nullable=True)
     status            = Column(String(20), default="pending")   # pending | active | suspended | rejected
     gstin             = Column(String(15), nullable=True)

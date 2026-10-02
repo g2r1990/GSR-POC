@@ -7,8 +7,11 @@ from jose import JWTError
 
 from app.database import get_db
 from app.models import Owner, Restaurant
-from app.core.security import decode_token, hash_password
-from app.schemas.owner import OwnerRegisterRequest, OwnerRegisterResponse
+from app.core.security import decode_token, hash_password, verify_password, create_access_token
+from app.schemas.owner import (
+    OwnerRegisterRequest, OwnerRegisterResponse,
+    OwnerSetPasswordRequest, OwnerLoginRequest, OwnerLoginResponse,
+)
 
 router = APIRouter(prefix="/owner", tags=["Owner"])
 bearer = HTTPBearer()
@@ -24,6 +27,32 @@ def _get_owner_id(credentials: HTTPAuthorizationCredentials) -> str:
     if payload.get("role") != "owner":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requires owner role")
     return payload["sub"]
+
+
+# ── Auth (password-based for POC) ─────────────────────────────────────────────
+
+@router.post("/auth/set-password", status_code=200)
+def owner_set_password(body: OwnerSetPasswordRequest, db: Session = Depends(get_db)):
+    owner = db.query(Owner).filter(Owner.mobile == body.mobile).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found.")
+    owner.password_hash = hash_password(body.password)
+    db.commit()
+    return {"message": "Password set successfully."}
+
+
+@router.post("/auth/login", response_model=OwnerLoginResponse)
+def owner_login_password(body: OwnerLoginRequest, db: Session = Depends(get_db)):
+    owner = db.query(Owner).filter(Owner.mobile == body.mobile).first()
+    if not owner or not owner.password_hash:
+        raise HTTPException(status_code=401, detail="Invalid credentials.")
+    if not verify_password(body.password, owner.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials.")
+    if owner.status != "active":
+        raise HTTPException(status_code=403,
+                            detail=f"Account {owner.status}. Contact admin.")
+    token = create_access_token(subject=owner.id, role="owner")
+    return OwnerLoginResponse(access_token=token, owner_id=owner.id, name=owner.name)
 
 
 # ── Registration ───────────────────────────────────────────────────────────────

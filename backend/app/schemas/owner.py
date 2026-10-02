@@ -58,3 +58,35 @@ class KycItemResponse(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str
+
+
+class OwnerSetPasswordRequest(BaseModel):
+    mobile: str
+    password: str
+
+    @field_validator('mobile')
+    @classmethod
+    def mobile_format(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith('+'):
+            v = '+91' + v.lstrip('0')
+        return v
+
+
+class OwnerLoginRequest(BaseModel):
+    mobile: str
+    password: str
+
+    @field_validator('mobile')
+    @classmethod
+    def mobile_format(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith('+'):
+            v = '+91' + v.lstrip('0')
+        return v
+
+
+class OwnerLoginResponse(BaseModel):
+    access_token: str
+    owner_id: str
+    name: str

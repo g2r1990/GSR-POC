@@ -41,7 +41,7 @@ class RoleSelectorScreen extends StatelessWidget {
                 label: 'Owner',
                 description: 'Register your restaurant and track status',
                 color: const Color(0xFF059669),
-                onTap: () => Navigator.pushNamed(context, '/owner/register'),
+                onTap: () => Navigator.pushNamed(context, '/owner/login'),
               ),
               const SizedBox(height: 16),
               _RoleCard(

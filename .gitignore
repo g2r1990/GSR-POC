@@ -11,6 +11,17 @@ crash.log
 *.pem
 *.ppk
 
+# Firebase service account — never commit
+*firebase-adminsdk*.json
+firebase-service-account.json
+
+# Downloaded APKs and local artifacts
+App-GSR-APK/
+terraform/tfplan.binary
+terraform/tfinit.txt
+terraform/tfplan.txt
+terraform/tfapply.txt
+
 # Python / FastAPI
 __pycache__/
 *.pyc

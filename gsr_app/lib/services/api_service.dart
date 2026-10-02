@@ -89,6 +89,97 @@ class ApiService {
       throw ApiException(body['detail']?.toString() ?? 'Reject failed');
     }
   }
+
+  // ── Owner auth ────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> ownerLogin(
+      String mobile, String password) async {
+    final res = await http
+        .post(
+          Uri.parse('$_base/owner/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'mobile': mobile, 'password': password}),
+        )
+        .timeout(const Duration(seconds: 15));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 200) return body;
+    throw ApiException(body['detail']?.toString() ?? 'Login failed');
+  }
+
+  // ── Menu ──────────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getMenu() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/menu'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load menu');
+  }
+
+  static Future<Map<String, dynamic>> addMenuItem(
+      Map<String, dynamic> item) async {
+    final token = await getToken();
+    final res = await http
+        .post(
+          Uri.parse('$_base/owner/menu/item'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(item),
+        )
+        .timeout(const Duration(seconds: 15));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 201) return body;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to add item');
+  }
+
+  static Future<Map<String, dynamic>> updateMenuItem(
+      String id, Map<String, dynamic> item) async {
+    final token = await getToken();
+    final res = await http
+        .put(
+          Uri.parse('$_base/owner/menu/item/$id'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(item),
+        )
+        .timeout(const Duration(seconds: 15));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 200) return body;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to update item');
+  }
+
+  static Future<void> toggleAvailability(String id) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/owner/menu/item/$id/availability'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(body['detail']?.toString() ?? 'Toggle failed');
+    }
+  }
+
+  static Future<void> deleteMenuItem(String id) async {
+    final token = await getToken();
+    final res = await http.delete(
+      Uri.parse('$_base/owner/menu/item/$id'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(body['detail']?.toString() ?? 'Delete failed');
+    }
+  }
 }
 
 class ApiException implements Exception {

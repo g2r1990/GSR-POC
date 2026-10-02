@@ -1,0 +1,203 @@
+================================================================================
+PROJECT GSR — DAY 4 ACTUAL UPDATE
+Date       : 2nd October 2026 (Friday)
+Sprint     : Sprint 4 — Owner KYC + Admin Panel + Flutter UI Screens
+Work Hours : Non-working hours (personal learning / upskilling)
+Status     : COMPLETE — All Sprint 4 backend APIs + Flutter screens done
+================================================================================
+
+------------------------------------------------------------------------
+SPRINT 4 TASKS COMPLETED TODAY
+------------------------------------------------------------------------
+
+[DONE] T1  EC2 restarted and verified healthy
+           sudo docker-compose ps → gsr_api Up, gsr_db Up (healthy)
+           curl http://localhost:8000/health → {"status":"ok","db":"connected","version":"0.2.0"}
+
+[DONE] T2  Git pull on EC2 — all Sprint 4 code synced
+           18 files updated (45 objects fetched from origin/main)
+           Includes: new routers, models update, migration file, Flutter screens
+
+[DONE] T3  Docker container rebuilt with Sprint 4 code
+           sudo docker-compose up -d --build api → rebuilt in 1.6s (cached layers)
+           API version bumped: 0.2.0 → 0.3.0
+
+[DONE] T4  Alembic migration a1b2c3d4e5f6 applied
+           Command: sudo docker-compose exec api bash -c "cd /app && python -m alembic upgrade head"
+           Note: Must use "python -m alembic" (not "alembic") to set PYTHONPATH correctly
+           Migration: 9bb830ad942d → a1b2c3d4e5f6 (sprint4_owner_kyc_fields)
+           4 new columns added to owner table:
+             - gstin          VARCHAR(15)  — GSTIN number for KYC
+             - doc_url        VARCHAR(500) — S3 URL of uploaded KYC document
+             - rejection_reason TEXT       — reason if admin rejects
+             - firebase_uid   VARCHAR(128) — Firebase UID for phone login
+
+[DONE] T5  New backend routers deployed (v0.3.0)
+
+           Owner Router — /owner/
+             POST /owner/register         Creates Owner + Restaurant (status=pending)
+             POST /owner/documents/upload  Upload KYC doc to S3 (S3_BUCKET_NAME optional)
+             GET  /owner/me               Owner profile + restaurant details
+
+           Admin Router — /admin/
+             GET  /admin/kyc/pending      List owners awaiting approval
+             GET  /admin/kyc/all          All owners with any status
+             POST /admin/kyc/{id}/approve Sets owner.status=active, restaurant.status=active
+             POST /admin/kyc/{id}/reject  Sets status=rejected, stores reason
+
+[DONE] T6  End-to-end API test via Swagger (http://43.204.43.71:8000/docs)
+           ✅ POST /auth/admin/login (admin / Admin@GSR2026 + TOTP) → JWT received
+           ✅ POST /owner/register (Kulpreet Kaur Rajput / Noor Bhoj) → 201 Created
+           ✅ Second attempt → 409 Conflict "Mobile already registered" (correct behavior)
+           ✅ GET  /admin/kyc/pending → showed Noor Bhoj with status: pending
+           ✅ POST /admin/kyc/{id}/approve → "Owner approved. Restaurant(s) are now active."
+           ✅ GET  /admin/kyc/pending → empty [] (owner removed from pending list)
+
+[DONE] T7  Flutter Sprint 4 UI screens built
+
+           New screens (replacing Flutter demo counter):
+             lib/screens/splash_screen.dart       GSR logo, blue bg, 2s fade → role selector
+             lib/screens/role_selector.dart        Admin/Owner/Customer cards
+             lib/screens/admin/login_screen.dart  Username + Password + TOTP (6-digit)
+             lib/screens/admin/kyc_dashboard.dart Pending list + Approve/Reject
+             lib/screens/owner/register_screen.dart  Placeholder (Sprint 5)
+             lib/screens/customer/home_screen.dart   Placeholder (future)
+             lib/services/api_service.dart        HTTP client, JWT storage (shared_preferences)
+
+           pubspec.yaml additions:
+             http: ^1.2.2
+             shared_preferences: ^2.3.2
+
+[DONE] T8  GitHub Actions — 3 builds total (all green)
+           Build #1 — Oct 1 — Flutter scaffold (demo counter) — 6m 44s — 66.8 MB
+           Build #2 — Oct 2 — Sprint 4 UI (master branch) — 6m 8s
+           Build #3 — Oct 2 — Sprint 4 UI (main branch) — 7m 50s
+           GSR-debug-3 downloaded and installed on wife's phone for testing
+
+[DONE] T9  Firebase App Distribution configured
+           App registered: GSR App (com.gsr.gsr_app)
+           App ID: 1:708112960726:android:89b7cd0f86d1abda590d77
+           Contact email: gurpreet18121990@gmail.com
+           Testers added: gurpreet18121990@gmail.com
+
+[DONE] T10 GitHub Secrets added for Firebase auto-distribution
+           Secret 1: FIREBASE_APP_ID = 1:708112960726:android:89b7cd0f86d1abda590d77
+           Secret 2: FIREBASE_SERVICE_ACCOUNT_JSON = (service account JSON contents)
+           GitHub Actions workflow updated with Firebase Distribution step
+           Next push to gsr_app/ → Firebase will notify phone automatically
+
+------------------------------------------------------------------------
+ISSUES ENCOUNTERED & RESOLVED
+------------------------------------------------------------------------
+
+Issue 1 : Alembic "No module named 'app'" error
+          alembic upgrade head / bash -c "cd /app && alembic upgrade head" both failed
+Fix     : Use python -m alembic instead of alembic directly
+          Command: sudo docker-compose exec api bash -c "cd /app && python -m alembic upgrade head"
+          When using -m, Python adds current directory to sys.path automatically
+
+Issue 2 : First alembic run showed no migration applied
+Cause   : EC2 had old code — migration file didn't exist yet
+Fix     : git pull first, rebuild container, then run migration
+
+Issue 3 : Port 8000 not reachable from browser (ERR_CONNECTION_TIMED_OUT)
+Cause   : AWS Security Group had no inbound rule for port 8000
+Fix     : Added Custom TCP inbound rule: port 8000, source 0.0.0.0/0 in AWS Console
+          Corporate network workaround: SSH tunnel
+          ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" -L 8080:localhost:8000 -N ec2-user@43.204.43.71
+          Then open http://localhost:8080/docs (tunnels through SSH port 22)
+
+Issue 4 : Two builds triggered (Build #2 master + Build #3 main)
+Cause   : Push to master then master:main sync both triggered the workflow
+          (workflow triggers on both branches when gsr_app/** changes)
+Resolution: Expected behavior — both are the same code (commit c79fb60). Use #3 (latest).
+
+------------------------------------------------------------------------
+SECURITY GROUP — CURRENT INBOUND RULES
+------------------------------------------------------------------------
+
+Port 22   — SSH — YOUR_IP/32 (restricted to your Zscaler-visible IP)
+Port 80   — HTTP — 0.0.0.0/0
+Port 443  — HTTPS — 0.0.0.0/0
+Port 8000 — Custom TCP — 0.0.0.0/0 (added today for Swagger + Flutter app)
+
+------------------------------------------------------------------------
+FIREBASE APP DISTRIBUTION SETUP
+------------------------------------------------------------------------
+
+Firebase project  : project-gsr-cd6c6
+App registered    : GSR App (Android) — com.gsr.gsr_app
+App ID            : 1:708112960726:android:89b7cd0f86d1abda590d77
+Tester email      : gurpreet18121990@gmail.com
+
+Auto-update flow (after Firebase App Tester installed on phone):
+  Code push → GitHub Actions builds APK (~7 min) → Firebase uploads →
+  Push notification on phone → Tap "Download" → Auto-install update
+
+GitHub secrets configured:
+  FIREBASE_APP_ID              ✅
+  FIREBASE_SERVICE_ACCOUNT_JSON ✅
+
+Pending: Install Firebase App Tester app on phone
+         (invite email sent to gurpreet18121990@gmail.com)
+
+------------------------------------------------------------------------
+SPRINT 4 COMPLETION STATUS
+------------------------------------------------------------------------
+
+Backend:
+[DONE] Owner registration API (name, mobile, GSTIN, restaurant details)
+[DONE] Restaurant linked to owner on registration
+[DONE] S3 document upload endpoint (S3_BUCKET_NAME env var — optional)
+[DONE] GET /admin/kyc/pending — pending owners list with restaurant info
+[DONE] POST /admin/kyc/{id}/approve — activates owner + restaurant
+[DONE] POST /admin/kyc/{id}/reject — sets rejection reason
+[DONE] Alembic migration for new owner columns
+
+Flutter:
+[DONE] Splash screen (GSR branding, 2s animation)
+[DONE] Role selector (Admin / Owner / Customer)
+[DONE] Admin login screen (username + password + TOTP)
+[DONE] Admin KYC dashboard (pending list + Approve/Reject)
+[DONE] Owner registration — placeholder (Sprint 5)
+[DONE] Customer home — placeholder (future sprint)
+
+Testing:
+[DONE] Backend API tested end-to-end via Swagger ✅
+[PEND] Flutter app tested on phone (GSR-debug-3 installing)
+[PEND] Firebase App Tester installed on user's phone
+
+------------------------------------------------------------------------
+EC2 STATUS
+------------------------------------------------------------------------
+
+EC2 stopped at end of Day 4 (cost saving)
+Restart: AWS Console → EC2 → i-02bb92a9fa97bd78b → Start instance
+SSH: ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+Containers start automatically on EC2 start (restart: always in docker-compose)
+
+------------------------------------------------------------------------
+NEXT — DAY 5: SPRINT 5 — Menu Management (Owner App)
+------------------------------------------------------------------------
+
+Backend:
+  [ ] GET  /owner/menu — list all menu items for owner's restaurant
+  [ ] POST /owner/menu/item — add new item (name, category, price, photo)
+  [ ] PUT  /owner/menu/item/{id} — edit item
+  [ ] DELETE /owner/menu/item/{id} — soft delete
+  [ ] PATCH /owner/menu/item/{id}/availability — toggle on/off
+
+Flutter:
+  [ ] Owner login with Firebase OTP (real phone number)
+  [ ] Owner dashboard (orders today, total menu items)
+  [ ] Menu list screen (grouped by category)
+  [ ] Add/Edit item form (with photo upload)
+  [ ] Toggle availability switch
+
+Also pending from Sprint 4:
+  [ ] Complete Firebase App Tester install on phone
+  [ ] Test auto-update notification flow
+
+================================================================================
+END OF DAY 4 UPDATE
+================================================================================
