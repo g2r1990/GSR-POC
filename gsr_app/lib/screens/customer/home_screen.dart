@@ -433,28 +433,75 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: _searching ? null : _findRestaurants,
-                          icon: const Icon(Icons.storefront_outlined,
-                              size: 16, color: _amber),
-                          label: Text(
-                            _restaurantCount != null
-                                ? 'Browse all restaurants ($_restaurantCount accepting orders)'
-                                : 'Browse all restaurants',
-                            style: const TextStyle(
-                                fontSize: 13, color: _amber),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ),
 
+              // ── Browse Restaurants card ──────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: GestureDetector(
+                  onTap: _searching ? null : _findRestaurants,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.storefront_outlined, color: _amber, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Browse Restaurants',
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1C1917))),
+                            Text(
+                              _restaurantCount != null
+                                  ? '$_restaurantCount restaurants accepting orders near you'
+                                  : 'See all restaurants near your location',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF78716C)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_restaurantCount != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text('$_restaurantCount open',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _amber)),
+                        ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.chevron_right, color: _amber, size: 20),
+                    ]),
+                  ),
+                ),
+              ),
+
               // ── Offers ──────────────────────────────────────────────
-              if (_offers.isNotEmpty) ...[
+              ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                   child: Row(children: [
@@ -469,15 +516,38 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ]),
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  height: 100,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _offers.length,
-                    itemBuilder: (ctx, i) => _OfferCard(offer: _offers[i]),
+                if (_offers.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F3FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFEDE9FE)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.local_offer_outlined,
+                            size: 20, color: Color(0xFFD8B4FE)),
+                        const SizedBox(width: 10),
+                        const Text('No deals right now — check back later!',
+                            style: TextStyle(
+                                fontSize: 13, color: Color(0xFF6D28D9))),
+                      ]),
+                    ),
+                  )
+                else
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _offers.length,
+                      itemBuilder: (ctx, i) => _OfferCard(offer: _offers[i]),
+                    ),
                   ),
-                ),
               ],
 
               // ── Restaurants Near You ─────────────────────────────────
