@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_flavor.dart';
 
 class RoleSelectorScreen extends StatelessWidget {
   const RoleSelectorScreen({super.key});
@@ -15,7 +16,7 @@ class RoleSelectorScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 40),
               const Text(
-                'Welcome to GSR',
+                'Welcome to BossBite',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -43,14 +44,16 @@ class RoleSelectorScreen extends StatelessWidget {
                 color: const Color(0xFF059669),
                 onTap: () => Navigator.pushNamed(context, '/owner/login'),
               ),
-              const SizedBox(height: 16),
-              _RoleCard(
-                icon: Icons.person,
-                label: 'Customer',
-                description: 'View hygiene scores and find safe restaurants',
-                color: const Color(0xFFD97706),
-                onTap: () => Navigator.pushNamed(context, '/customer/home'),
-              ),
+              if (!isOwnerApp) ...[
+                const SizedBox(height: 16),
+                _RoleCard(
+                  icon: Icons.person,
+                  label: 'Customer',
+                  description: 'Order food from local restaurants',
+                  color: const Color(0xFFD97706),
+                  onTap: () => Navigator.pushNamed(context, '/customer/root'),
+                ),
+              ],
             ],
           ),
         ),

@@ -36,25 +36,32 @@ jobs:
         working-directory: gsr_app
         run: dart run flutter_launcher_icons
 
-      - name: Build debug APK
+      # ── Owner APK (Admin + Owner roles only) ──────────────────────────
+      - name: Build Owner APK
         working-directory: gsr_app
-        run: flutter build apk --debug
+        run: flutter build apk --debug --dart-define=APP_FLAVOR=owner
 
-      - name: Upload APK artifact
+      - name: Rename Owner APK
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-debug.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Owner.apk
+
+      - name: Upload Owner APK
         uses: actions/upload-artifact@v4
         with:
-          name: BossBite-debug-${{ github.run_number }}
-          path: gsr_app/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
+          name: BossBite-Owner-${{ github.run_number }}
+          path: gsr_app/build/app/outputs/flutter-apk/BossBite-Owner.apk
+          retention-days: 30
 
-      - name: Distribute via Firebase App Distribution
-        if: env.FIREBASE_APP_ID != ''
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+      # ── Customer APK (ordering app for end users) ─────────────────────
+      - name: Build Customer APK
+        working-directory: gsr_app
+        run: flutter build apk --debug --dart-define=APP_FLAVOR=customer
+
+      - name: Rename Customer APK
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-debug.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Customer.apk
+
+      - name: Upload Customer APK
+        uses: actions/upload-artifact@v4
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          testers: gurpreet18121990@gmail.com
-          file: gsr_app/build/app/outputs/flutter-apk/app-debug.apk
-          releaseNotes: "Build #${{ github.run_number }} — ${{ github.event.head_commit.message }}"
-        env:
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          name: BossBite-Customer-${{ github.run_number }}
+          path: gsr_app/build/app/outputs/flutter-apk/BossBite-Customer.apk
+          retention-days: 30

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_flavor.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,7 +21,12 @@ class _SplashScreenState extends State<SplashScreen>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _ctrl.forward();
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) Navigator.pushReplacementNamed(context, '/roles');
+      if (mounted) {
+        Navigator.pushReplacementNamed(
+          context,
+          isOwnerApp ? '/roles' : '/customer/root',
+        );
+      }
     });
   }
 
@@ -33,7 +39,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E40AF),
+      backgroundColor: const Color(0xFFD97706),
       body: FadeTransition(
         opacity: _fade,
         child: Center(
@@ -48,29 +54,26 @@ class _SplashScreenState extends State<SplashScreen>
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Center(
-                  child: Text(
-                    'GSR',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E40AF),
-                    ),
+                  child: Icon(
+                    Icons.restaurant_menu,
+                    size: 52,
+                    color: Color(0xFFD97706),
                   ),
                 ),
               ),
               const SizedBox(height: 24),
               const Text(
-                'GSR Inspection',
+                'BossBite',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.5,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Restaurant Quality Management',
+                'Order food from local restaurants',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 14,

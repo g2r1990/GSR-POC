@@ -255,6 +255,12 @@ class ApiService {
   }
 
   static Future<String?> getPincodeFromCoords(double lat, double lon) async {
+    final loc = await getLocationFromCoords(lat, lon);
+    return loc['pincode'];
+  }
+
+  static Future<Map<String, String?>> getLocationFromCoords(
+      double lat, double lon) async {
     try {
       final res = await http.get(
         Uri.parse(
@@ -263,11 +269,20 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final address = data['address'] as Map<String, dynamic>?;
-        return address?['postcode'] as String?;
+        final addr = data['address'] as Map<String, dynamic>? ?? {};
+        final district = addr['county'] as String? ??
+            addr['state_district'] as String? ??
+            addr['city'] as String? ??
+            addr['town'] as String?;
+        return {
+          'pincode': addr['postcode'] as String?,
+          'district': district,
+          'state': addr['state'] as String?,
+          'country': addr['country'] as String?,
+        };
       }
     } catch (_) {}
-    return null;
+    return {};
   }
 
   static Future<void> updateOrderStatus(
