@@ -97,7 +97,7 @@ class _OwnerPendingScreenState extends State<OwnerPendingScreen> {
                     Text(
                       isRejected
                           ? 'Our team has reviewed your application and could not approve it at this time.'
-                          : 'Our team is reviewing your restaurant details. You'll be notified once approved.',
+                          : "Our team is reviewing your restaurant details. You'll be notified once approved.",
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                           fontSize: 14, color: Color(0xFF6B7280), height: 1.5),

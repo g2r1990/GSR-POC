@@ -306,7 +306,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'By registering, you agree to BossBite's Partner Terms of Service.',
+                "By registering, you agree to BossBite's Partner Terms of Service.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), height: 1.4),
               ),
