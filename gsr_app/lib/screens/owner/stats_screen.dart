@@ -15,6 +15,22 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
   bool _loading = true;
   String? _error;
 
+  String _dateFilter = 'week';
+  DateTime? _customStart;
+  DateTime? _customEnd;
+
+  static const _dateOptions = [
+    ('today', 'Today'),
+    ('yesterday', 'Yesterday'),
+    ('week', 'This Week'),
+    ('month', 'This Month'),
+    ('all', 'All Time'),
+    ('custom', 'Custom'),
+  ];
+
+  static const _months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   @override
   void initState() {
     super.initState();
@@ -33,13 +49,74 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     }
   }
 
-  List<Map<String, dynamic>> get _delivered =>
-      _orders.where((o) => o['status'] == 'delivered').toList();
+  List<Map<String, dynamic>> get _filtered {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    return _orders.where((o) {
+      if (o['status'] != 'delivered') return false;
+      final raw = o['created_at'] as String? ?? '';
+      final rawUtc = raw.isNotEmpty && !raw.endsWith('Z') ? '${raw}Z' : raw;
+      final dt = rawUtc.isEmpty ? null : DateTime.tryParse(rawUtc)?.toLocal();
+      if (dt == null) return _dateFilter == 'all';
+      switch (_dateFilter) {
+        case 'today':
+          return !dt.isBefore(todayStart);
+        case 'yesterday':
+          final yd = todayStart.subtract(const Duration(days: 1));
+          return !dt.isBefore(yd) && dt.isBefore(todayStart);
+        case 'week':
+          return !dt.isBefore(todayStart.subtract(const Duration(days: 6)));
+        case 'month':
+          return !dt.isBefore(todayStart.subtract(const Duration(days: 29)));
+        case 'custom':
+          if (_customStart != null && dt.isBefore(_customStart!)) return false;
+          if (_customEnd != null &&
+              dt.isAfter(_customEnd!.add(const Duration(days: 1)))) return false;
+          return true;
+        default:
+          return true;
+      }
+    }).toList();
+  }
 
-  // Item name → total qty sold
+  String _fmtShort(DateTime d) => '${d.day} ${_months[d.month]}';
+
+  String get _filterLabel {
+    if (_dateFilter == 'custom' && _customStart != null && _customEnd != null) {
+      return '${_fmtShort(_customStart!)} – ${_fmtShort(_customEnd!)}';
+    }
+    return _dateOptions.firstWhere((d) => d.$1 == _dateFilter).$2;
+  }
+
+  Future<void> _onFilterTap(String key) async {
+    if (key != 'custom') {
+      setState(() { _dateFilter = key; _customStart = null; _customEnd = null; });
+      return;
+    }
+    final start = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      helpText: 'Select start date',
+    );
+    if (start == null || !mounted) return;
+    final end = await showDatePicker(
+      context: context,
+      initialDate: start,
+      firstDate: start,
+      lastDate: DateTime.now(),
+      helpText: 'Select end date',
+    );
+    if (end == null || !mounted) return;
+    setState(() { _dateFilter = 'custom'; _customStart = start; _customEnd = end; });
+  }
+
+  // ── Computed values ──────────────────────────────────────────────────────────
+
   Map<String, int> get _itemQtyMap {
     final map = <String, int>{};
-    for (final order in _delivered) {
+    for (final order in _filtered) {
       final items = (order['items'] as List?) ?? [];
       for (final item in items) {
         final name = item['name'] as String? ?? 'Unknown';
@@ -50,10 +127,9 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     return map;
   }
 
-  // Hour (0–23) → order count
   Map<int, int> get _hourlyMap {
     final map = <int, int>{};
-    for (final order in _delivered) {
+    for (final order in _filtered) {
       final createdAt = order['created_at'] as String?;
       if (createdAt == null) continue;
       try {
@@ -64,12 +140,11 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     return map;
   }
 
-  int get _totalItemsSold {
-    return _itemQtyMap.values.fold(0, (a, b) => a + b);
-  }
+  int get _totalItemsSold =>
+      _itemQtyMap.values.fold(0, (a, b) => a + b);
 
   double get _avgOrderValue {
-    final d = _delivered;
+    final d = _filtered;
     if (d.isEmpty) return 0;
     double total = 0;
     for (final order in d) {
@@ -80,9 +155,20 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
         final qty = (item['quantity'] as num?)?.toInt() ?? 1;
         sub += price * qty;
       }
-      total += sub + 20 + sub * 0.05; // delivery + GST
+      total += sub + 20 + sub * 0.05;
     }
     return total / d.length;
+  }
+
+  // Peak hour: hour with the most orders, formatted as "2 PM"
+  String get _peakHour {
+    final map = _hourlyMap;
+    if (map.isEmpty) return '–';
+    final peak = map.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    if (peak == 0) return '12 AM';
+    if (peak < 12) return '$peak AM';
+    if (peak == 12) return '12 PM';
+    return '${peak - 12} PM';
   }
 
   @override
@@ -115,114 +201,174 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
   }
 
   Widget _body() {
-    if (_delivered.isEmpty) {
-      return const Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.bar_chart, size: 64, color: Color(0xFFD6D3D1)),
-          SizedBox(height: 16),
-          Text('No delivered orders yet',
-              style: TextStyle(fontSize: 16, color: Color(0xFF78716C))),
-          SizedBox(height: 8),
-          Text('Stats will appear once orders are delivered.',
-              style: TextStyle(fontSize: 13, color: Color(0xFFA8A29E))),
-        ]),
-      );
-    }
-
-    final itemMap = _itemQtyMap;
-    final sortedItems = itemMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final topItems = sortedItems.take(10).toList();
-    final maxQty = topItems.isEmpty ? 1 : topItems.first.value;
-
-    final hourlyMap = _hourlyMap;
-    // Show 6 AM to 11 PM
-    final hours = List.generate(18, (i) => i + 6);
-    final maxHourly = hours.isEmpty
-        ? 1
-        : hours.map((h) => hourlyMap[h] ?? 0).reduce((a, b) => a > b ? a : b);
-
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // Summary tiles
-        Row(children: [
-          Expanded(
-            child: _StatTile(
-              icon: Icons.shopping_bag_outlined,
-              label: 'Items Sold',
-              value: '$_totalItemsSold',
-              color: _amber,
-            ),
+        // ── Date filter chips ─────────────────────────────────────────────────
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _dateOptions.map((opt) {
+              final isSelected = _dateFilter == opt.$1;
+              final chipLabel = (opt.$1 == 'custom' &&
+                      _dateFilter == 'custom' &&
+                      _customStart != null &&
+                      _customEnd != null)
+                  ? _filterLabel
+                  : opt.$2;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(chipLabel,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF374151))),
+                  selected: isSelected,
+                  onSelected: (_) => _onFilterTap(opt.$1),
+                  selectedColor: _amber,
+                  backgroundColor: Colors.white,
+                  checkmarkColor: Colors.white,
+                  side: BorderSide(
+                      color: isSelected
+                          ? _amber
+                          : const Color(0xFFFDE68A)),
+                  showCheckmark: false,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                ),
+              );
+            }).toList(),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatTile(
-              icon: Icons.receipt_outlined,
-              label: 'Orders',
-              value: '${_delivered.length}',
-              color: const Color(0xFF7C3AED),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          Expanded(
-            child: _StatTile(
-              icon: Icons.trending_up,
-              label: 'Avg Order Value',
-              value: '₹${_avgOrderValue.toStringAsFixed(0)}',
-              color: const Color(0xFF059669),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _StatTile(
-              icon: Icons.menu_book_outlined,
-              label: 'Unique Items',
-              value: '${itemMap.length}',
-              color: const Color(0xFFDC2626),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 20),
-
-        // Top Selling Items
-        if (topItems.isNotEmpty) ...[
-          const _SectionTitle('🏆 Top Selling Items'),
-          const SizedBox(height: 10),
-          ...topItems.asMap().entries.map((e) {
-            final rank = e.key + 1;
-            final name = e.value.key;
-            final qty = e.value.value;
-            final pct = maxQty == 0 ? 0.0 : qty / maxQty;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ItemBar(
-                rank: rank,
-                name: name,
-                qty: qty,
-                pct: pct,
-                isTop: rank == 1,
-              ),
-            );
-          }),
-          const SizedBox(height: 20),
-        ],
-
-        // Hourly Order Volume
-        const _SectionTitle('⏰ Hourly Order Volume'),
-        const SizedBox(height: 6),
-        const Text('Orders by hour (IST), delivered orders',
-            style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-        const SizedBox(height: 12),
-        _HourlyChart(
-          hours: hours,
-          hourlyMap: hourlyMap,
-          maxValue: maxHourly == 0 ? 1 : maxHourly,
         ),
+        const SizedBox(height: 4),
+        Text(
+          '${_filtered.length} delivered order${_filtered.length == 1 ? '' : 's'} · $_filterLabel',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+        ),
+        const SizedBox(height: 16),
+
+        // ── Summary tiles (3 tiles — removed Unique Items) ────────────────────
+        if (_filtered.isEmpty) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 60),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.bar_chart, size: 64, color: Color(0xFFD6D3D1)),
+                SizedBox(height: 16),
+                Text('No delivered orders in this period',
+                    style: TextStyle(fontSize: 15, color: Color(0xFF78716C))),
+                SizedBox(height: 6),
+                Text('Try a different date range.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFFA8A29E))),
+              ]),
+            ),
+          ),
+        ] else ...[
+          Row(children: [
+            Expanded(
+              child: _StatTile(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Items Sold',
+                value: '$_totalItemsSold',
+                color: _amber,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatTile(
+                icon: Icons.receipt_outlined,
+                label: 'Orders',
+                value: '${_filtered.length}',
+                color: const Color(0xFF7C3AED),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: _StatTile(
+                icon: Icons.trending_up,
+                label: 'Avg Order Value',
+                value: '₹${_avgOrderValue.toStringAsFixed(0)}',
+                color: const Color(0xFF059669),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatTile(
+                icon: Icons.schedule,
+                label: 'Peak Hour',
+                value: _peakHour,
+                color: const Color(0xFFDC2626),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+
+          // ── Top Selling Items ───────────────────────────────────────────────
+          ..._buildTopItems(),
+          const SizedBox(height: 20),
+
+          // ── Hourly Order Volume ─────────────────────────────────────────────
+          ..._buildHourlyChart(),
+        ],
       ],
     );
+  }
+
+  List<Widget> _buildTopItems() {
+    final itemMap = _itemQtyMap;
+    if (itemMap.isEmpty) return [];
+    final sorted = itemMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topItems = sorted.take(10).toList();
+    final maxQty = topItems.first.value;
+
+    return [
+      const _SectionTitle('🏆 Top Selling Items'),
+      const SizedBox(height: 10),
+      ...topItems.asMap().entries.map((e) {
+        final rank = e.key + 1;
+        final name = e.value.key;
+        final qty = e.value.value;
+        final pct = maxQty == 0 ? 0.0 : qty / maxQty;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _ItemBar(
+            rank: rank,
+            name: name,
+            qty: qty,
+            pct: pct,
+            isTop: rank == 1,
+          ),
+        );
+      }),
+    ];
+  }
+
+  List<Widget> _buildHourlyChart() {
+    final hourlyMap = _hourlyMap;
+    final hours = List.generate(18, (i) => i + 6); // 6 AM to 11 PM
+    final maxHourly = hours.map((h) => hourlyMap[h] ?? 0)
+        .reduce((a, b) => a > b ? a : b);
+
+    return [
+      const _SectionTitle('⏰ Hourly Order Volume'),
+      const SizedBox(height: 6),
+      Text('Orders by hour (IST) · $_filterLabel',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+      const SizedBox(height: 12),
+      _HourlyChart(
+        hours: hours,
+        hourlyMap: hourlyMap,
+        maxValue: maxHourly == 0 ? 1 : maxHourly,
+      ),
+    ];
   }
 }
 
@@ -269,7 +415,8 @@ class _ItemBar extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(
                 child: Text(name,
@@ -281,9 +428,7 @@ class _ItemBar extends StatelessWidget {
               ),
               Text('$qty sold',
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: color)),
+                      fontSize: 12, fontWeight: FontWeight.bold, color: color)),
             ]),
             const SizedBox(height: 6),
             LayoutBuilder(builder: (ctx, constraints) {
@@ -337,7 +482,7 @@ class _HourlyChart extends StatelessWidget {
   Widget build(BuildContext context) {
     const barWidth = 18.0;
     const maxBarHeight = 80.0;
-    const _amber = Color(0xFFD97706);
+    const amber = Color(0xFFD97706);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -366,14 +511,14 @@ class _HourlyChart extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isPeak ? _amber : const Color(0xFF6B7280))),
+                            color: isPeak ? amber : const Color(0xFF6B7280))),
                   const SizedBox(height: 2),
                   Container(
                     width: barWidth,
                     height: barH.clamp(2.0, maxBarHeight),
                     decoration: BoxDecoration(
                       color: isPeak
-                          ? _amber
+                          ? amber
                           : const Color(0xFF7C3AED).withOpacity(0.5),
                       borderRadius: BorderRadius.circular(3),
                     ),
@@ -418,13 +563,10 @@ class _StatTile extends StatelessWidget {
         const SizedBox(height: 8),
         Text(value,
             style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: color)),
+                fontSize: 22, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(
-                fontSize: 11, color: Color(0xFF6B7280))),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
       ]),
     );
   }

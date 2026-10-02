@@ -15,6 +15,22 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
   bool _loading = true;
   String? _error;
 
+  String _dateFilter = 'month';
+  DateTime? _customStart;
+  DateTime? _customEnd;
+
+  static const _dateOptions = [
+    ('today', 'Today'),
+    ('yesterday', 'Yesterday'),
+    ('week', 'This Week'),
+    ('month', 'This Month'),
+    ('all', 'All Time'),
+    ('custom', 'Custom'),
+  ];
+
+  static const _months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   @override
   void initState() {
     super.initState();
@@ -33,10 +49,72 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
     }
   }
 
-  List<Map<String, dynamic>> get _delivered =>
-      _orders.where((o) => o['status'] == 'delivered').toList();
+  List<Map<String, dynamic>> get _filtered {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    return _orders.where((o) {
+      if (o['status'] != 'delivered') return false;
+      final raw = o['created_at'] as String? ?? '';
+      final rawUtc = raw.isNotEmpty && !raw.endsWith('Z') ? '${raw}Z' : raw;
+      final dt = rawUtc.isEmpty ? null : DateTime.tryParse(rawUtc)?.toLocal();
+      if (dt == null) return _dateFilter == 'all';
+      switch (_dateFilter) {
+        case 'today':
+          return !dt.isBefore(todayStart);
+        case 'yesterday':
+          final yd = todayStart.subtract(const Duration(days: 1));
+          return !dt.isBefore(yd) && dt.isBefore(todayStart);
+        case 'week':
+          return !dt.isBefore(todayStart.subtract(const Duration(days: 6)));
+        case 'month':
+          return !dt.isBefore(todayStart.subtract(const Duration(days: 29)));
+        case 'custom':
+          if (_customStart != null && dt.isBefore(_customStart!)) return false;
+          if (_customEnd != null &&
+              dt.isAfter(_customEnd!.add(const Duration(days: 1)))) return false;
+          return true;
+        default:
+          return true;
+      }
+    }).toList();
+  }
 
-  // Item subtotal only (excludes delivery + GST) — base for commission calc
+  String _fmtShort(DateTime d) =>
+      '${d.day} ${_months[d.month]}';
+
+  String get _filterLabel {
+    if (_dateFilter == 'custom' && _customStart != null && _customEnd != null) {
+      return '${_fmtShort(_customStart!)} – ${_fmtShort(_customEnd!)}';
+    }
+    return _dateOptions.firstWhere((d) => d.$1 == _dateFilter).$2;
+  }
+
+  Future<void> _onFilterTap(String key) async {
+    if (key != 'custom') {
+      setState(() { _dateFilter = key; _customStart = null; _customEnd = null; });
+      return;
+    }
+    final start = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      helpText: 'Select start date',
+    );
+    if (start == null || !mounted) return;
+    final end = await showDatePicker(
+      context: context,
+      initialDate: start,
+      firstDate: start,
+      lastDate: DateTime.now(),
+      helpText: 'Select end date',
+    );
+    if (end == null || !mounted) return;
+    setState(() { _dateFilter = 'custom'; _customStart = start; _customEnd = end; });
+  }
+
+  // ── Computed values ──────────────────────────────────────────────────────────
+
   double _itemSubtotal(Map<String, dynamic> order) {
     final items = (order['items'] as List?) ?? [];
     return items.fold(0.0, (sum, item) {
@@ -46,22 +124,23 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
     });
   }
 
-  double get _grossRevenue {
-    return _delivered.fold(0.0, (sum, o) {
+  double get _totalSales {
+    return _filtered.fold(0.0, (sum, o) {
       final sub = _itemSubtotal(o);
-      final deliveryFee = 20.0;
-      final gst = sub * 0.05;
-      return sum + sub + deliveryFee + gst;
+      return sum + sub + 20.0 + sub * 0.05;
     });
   }
 
   double get _totalItemSubtotal =>
-      _delivered.fold(0.0, (sum, o) => sum + _itemSubtotal(o));
+      _filtered.fold(0.0, (sum, o) => sum + _itemSubtotal(o));
 
-  double get _bbTechShare => double.parse((_totalItemSubtotal * 0.15).toStringAsFixed(2));
-  double get _ownerEarnings => double.parse((_totalItemSubtotal * 0.85).toStringAsFixed(2));
-  double get _totalDeliveryFees => _delivered.length * 20.0;
-  double get _totalGst => double.parse((_totalItemSubtotal * 0.05).toStringAsFixed(2));
+  double get _totalGst =>
+      double.parse((_totalItemSubtotal * 0.05).toStringAsFixed(2));
+  double get _restaurantProfit =>
+      double.parse((_totalItemSubtotal * 0.85).toStringAsFixed(2));
+  double get _bbTechFee =>
+      double.parse((_totalItemSubtotal * 0.15).toStringAsFixed(2));
+  double get _totalDeliveryFees => _filtered.length * 20.0;
 
   @override
   Widget build(BuildContext context) {
@@ -92,83 +171,207 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
   }
 
   Widget _body() {
-    final count = _delivered.length;
+    final count = _filtered.length;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // Hero stat card
-        _StatCard(
-          icon: Icons.receipt_long,
-          label: 'Total Delivered Orders',
-          value: '$count',
-          color: _purple,
+        // ── Date filter chips ─────────────────────────────────────────────────
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _dateOptions.map((opt) {
+              final isSelected = _dateFilter == opt.$1;
+              final chipLabel = (opt.$1 == 'custom' && _dateFilter == 'custom' &&
+                      _customStart != null && _customEnd != null)
+                  ? _filterLabel
+                  : opt.$2;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text(chipLabel,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF374151))),
+                  selected: isSelected,
+                  onSelected: (_) => _onFilterTap(opt.$1),
+                  selectedColor: _purple,
+                  backgroundColor: Colors.white,
+                  checkmarkColor: Colors.white,
+                  side: BorderSide(
+                      color: isSelected
+                          ? _purple
+                          : const Color(0xFFEDE9FE)),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                ),
+              );
+            }).toList(),
+          ),
         ),
-        const SizedBox(height: 12),
-
-        // Revenue breakdown
-        _SectionHeader(title: 'Revenue Breakdown', subtitle: 'All-time, delivered orders only'),
-        const SizedBox(height: 8),
-
-        _DetailCard(
-          rows: [
-            _Row('Gross Collected', '₹${_grossRevenue.toStringAsFixed(2)}',
-                bold: true),
-            _Row('  Item Subtotal', '₹${_totalItemSubtotal.toStringAsFixed(2)}'),
-            _Row('  Delivery Fees', '₹${_totalDeliveryFees.toStringAsFixed(2)}'),
-            _Row('  GST (5%)', '₹${_totalGst.toStringAsFixed(2)}'),
-          ],
+        const SizedBox(height: 4),
+        Text(
+          count == 0
+              ? 'No delivered orders in this period'
+              : '$count delivered order${count == 1 ? '' : 's'}',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
-        // Commission split
-        _SectionHeader(title: 'Commission Split', subtitle: 'Based on item subtotal (excl. delivery & GST)'),
-        const SizedBox(height: 8),
+        // ── 4 key tiles ───────────────────────────────────────────────────────
         Row(children: [
           Expanded(
-            child: _StatCard(
-              icon: Icons.store,
-              label: 'Your Earnings\n(85%)',
-              value: '₹${_ownerEarnings.toStringAsFixed(0)}',
-              color: const Color(0xFF059669),
-              small: true,
+            child: _KpiTile(
+              icon: Icons.currency_rupee,
+              label: 'Total Sales',
+              value: '₹${_totalSales.toStringAsFixed(0)}',
+              sub: 'Gross collected',
+              color: _purple,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: _StatCard(
-              icon: Icons.phone_android,
-              label: 'BB Tech Share\n(15%)',
-              value: '₹${_bbTechShare.toStringAsFixed(0)}',
-              color: const Color(0xFF7C3AED),
-              small: true,
+            child: _KpiTile(
+              icon: Icons.receipt_long,
+              label: 'Total GST',
+              value: '₹${_totalGst.toStringAsFixed(0)}',
+              sub: '5% of item subtotal',
+              color: const Color(0xFFD97706),
             ),
           ),
         ]),
         const SizedBox(height: 12),
+        Row(children: [
+          Expanded(
+            child: _KpiTile(
+              icon: Icons.store,
+              label: 'Restaurant Profit',
+              value: '₹${_restaurantProfit.toStringAsFixed(0)}',
+              sub: '85% of subtotal',
+              color: const Color(0xFF059669),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _KpiTile(
+              icon: Icons.phone_android,
+              label: 'BB Tech Fee',
+              value: '₹${_bbTechFee.toStringAsFixed(0)}',
+              sub: '15% of subtotal',
+              color: const Color(0xFF7C3AED),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 20),
 
-        // Per-order commission strip
+        // ── Revenue breakdown ─────────────────────────────────────────────────
+        _SectionHeader(
+          title: 'Revenue Breakdown',
+          subtitle: _filterLabel,
+        ),
+        const SizedBox(height: 8),
+        _DetailCard(rows: [
+          _BRow('Total Sales (Gross)', '₹${_totalSales.toStringAsFixed(2)}',
+              bold: true),
+          _BRow('  Item Subtotal', '₹${_totalItemSubtotal.toStringAsFixed(2)}'),
+          _BRow('  Delivery Fees', '₹${_totalDeliveryFees.toStringAsFixed(2)}'),
+          _BRow('  GST (5%)', '₹${_totalGst.toStringAsFixed(2)}'),
+        ]),
+        const SizedBox(height: 20),
+
+        // ── Commission split ──────────────────────────────────────────────────
+        _SectionHeader(
+          title: 'Commission Split',
+          subtitle: 'Based on item subtotal (excl. delivery & GST)',
+        ),
+        const SizedBox(height: 8),
+        _DetailCard(rows: [
+          _BRow('Restaurant Profit (85%)',
+              '₹${_restaurantProfit.toStringAsFixed(2)}',
+              valueColor: const Color(0xFF059669)),
+          _BRow('BB Tech Platform Fee (15%)',
+              '₹${_bbTechFee.toStringAsFixed(2)}',
+              valueColor: _purple),
+        ]),
+        const SizedBox(height: 20),
+
+        // ── Per-order averages ────────────────────────────────────────────────
         if (count > 0) ...[
           _SectionHeader(title: 'Per-Order Averages', subtitle: ''),
           const SizedBox(height: 8),
-          _DetailCard(
-            rows: [
-              _Row('Avg order value',
-                  '₹${(_grossRevenue / count).toStringAsFixed(2)}'),
-              _Row('Avg item subtotal',
-                  '₹${(_totalItemSubtotal / count).toStringAsFixed(2)}'),
-              _Row('Avg your earnings',
-                  '₹${(_ownerEarnings / count).toStringAsFixed(2)}'),
-              _Row('Avg BB Tech fee',
-                  '₹${(_bbTechShare / count).toStringAsFixed(2)}'),
-            ],
-          ),
+          _DetailCard(rows: [
+            _BRow('Avg order value',
+                '₹${(_totalSales / count).toStringAsFixed(2)}'),
+            _BRow('Avg item subtotal',
+                '₹${(_totalItemSubtotal / count).toStringAsFixed(2)}'),
+            _BRow('Avg restaurant profit',
+                '₹${(_restaurantProfit / count).toStringAsFixed(2)}'),
+            _BRow('Avg BB Tech fee',
+                '₹${(_bbTechFee / count).toStringAsFixed(2)}'),
+          ]),
         ],
       ],
     );
   }
 }
 
-// ── Shared sub-widgets ─────────────────────────────────────────────────────────
+// ── Widgets ────────────────────────────────────────────────────────────────────
+
+class _KpiTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String sub;
+  final Color color;
+  const _KpiTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.sub,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEDE9FE)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(height: 10),
+        Text(value,
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151))),
+        Text(sub,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+      ]),
+    );
+  }
+}
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -190,60 +393,8 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final bool small;
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    this.small = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEDE9FE)),
-      ),
-      child: Row(children: [
-        Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label,
-                style: TextStyle(
-                    fontSize: small ? 11 : 12,
-                    color: const Color(0xFF6B7280))),
-            const SizedBox(height: 2),
-            Text(value,
-                style: TextStyle(
-                    fontSize: small ? 18 : 24,
-                    fontWeight: FontWeight.bold,
-                    color: color)),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
-
 class _DetailCard extends StatelessWidget {
-  final List<_Row> rows;
+  final List<_BRow> rows;
   const _DetailCard({required this.rows});
 
   @override
@@ -259,7 +410,8 @@ class _DetailCard extends StatelessWidget {
           final idx = e.key;
           final row = e.value;
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               border: idx < rows.length - 1
                   ? const Border(
@@ -279,10 +431,9 @@ class _DetailCard extends StatelessWidget {
               Text(row.amount,
                   style: TextStyle(
                       fontSize: 13,
-                      fontWeight: row.bold
-                          ? FontWeight.bold
-                          : FontWeight.w600,
-                      color: const Color(0xFF1C1917))),
+                      fontWeight:
+                          row.bold ? FontWeight.bold : FontWeight.w600,
+                      color: row.valueColor ?? const Color(0xFF1C1917))),
             ]),
           );
         }).toList(),
@@ -291,9 +442,11 @@ class _DetailCard extends StatelessWidget {
   }
 }
 
-class _Row {
+class _BRow {
   final String label;
   final String amount;
   final bool bold;
-  const _Row(this.label, this.amount, {this.bold = false});
+  final Color? valueColor;
+  const _BRow(this.label, this.amount,
+      {this.bold = false, this.valueColor});
 }

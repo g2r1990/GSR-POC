@@ -4,7 +4,6 @@ class OwnerLandingScreen extends StatelessWidget {
   const OwnerLandingScreen({super.key});
 
   static const _green = Color(0xFF166534);
-  static const _greenLight = Color(0xFF059669);
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +16,43 @@ class OwnerLandingScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              // Logo
+
+              // BB Tech company badge
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8, height: 8,
+                        decoration: const BoxDecoration(
+                          color: _green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'BB TECH  ·  2026',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _green,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // App logo icon
               Center(
                 child: Container(
                   width: 90,
@@ -25,12 +60,20 @@ class OwnerLandingScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _green,
                     borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _green.withOpacity(0.25),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: const Icon(Icons.restaurant_menu,
                       size: 48, color: Colors.white),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+
               const Text(
                 'BossBite',
                 textAlign: TextAlign.center,
@@ -41,7 +84,7 @@ class OwnerLandingScreen extends StatelessWidget {
                   letterSpacing: 1,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               const Text(
                 'Restaurant Partner Portal',
                 textAlign: TextAlign.center,
@@ -53,13 +96,15 @@ class OwnerLandingScreen extends StatelessWidget {
               _InfoCard(
                 icon: Icons.how_to_reg_outlined,
                 title: 'New partner?',
-                subtitle: 'Register your restaurant. Our team will verify your details and go live within 24–48 hrs.',
+                subtitle:
+                    'Register your restaurant. Our team will verify your details and go live within 24–48 hrs.',
               ),
               const SizedBox(height: 12),
               _InfoCard(
                 icon: Icons.verified_outlined,
                 title: 'What we check',
-                subtitle: 'GSTIN · Food safety license · Restaurant photos · Owner documents',
+                subtitle:
+                    'GSTIN · Food safety license · Restaurant photos · Owner documents',
               ),
               const Spacer(),
 
@@ -67,10 +112,12 @@ class OwnerLandingScreen extends StatelessWidget {
               SizedBox(
                 height: 52,
                 child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/owner/register'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/owner/register'),
                   icon: const Icon(Icons.store_mall_directory_outlined),
                   label: const Text('Register Your Restaurant',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _green,
                     foregroundColor: Colors.white,
@@ -86,10 +133,12 @@ class OwnerLandingScreen extends StatelessWidget {
               SizedBox(
                 height: 52,
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/owner/login'),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/owner/login'),
                   icon: const Icon(Icons.login),
                   label: const Text('Already registered? Sign In',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w500)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _green,
                     side: const BorderSide(color: _green, width: 1.5),
@@ -116,7 +165,8 @@ class _InfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _InfoCard({required this.icon, required this.title, required this.subtitle});
+  const _InfoCard(
+      {required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +181,8 @@ class _InfoCard extends StatelessWidget {
         Icon(icon, color: const Color(0xFF166534), size: 26),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title,
                 style: const TextStyle(
                     fontSize: 13,
