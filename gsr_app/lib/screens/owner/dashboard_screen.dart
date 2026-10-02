@@ -98,6 +98,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         bgColor: const Color(0xFFDCFCE7),
                         label: 'Menu Items',
                         value: '$_menuCount',
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const MenuListScreen()),
+                          );
+                          _loadStats();
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -108,6 +115,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         bgColor: const Color(0xFFFEF3C7),
                         label: 'Active Orders',
                         value: '$_activeOrders',
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const OwnerOrdersScreen()),
+                          );
+                          _loadStats();
+                        },
                       ),
                     ),
                   ]),
@@ -171,6 +185,7 @@ class _StatCard extends StatelessWidget {
   final Color bgColor;
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.icon,
@@ -178,16 +193,23 @@ class _StatCard extends StatelessWidget {
     required this.bgColor,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: onTap != null
+                ? color.withOpacity(0.3)
+                : const Color(0xFFE2E8F0)),
       ),
       child: Row(children: [
         Container(
@@ -210,6 +232,7 @@ class _StatCard extends StatelessWidget {
           ]),
         ),
       ]),
+    ),
     );
   }
 }

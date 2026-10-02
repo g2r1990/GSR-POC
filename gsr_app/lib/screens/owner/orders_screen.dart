@@ -52,7 +52,6 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     final sevenDaysStart = todayStart.subtract(const Duration(days: 6));
 
     return _allOrders.where((o) {
-      // Date filter
       final raw = o['created_at'] as String? ?? '';
       final dt = raw.isEmpty ? null : DateTime.tryParse(raw)?.toLocal();
       if (dt != null) {
@@ -66,7 +65,6 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
             if (dt.isBefore(sevenDaysStart)) return false;
         }
       }
-      // Status filter
       if (_statusFilter.isNotEmpty && o['status'] != _statusFilter) {
         return false;
       }
@@ -132,7 +130,6 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date dropdown row
           Row(children: [
             const Icon(Icons.calendar_today,
                 size: 15, color: Color(0xFF64748B)),
@@ -204,7 +201,6 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
             ),
           ]),
           const SizedBox(height: 8),
-          // Status chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -229,6 +225,78 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
               }).toList(),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryBanner() {
+    final billed = _filtered
+        .where((o) => o['status'] != 'cancelled')
+        .toList();
+    if (billed.isEmpty) return const SizedBox.shrink();
+
+    double grossRevenue = 0;
+    double itemSubtotal = 0;
+    for (final order in billed) {
+      grossRevenue += (order['total'] as num?)?.toDouble() ?? 0;
+      final items = order['items'] as List<dynamic>? ?? [];
+      for (final item in items) {
+        itemSubtotal += (item['subtotal'] as num?)?.toDouble() ?? 0;
+      }
+    }
+    final bbCut = itemSubtotal * 0.15;
+    final ownerNet = itemSubtotal * 0.85;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _green,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('$_dateLabel Summary',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${billed.length} order${billed.length == 1 ? '' : 's'}',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            _SummaryItem(
+                label: 'Gross Collected',
+                value: '₹${grossRevenue.toStringAsFixed(0)}',
+                valueColor: Colors.white),
+            const SizedBox(width: 16),
+            _SummaryItem(
+                label: 'BB Tech (15%)',
+                value: '-₹${bbCut.toStringAsFixed(0)}',
+                valueColor: const Color(0xFFFCA5A5)),
+            const SizedBox(width: 16),
+            _SummaryItem(
+                label: 'Your Earnings',
+                value: '₹${ownerNet.toStringAsFixed(0)}',
+                valueColor: const Color(0xFF86EFAC)),
+          ]),
         ],
       ),
     );
@@ -295,22 +363,64 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
       onRefresh: _load,
       color: _green,
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: orders.length,
-        itemBuilder: (ctx, i) => _OrderCard(
-          order: orders[i],
-          onStatusChanged: _load,
-        ),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        itemCount: orders.length + 1,
+        itemBuilder: (ctx, i) {
+          if (i == 0) return _summaryBanner();
+          return Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: _OrderCard(
+              order: orders[i - 1],
+              onStatusChanged: _load,
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+  const _SummaryItem(
+      {required this.label,
+      required this.value,
+      required this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(
+                color: Colors.white70, fontSize: 10),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 2),
+        Text(value,
+            style: TextStyle(
+                color: valueColor,
+                fontSize: 15,
+                fontWeight: FontWeight.bold)),
+      ]),
+    );
+  }
+}
+
+class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback onStatusChanged;
 
   const _OrderCard({required this.order, required this.onStatusChanged});
+
+  @override
+  State<_OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends State<_OrderCard> {
+  bool _expanded = false;
 
   static const _nextStatus = {
     'placed': 'accepted',
@@ -328,13 +438,13 @@ class _OrderCard extends StatelessWidget {
 
   static Color _statusColor(String s) {
     switch (s) {
-      case 'placed':      return const Color(0xFF2563EB);
-      case 'accepted':    return const Color(0xFF166534);
-      case 'ready':       return const Color(0xFFD97706);
+      case 'placed':           return const Color(0xFF2563EB);
+      case 'accepted':         return const Color(0xFF166534);
+      case 'ready':            return const Color(0xFFD97706);
       case 'out_for_delivery': return const Color(0xFF7C3AED);
-      case 'delivered':   return const Color(0xFF15803D);
-      case 'cancelled':   return const Color(0xFFDC2626);
-      default:            return const Color(0xFF64748B);
+      case 'delivered':        return const Color(0xFF15803D);
+      case 'cancelled':        return const Color(0xFFDC2626);
+      default:                 return const Color(0xFF64748B);
     }
   }
 
@@ -345,12 +455,12 @@ class _OrderCard extends StatelessWidget {
     }
   }
 
-  Future<void> _advance(BuildContext context, String orderId, String next) async {
+  Future<void> _advance(String orderId, String next) async {
     try {
       await ApiService.updateOrderStatus(orderId, next);
-      onStatusChanged();
+      widget.onStatusChanged();
     } on ApiException catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
@@ -358,14 +468,17 @@ class _OrderCard extends StatelessWidget {
     }
   }
 
-  Future<void> _cancel(BuildContext context, String orderId) async {
+  Future<void> _cancel(String orderId) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel Order'),
-        content: const Text('Are you sure you want to cancel this order?'),
+        content:
+            const Text('Are you sure you want to cancel this order?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('No')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Yes, Cancel',
@@ -374,15 +487,17 @@ class _OrderCard extends StatelessWidget {
         ],
       ),
     );
-    if (confirm == true && context.mounted) {
-      await _advance(context, orderId, 'cancelled');
+    if (confirm == true && mounted) {
+      await _advance(orderId, 'cancelled');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final order = widget.order;
     final id = order['id'] as String;
-    final shortId = order['short_id'] as String? ?? id.substring(0, 8).toUpperCase();
+    final shortId =
+        order['short_id'] as String? ?? id.substring(0, 8).toUpperCase();
     final status = order['status'] as String;
     final total = (order['total'] as num?)?.toDouble() ?? 0.0;
     final name = order['customer_name'] as String? ?? '';
@@ -394,8 +509,17 @@ class _OrderCard extends StatelessWidget {
     final nextSt = _nextStatus[status];
     final canCancel = status == 'placed' || status == 'accepted';
 
+    // Bill breakdown
+    double itemSubtotal = 0;
+    for (final item in items) {
+      itemSubtotal += (item['subtotal'] as num?)?.toDouble() ?? 0;
+    }
+    const deliveryFee = 20.0;
+    final gst = double.parse((itemSubtotal * 0.05).toStringAsFixed(2));
+    final bbCut = double.parse((itemSubtotal * 0.15).toStringAsFixed(2));
+    final ownerNet = double.parse((itemSubtotal * 0.85).toStringAsFixed(2));
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -404,137 +528,227 @@ class _OrderCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-            ),
-            child: Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Order #$shortId',
+          // ── Header (always visible, tappable to expand) ──────────
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(12),
+                  bottom: _expanded
+                      ? Radius.zero
+                      : const Radius.circular(12),
+                ),
+                border: _expanded
+                    ? const Border(
+                        bottom: BorderSide(color: Color(0xFFE2E8F0)))
+                    : null,
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Order #$shortId',
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A))),
+                        Text('$name · $phone',
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF64748B))),
+                      ]),
+                ),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _statusColor(status).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _statusLabel(status),
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _statusColor(status)),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('₹${total.toStringAsFixed(0)}',
                       style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A))),
-                  Text('$name • $phone',
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF64748B))),
+                          color: Color(0xFF166534))),
                 ]),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _statusColor(status).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(20),
+                const SizedBox(width: 6),
+                Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: const Color(0xFF94A3B8),
+                  size: 20,
                 ),
-                child: Text(
-                  _statusLabel(status),
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _statusColor(status)),
-                ),
-              ),
-            ]),
+              ]),
+            ),
           ),
 
-          // Body
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              for (final item in items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(children: [
-                    Expanded(
-                      child: Text(
-                        '${item['qty']}× ${item['name']}',
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xFF374151)),
+          // ── Expanded body ─────────────────────────────────────────
+          if (_expanded) ...[
+            // Items list
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Items',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B))),
+                    const SizedBox(height: 6),
+                    for (final item in items)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(children: [
+                          Expanded(
+                            child: Text(
+                              '${item['qty']}× ${item['name']}',
+                              style: const TextStyle(
+                                  fontSize: 13, color: Color(0xFF374151)),
+                            ),
+                          ),
+                          Text(
+                            '₹${(item['subtotal'] as num?)?.toStringAsFixed(0) ?? '0'}',
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF64748B)),
+                          ),
+                        ]),
                       ),
-                    ),
-                    Text(
-                      '₹${(item['subtotal'] as num?)?.toStringAsFixed(0) ?? '0'}',
-                      style: const TextStyle(
-                          fontSize: 13, color: Color(0xFF64748B)),
-                    ),
                   ]),
-                ),
-              const Divider(height: 16),
-              Row(children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 14, color: Color(0xFF94A3B8)),
-                const SizedBox(width: 4),
-                Expanded(
-                    child: Text(address,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF64748B)))),
-              ]),
-              if (notes != null && notes.isNotEmpty) ...[
+            ),
+
+            // Bill breakdown
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(children: [
+                _BillRow('Item Subtotal', '₹${itemSubtotal.toStringAsFixed(0)}'),
                 const SizedBox(height: 4),
-                Row(children: [
-                  const Icon(Icons.note_outlined,
+                _BillRow('Delivery Fee', '₹${deliveryFee.toStringAsFixed(0)}'),
+                const SizedBox(height: 4),
+                _BillRow('GST (5%)', '₹${gst.toStringAsFixed(2)}'),
+                const Divider(height: 14),
+                _BillRow('Customer Paid', '₹${total.toStringAsFixed(0)}',
+                    bold: true),
+                const Divider(height: 14),
+                _BillRow('BB Tech Commission (15%)',
+                    '-₹${bbCut.toStringAsFixed(0)}',
+                    valueColor: const Color(0xFFDC2626)),
+                const SizedBox(height: 4),
+                _BillRow('Your Earnings (85%)',
+                    '₹${ownerNet.toStringAsFixed(0)}',
+                    bold: true,
+                    valueColor: const Color(0xFF166534)),
+              ]),
+            ),
+
+            // Address + notes
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+              child: Column(children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.location_on_outlined,
                       size: 14, color: Color(0xFF94A3B8)),
                   const SizedBox(width: 4),
                   Expanded(
-                      child: Text(notes,
+                      child: Text(address,
                           style: const TextStyle(
                               fontSize: 12, color: Color(0xFF64748B)))),
                 ]),
-              ],
-              const SizedBox(height: 8),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Total',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, color: Color(0xFF374151))),
-                Text('₹${total.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF166534))),
-              ]),
-            ]),
-          ),
-
-          // Actions
-          if (nextSt != null || canCancel)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-              child: Row(children: [
-                if (canCancel) ...[
-                  OutlinedButton(
-                    onPressed: () => _cancel(context, id),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFDC2626),
-                      side: const BorderSide(color: Color(0xFFDC2626)),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
+                if (notes != null && notes.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Icon(Icons.note_outlined,
+                        size: 14, color: Color(0xFF94A3B8)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                        child: Text(notes,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B)))),
+                  ]),
                 ],
-                if (nextSt != null)
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _advance(context, id, nextSt),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF166534),
-                        foregroundColor: Colors.white,
+              ]),
+            ),
+
+            // Action buttons
+            if (nextSt != null || canCancel)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Row(children: [
+                  if (canCancel) ...[
+                    OutlinedButton(
+                      onPressed: () => _cancel(id),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFDC2626),
+                        side: const BorderSide(color: Color(0xFFDC2626)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: Text(_nextLabel[status] ?? 'Advance'),
+                      child: const Text('Cancel'),
                     ),
-                  ),
-              ]),
-            ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (nextSt != null)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _advance(id, nextSt),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF166534),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: Text(_nextLabel[status] ?? 'Advance'),
+                      ),
+                    ),
+                ]),
+              ),
+            if (nextSt == null && !canCancel)
+              const SizedBox(height: 12),
+          ],
         ],
       ),
     );
   }
+}
+
+Widget _BillRow(String label, String value,
+    {bool bold = false, Color? valueColor}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(label,
+          style: TextStyle(
+              fontSize: bold ? 13 : 12,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+              color: const Color(0xFF374151))),
+      Text(value,
+          style: TextStyle(
+              fontSize: bold ? 13 : 12,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+              color: valueColor ?? const Color(0xFF374151))),
+    ],
+  );
 }

@@ -257,8 +257,31 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   final _descCtrl = TextEditingController();
   final _discCtrl = TextEditingController();
   DateTime? _validUntil;
+  TimeOfDay? _validTime;
   bool _saving = false;
   String? _error;
+
+  // Menu items for the optional item picker
+  List<Map<String, dynamic>> _menuItems = [];
+  String? _selectedMenuItemId;
+
+  static const _months = [
+    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMenu();
+  }
+
+  Future<void> _loadMenu() async {
+    try {
+      final items = await ApiService.getMenu();
+      if (mounted) setState(() => _menuItems = items);
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -268,28 +291,58 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
+  Future<void> _pickDateTime() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: now.add(const Duration(days: 7)),
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
     );
-    if (picked != null) setState(() => _validUntil = picked);
+    if (pickedDate == null) return;
+    if (!mounted) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 23, minute: 59),
+      helpText: 'Select time (IST)',
+    );
+    setState(() {
+      _validUntil = pickedDate;
+      _validTime = pickedTime;
+    });
+  }
+
+  String _formatValidUntil() {
+    if (_validUntil == null) return 'Valid until (optional) — tap to set';
+    final d = _validUntil!;
+    final dateStr = '${d.day} ${_months[d.month]} ${d.year}';
+    if (_validTime == null) return 'Valid until: $dateStr';
+    final h = _validTime!.hourOfPeriod == 0 ? 12 : _validTime!.hourOfPeriod;
+    final m = _validTime!.minute.toString().padLeft(2, '0');
+    final ampm = _validTime!.period == DayPeriod.am ? 'AM' : 'PM';
+    return 'Valid until: $dateStr at $h:$m $ampm IST';
+  }
+
+  DateTime? _combinedUtc() {
+    if (_validUntil == null) return null;
+    final d = _validUntil!;
+    final t = _validTime ?? const TimeOfDay(hour: 23, minute: 59);
+    // Device is in IST; toUtc() converts correctly.
+    return DateTime(d.year, d.month, d.day, t.hour, t.minute).toUtc();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _saving = true; _error = null; });
     try {
+      final utcDt = _combinedUtc();
       final payload = <String, dynamic>{
         'title': _titleCtrl.text.trim(),
         if (_descCtrl.text.trim().isNotEmpty) 'description': _descCtrl.text.trim(),
         if (_discCtrl.text.trim().isNotEmpty)
           'discount_pct': double.tryParse(_discCtrl.text.trim()),
-        if (_validUntil != null)
-          'valid_until': _validUntil!.toIso8601String(),
+        if (utcDt != null)
+          'valid_until': utcDt.toIso8601String(),
       };
       await ApiService.createOffer(payload);
       widget.onCreated();
@@ -302,8 +355,6 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return Padding(
       padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -317,7 +368,74 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1C1917))),
+            const SizedBox(height: 4),
+            const Text(
+              'Restaurant: your registered restaurant (multi-branch coming soon)',
+              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+            ),
             const SizedBox(height: 16),
+
+            // Optional: link to a menu item
+            if (_menuItems.isNotEmpty) ...[
+              const Text('Menu Item (optional)',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151))),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String?>(
+                value: _selectedMenuItemId,
+                decoration: InputDecoration(
+                  hintText: 'Select an item to highlight',
+                  hintStyle: const TextStyle(
+                      color: Color(0xFF94A3B8), fontSize: 14),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFEDE9FE))),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: Color(0xFFEDE9FE))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: _purple, width: 2)),
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('None — general offer')),
+                  ..._menuItems.map((m) => DropdownMenuItem<String?>(
+                        value: m['id'] as String?,
+                        child: Text(
+                          '${m['name']} — ₹${(m['price'] as num?)?.toStringAsFixed(0) ?? ''}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      )),
+                ],
+                onChanged: (val) {
+                  setState(() => _selectedMenuItemId = val);
+                  if (val != null) {
+                    final item = _menuItems
+                        .firstWhere((m) => m['id'] == val,
+                            orElse: () => {});
+                    final name = item['name'] as String? ?? '';
+                    final disc = _discCtrl.text.trim();
+                    if (name.isNotEmpty && _titleCtrl.text.trim().isEmpty) {
+                      _titleCtrl.text = disc.isNotEmpty
+                          ? '$disc% off on $name'
+                          : 'Special offer on $name';
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+
             _SheetField(
               label: 'Offer Title *',
               hint: 'e.g. 20% off on all biryanis',
@@ -342,7 +460,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
             ),
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: _pickDate,
+              onTap: _pickDateTime,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -352,26 +470,27 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                   border: Border.all(color: const Color(0xFFEDE9FE)),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.calendar_today, size: 18, color: _purple),
+                  const Icon(Icons.event, size: 18, color: _purple),
                   const SizedBox(width: 10),
-                  Text(
-                    _validUntil != null
-                        ? 'Valid until: ${_validUntil!.day} ${months[_validUntil!.month]} ${_validUntil!.year}'
-                        : 'Valid until (optional) — tap to set',
-                    style: TextStyle(
-                        fontSize: 14,
-                        color: _validUntil != null
-                            ? const Color(0xFF1C1917)
-                            : const Color(0xFF94A3B8)),
+                  Expanded(
+                    child: Text(
+                      _formatValidUntil(),
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: _validUntil != null
+                              ? const Color(0xFF1C1917)
+                              : const Color(0xFF94A3B8)),
+                    ),
                   ),
-                  if (_validUntil != null) ...[
-                    const Spacer(),
+                  if (_validUntil != null)
                     GestureDetector(
-                      onTap: () => setState(() => _validUntil = null),
+                      onTap: () => setState(() {
+                        _validUntil = null;
+                        _validTime = null;
+                      }),
                       child: const Icon(Icons.close, size: 18,
                           color: Color(0xFF94A3B8)),
                     ),
-                  ],
                 ]),
               ),
             ),
