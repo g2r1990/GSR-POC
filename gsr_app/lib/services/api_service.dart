@@ -180,6 +180,33 @@ class ApiService {
       throw ApiException(body['detail']?.toString() ?? 'Delete failed');
     }
   }
+
+  // ── Customer ──────────────────────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> searchRestaurants(
+      String pincode) async {
+    final res = await http.get(
+      Uri.parse('$_base/customer/restaurants?pincode=$pincode'),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(
+        body['detail']?.toString() ?? 'Failed to search restaurants');
+  }
+
+  static Future<Map<String, dynamic>> getRestaurantMenu(
+      String restaurantId) async {
+    final res = await http.get(
+      Uri.parse('$_base/customer/restaurant/$restaurantId/menu'),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load menu');
+  }
 }
 
 class ApiException implements Exception {

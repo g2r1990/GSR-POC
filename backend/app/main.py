@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.database import engine, SessionLocal
 from app.routers import auth
-from app.routers import owner, admin, menu
+from app.routers import owner, admin, menu, customer
 
 app = FastAPI(
     title="Project GSR API",
     description="Food ordering API for small Indian restaurants — Chhatrapati Sambhajinagar Phase 1",
-    version="0.4.0"
+    version="0.5.0"
 )
 
 app.add_middleware(
@@ -22,6 +22,7 @@ app.include_router(auth.router)
 app.include_router(owner.router)
 app.include_router(admin.router)
 app.include_router(menu.router)
+app.include_router(customer.router)
 
 
 @app.get("/health")
@@ -34,7 +35,7 @@ def health_check():
         db.close()
     except Exception as e:
         db_status = f"error: {str(e)}"
-    return {"status": "ok", "db": db_status, "version": "0.4.0"}
+    return {"status": "ok", "db": db_status, "version": "0.5.0"}
 
 
 @app.get("/")
