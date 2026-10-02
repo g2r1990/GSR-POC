@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../utils/validators.dart';
 import '../../services/cart_service.dart';
 import 'order_confirm_screen.dart';
 
@@ -297,8 +298,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 label: 'Your Name',
                 hint: 'Full name',
                 controller: _nameCtr,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                validator: Validators.personName,
               ),
               const SizedBox(height: 12),
               _Field(
@@ -307,11 +307,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 controller: _phoneCtr,
                 keyboardType: TextInputType.phone,
                 formatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  if (v.trim().length < 10) return 'Enter 10 digits';
-                  return null;
-                },
+                validator: Validators.mobile,
               ),
               const SizedBox(height: 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -335,7 +331,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 TextFormField(
                   controller: _addressCtr,
                   maxLines: 3,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  validator: Validators.address,
                   decoration: const InputDecoration(
                     hintText: 'Full delivery address',
                     hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),

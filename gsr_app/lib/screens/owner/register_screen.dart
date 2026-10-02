@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../services/api_service.dart';
+import '../../utils/validators.dart';
 import 'pending_screen.dart';
 
 class OwnerRegisterScreen extends StatefulWidget {
@@ -133,7 +134,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
               const SizedBox(height: 8),
               _sectionHeader('Owner Details'),
               _field(label: 'Your Full Name', hint: 'As on ID proof', controller: _nameCtr,
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null),
+                  validator: Validators.personName),
               const SizedBox(height: 12),
               _field(
                 label: 'Mobile Number',
@@ -141,24 +142,16 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 controller: _mobileCtr,
                 keyboard: TextInputType.phone,
                 formatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) {
-                  if (v?.trim().isEmpty ?? true) return 'Required';
-                  if ((v?.trim().length ?? 0) < 10) return 'Enter 10 digits';
-                  return null;
-                },
+                validator: Validators.mobile,
               ),
               const SizedBox(height: 12),
               _field(
                 label: 'Password',
-                hint: 'Minimum 6 characters',
+                hint: 'Min 8 chars with letters & numbers',
                 controller: _passCtr,
                 obscure: _obscurePass,
                 onToggleObscure: () => setState(() => _obscurePass = !_obscurePass),
-                validator: (v) {
-                  if (v?.isEmpty ?? true) return 'Required';
-                  if ((v?.length ?? 0) < 6) return 'At least 6 characters';
-                  return null;
-                },
+                validator: Validators.password,
               ),
               const SizedBox(height: 12),
               _field(
@@ -166,23 +159,22 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 hint: 'Re-enter password',
                 controller: _confirmPassCtr,
                 obscure: _obscurePass,
-                validator: (v) =>
-                    v != _passCtr.text ? 'Passwords do not match' : null,
+                validator: (v) => Validators.confirmPassword(v, _passCtr.text),
               ),
 
               const SizedBox(height: 28),
               _sectionHeader('Restaurant Details'),
               _field(label: 'Restaurant Name', hint: 'As displayed to customers',
                   controller: _restNameCtr,
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null),
+                  validator: Validators.businessName),
               const SizedBox(height: 12),
               _field(label: 'Full Address', hint: 'Building, street, landmark',
                   controller: _addressCtr, maxLines: 3,
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null),
+                  validator: Validators.address),
               const SizedBox(height: 12),
               _field(label: 'Area / Locality', hint: 'e.g. Osmanpura, Cidco',
                   controller: _areaCtr,
-                  validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null),
+                  validator: Validators.area),
               const SizedBox(height: 16),
 
               // Food type selector
@@ -226,11 +218,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                     controller: _pincodeCtrl,
                     keyboard: TextInputType.number,
                     formatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (v) {
-                      if (v?.trim().isEmpty ?? true) return 'Required';
-                      if ((v?.trim().length ?? 0) != 6) return '6 digits';
-                      return null;
-                    },
+                    validator: Validators.pincode,
                     suffix: _pincodeCtrl.text.isNotEmpty
                         ? const Icon(Icons.location_on,
                             color: _greenLight, size: 18)
@@ -243,8 +231,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                     label: 'State',
                     hint: 'e.g. Maharashtra',
                     controller: _stateCtrl,
-                    validator: (v) =>
-                        (v?.trim().isEmpty ?? true) ? 'Required' : null,
+                    validator: Validators.state,
                   ),
                 ),
               ]),
@@ -255,6 +242,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                 label: 'GSTIN',
                 hint: '15-character GST number (if available)',
                 controller: _gstinCtr,
+                validator: Validators.gstin,
               ),
               const SizedBox(height: 8),
               const Text(

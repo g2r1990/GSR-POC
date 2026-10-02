@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
+import '../../utils/validators.dart';
 
 class OwnerOffersScreen extends StatefulWidget {
   const OwnerOffersScreen({super.key});
@@ -321,7 +322,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
               label: 'Offer Title *',
               hint: 'e.g. 20% off on all biryanis',
               controller: _titleCtrl,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              validator: Validators.offerTitle,
             ),
             const SizedBox(height: 12),
             _SheetField(
@@ -337,6 +338,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
               controller: _discCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              validator: Validators.discountPct,
             ),
             const SizedBox(height: 12),
             GestureDetector(

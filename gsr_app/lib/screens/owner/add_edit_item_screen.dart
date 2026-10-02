@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
+import '../../utils/validators.dart';
 
 class AddEditItemScreen extends StatefulWidget {
   final Map<String, dynamic>? existing;
@@ -96,8 +97,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
               children: [
                 _label('Item Name'),
                 _field(_nameCtr, 'e.g. Paneer Tikka',
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null),
+                    validator: Validators.itemName),
                 const SizedBox(height: 16),
 
                 _label('Category'),
@@ -121,12 +121,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                     FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                   ],
                   decoration: _deco('0.00'),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
-                    if (double.tryParse(v) == null) return 'Enter valid price';
-                    if (double.parse(v) <= 0) return 'Must be greater than 0';
-                    return null;
-                  },
+                  validator: Validators.price,
                 ),
 
                 if (_error != null) ...[
@@ -202,8 +197,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
             controller: ctr,
             focusNode: focusNode,
             decoration: _deco('e.g. Main Course'),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Required' : null,
+            validator: Validators.itemName,
             onChanged: (v) => _categoryCtr.text = v,
           );
         },

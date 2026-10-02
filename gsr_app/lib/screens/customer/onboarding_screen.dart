@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../utils/validators.dart';
 import 'otp_screen.dart';
 
 class CustomerOnboardingScreen extends StatefulWidget {
@@ -151,8 +152,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                   controller: _nameCtr,
                   textCapitalization: TextCapitalization.words,
                   decoration: _inputDec('e.g. Rahul Sharma'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Please enter your name' : null,
+                  validator: Validators.personName,
                 ),
                 const SizedBox(height: 14),
 
@@ -164,11 +164,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   maxLength: 10,
                   decoration: _inputDec('10-digit number').copyWith(counterText: ''),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
-                    if (v.trim().length < 10) return 'Enter 10 digits';
-                    return null;
-                  },
+                  validator: Validators.mobile,
                 ),
 
                 const SizedBox(height: 28),
@@ -206,6 +202,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   maxLength: 6,
+                  validator: Validators.pincode,
                   decoration: _inputDec('6-digit pincode').copyWith(
                     counterText: '',
                     suffixIcon: _detecting
