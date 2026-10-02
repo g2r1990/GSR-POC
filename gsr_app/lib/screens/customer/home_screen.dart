@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import 'order_status_screen.dart';
 import 'restaurant_list_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -19,11 +21,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   bool _detecting = false;
   String? _error;
   String? _detectedPincode;
+  String? _activeOrderId;
+  String? _activeOrderShortId;
 
   @override
   void initState() {
     super.initState();
+    _loadActiveOrder();
     _autoDetect();
+  }
+
+  Future<void> _loadActiveOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _activeOrderId = prefs.getString('active_order_id');
+        _activeOrderShortId = prefs.getString('active_order_short_id');
+      });
+    }
   }
 
   @override
@@ -138,6 +153,54 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Active order banner — shown when user has an order in progress
+              if (_activeOrderId != null) ...[
+                GestureDetector(
+                  onTap: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => OrderStatusScreen(
+                        orderId: _activeOrderId!,
+                        shortId: _activeOrderShortId ?? '',
+                        total: 0,
+                      ),
+                    ));
+                    _loadActiveOrder(); // refresh — order may have completed
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _amber, width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delivery_dining, color: _amber, size: 26),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Order in Progress',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF92400E))),
+                              Text(
+                                'Tap to track order #${_activeOrderShortId ?? ''}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xFFB45309)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: _amber),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
               const Icon(Icons.restaurant_menu, size: 72, color: _amber),
               const SizedBox(height: 16),
               const Text(

@@ -72,12 +72,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       CartService.clear();
 
+      // Persist active order so home screen can show "Track Order" banner
+      final orderId = result['order_id'] as String;
+      final shortId = result['short_id'] as String;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('active_order_id', orderId);
+      await prefs.setString('active_order_short_id', shortId);
+
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => OrderConfirmScreen(
-            orderId: result['order_id'] as String,
-            shortId: result['short_id'] as String,
+            orderId: orderId,
+            shortId: shortId,
             total: (result['total'] as num).toDouble(),
             deliveryFee: _deliveryFee,
             gst: _gst,

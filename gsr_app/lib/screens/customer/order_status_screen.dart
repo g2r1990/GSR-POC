@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 
 class OrderStatusScreen extends StatefulWidget {
@@ -87,6 +88,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         });
         if (_status == 'delivered' || _status == 'cancelled') {
           _timer?.cancel();
+          // Clear persisted active order — it's done
+          SharedPreferences.getInstance().then(
+            (p) => p..remove('active_order_id')..remove('active_order_short_id'),
+          );
         }
       }
     } catch (_) {
