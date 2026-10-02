@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -229,6 +230,40 @@ class ApiService {
 
   // ── Customer OTP ──────────────────────────────────────────────────────────
 
+  // ── Device identity ───────────────────────────────────────────────────────
+
+  static Future<String> getOrCreateDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString('device_uuid');
+    if (existing != null && existing.isNotEmpty) return existing;
+    // Generate a secure random UUID v4
+    final rng = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final uuid =
+        '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+    await prefs.setString('device_uuid', uuid);
+    return uuid;
+  }
+
+  static Future<bool> customerCheckDevice(
+      String mobile, String deviceId) async {
+    try {
+      final res = await http
+          .get(Uri.parse(
+              '$_base/customer/check-device?mobile=$mobile&device_id=$deviceId'))
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) return true;
+      if (res.statusCode == 403) return false; // explicit device mismatch
+      return true; // any other server error → pass-through
+    } catch (_) {
+      // Network unreachable, timeout, etc. → offline-first: let user through
+      return true;
+    }
+  }
+
   static Future<Map<String, dynamic>> customerSendOtp(String mobile) async {
     final res = await http
         .post(Uri.parse('$_base/customer/send-otp?mobile=$mobile'))
@@ -250,9 +285,11 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
   }
 
-  static Future<void> customerVerifyOtp(String mobile, String otp) async {
+  static Future<void> customerVerifyOtp(
+      String mobile, String otp, String deviceId) async {
     final res = await http
-        .post(Uri.parse('$_base/customer/verify-otp?mobile=$mobile&otp=$otp'))
+        .post(Uri.parse(
+            '$_base/customer/verify-otp?mobile=$mobile&otp=$otp&device_id=$deviceId'))
         .timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) return;
     final body = jsonDecode(res.body) as Map<String, dynamic>;

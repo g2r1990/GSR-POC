@@ -80,6 +80,7 @@ class Customer(Base):
     name         = Column(String(100), nullable=True)
     mobile       = Column(String(15), unique=True, nullable=False)
     firebase_uid = Column(String(128), unique=True, nullable=True)
+    device_id    = Column(String(128), nullable=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
     orders       = relationship("Order", back_populates="customer")
 

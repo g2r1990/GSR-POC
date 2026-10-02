@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from app.database import get_db
-from app.models import Restaurant, MenuItem
+from app.models import Restaurant, MenuItem, Customer
 from app.schemas.customer import RestaurantResponse, CustomerMenuItemResponse
 
 router = APIRouter(prefix="/customer", tags=["Customer"])
@@ -148,8 +148,8 @@ def send_otp(mobile: str):
 
 
 @router.post("/verify-otp")
-def verify_otp(mobile: str, otp: str):
-    """Verify the OTP for a mobile number. Returns 200 on success, 400 on failure."""
+def verify_otp(mobile: str, otp: str, device_id: str = "", db: Session = Depends(get_db)):
+    """Verify OTP, bind device_id to the mobile number, and return success."""
     record = _otp_store.get(mobile)
     if not record:
         raise HTTPException(status_code=400, detail="OTP not found. Please request a new one.")
@@ -160,4 +160,32 @@ def verify_otp(mobile: str, otp: str):
         raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
 
     _otp_store.pop(mobile, None)
+
+    # Upsert Customer record with device binding
+    if device_id:
+        customer = db.query(Customer).filter(Customer.mobile == mobile).first()
+        if customer:
+            customer.device_id = device_id
+        else:
+            db.add(Customer(mobile=mobile, device_id=device_id))
+        db.commit()
+
     return {"verified": True, "message": "Mobile number verified successfully."}
+
+
+@router.get("/check-device")
+def check_device(mobile: str, device_id: str, db: Session = Depends(get_db)):
+    """
+    Silent device integrity check on every app launch.
+    Returns 200 if device matches, 403 if device has changed or is unregistered.
+    Network errors on the client should be treated as pass-through (offline-first).
+    """
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id is required.")
+    customer = db.query(Customer).filter(Customer.mobile == mobile).first()
+    if not customer or not customer.device_id:
+        # No device registered yet — not a security event, just not onboarded via new flow
+        raise HTTPException(status_code=403, detail="Device not registered. Please verify OTP again.")
+    if customer.device_id != device_id:
+        raise HTTPException(status_code=403, detail="Device mismatch. Please verify OTP on this device.")
+    return {"verified": True}

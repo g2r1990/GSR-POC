@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/api_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/role_selector.dart';
 import 'screens/admin/login_screen.dart';
@@ -67,11 +68,31 @@ class _CustomerRootScreenState extends State<_CustomerRootScreen> {
   Future<void> _check() async {
     final prefs = await SharedPreferences.getInstance();
     final name = prefs.getString('customer_name') ?? '';
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(
-      context,
-      name.isEmpty ? '/customer/onboarding' : '/customer/home',
-    );
+
+    // Not onboarded yet → straight to onboarding
+    if (name.isEmpty) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/customer/onboarding');
+      return;
+    }
+
+    // Onboarded → silent device integrity check
+    final phone = prefs.getString('customer_phone') ?? '';
+    final deviceId = prefs.getString('device_uuid') ?? '';
+
+    if (phone.isNotEmpty && deviceId.isNotEmpty) {
+      // device_uuid exists → this user went through the new OTP+device flow
+      final ok = await ApiService.customerCheckDevice(phone, deviceId);
+      if (!ok) {
+        // Device mismatch or not registered → clear profile and re-onboard
+        await prefs.clear();
+        if (mounted) Navigator.pushReplacementNamed(context, '/customer/onboarding');
+        return;
+      }
+    }
+    // device_uuid absent → old install pre-device-binding; let through gracefully.
+    // They will be bound on next OTP verification.
+
+    if (mounted) Navigator.pushReplacementNamed(context, '/customer/home');
   }
 
   @override
