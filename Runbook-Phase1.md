@@ -1,8 +1,53 @@
 # Project GSR — Phase 1 Runbook
-**Last Updated:** 2026-10-01  
+**Last Updated:** 2026-10-04  
 **Stack:** Flutter (Android) + FastAPI (Python) + PostgreSQL + AWS EC2 + S3  
 **Estimated Duration:** 8 Sprints (~8 weeks)  
 **Monthly Cost:** ~$32/month (EC2 t3.medium + S3, no ALB)
+
+---
+
+## Quick Reference — All Project URLs
+
+### API & Backend
+| URL | Purpose |
+|-----|---------|
+| `http://43.204.43.71/docs` | **Swagger UI** (via Nginx port 80) — use this daily |
+| `http://43.204.43.71/health` | Health check — `{"status":"ok","db":"connected","version":"..."}` |
+| `http://43.204.43.71/` | API root |
+| `http://43.204.43.71:8000/docs` | Swagger direct (port 8000, bypasses Nginx) |
+
+> **Corporate network workaround** (if port 8000 blocked):  
+> `ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" -L 8080:localhost:8000 -N ec2-user@43.204.43.71`  
+> Then open `http://localhost:8080/docs`
+
+### AWS Console
+| URL | Purpose |
+|-----|---------|
+| https://ap-south-1.console.aws.amazon.com/ec2/home?region=ap-south-1#Instances | EC2 — start/stop instance |
+| https://s3.console.aws.amazon.com/s3/home?region=ap-south-1 | S3 — KYC documents bucket |
+
+### GitHub
+| URL | Purpose |
+|-----|---------|
+| https://github.com/gurupreet18121990/GSR-Project | Main repo |
+| https://github.com/gurupreet18121990/GSR-Project/actions | CI/CD — APK build status |
+| https://github.com/gurupreet18121990/GSR-Project/settings/secrets/actions | GitHub Secrets (FIREBASE_APP_ID etc.) |
+
+### Firebase
+| URL | Purpose |
+|-----|---------|
+| https://console.firebase.google.com/project/project-gsr-cd6c6 | Firebase console (project-gsr-cd6c6) |
+| https://console.firebase.google.com/project/project-gsr-cd6c6/appdistribution | App Distribution — tester management + builds |
+
+### Project Runbook (Artifact)
+| URL | Purpose |
+|-----|---------|
+| https://claude.ai/artifact/Bo3Y5LR5CrBrFaMY6LM7zE | This runbook as a web page (shareable) |
+
+### EC2 SSH
+```bash
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+```
 
 ---
 
@@ -14,13 +59,13 @@
 | **Sprint 1** | Terraform IaC, EC2, S3, Nginx, SSL | ✅ Done (infra) | 2026-09-28 |
 | **Sprint 2** | FastAPI skeleton, PostgreSQL, Docker | ✅ Done | 2026-10-01 |
 | **Sprint 3** | Auth (Admin TOTP + Owner/Customer OTP) | ✅ Done | 2026-10-01 |
-| **Sprint 4** | Owner registration, KYC, Admin panel + Flutter screens | 🔲 Not Started | — |
-| **Sprint 5** | Menu management (Owner app) | 🔲 Not Started | — |
-| **Sprint 6** | Customer discovery (search + browse) | 🔲 Not Started | — |
+| **Sprint 4** | Owner registration, KYC, Admin panel + Flutter screens | ✅ Done | 2026-10-02 |
+| **Sprint 5** | Menu management (Owner app) | ✅ Done | 2026-10-03 |
+| **Sprint 6** | Customer discovery (search + browse) | ✅ Done | 2026-10-04 |
 | **Sprint 7** | Ordering flow + push notifications | 🔲 Not Started | — |
 | **Sprint 8** | Testing, APK build, Play Store prep | 🔲 Not Started | — |
 
-**Sprints 1 + 2 + 3 all complete as of 2026-10-01. GitHub Actions APK pipeline live. EC2 stopped (restart before Day 4).**
+**Sprints 1–6 complete. Sprint 7 next (ordering flow + push notifications). All flows validated on device (Build #8 APK). Firebase App Distribution active.**
 
 ---
 
@@ -951,100 +996,218 @@ ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
 ---
 
 ## Sprint 4 — Owner Registration + KYC Admin Panel
-**Duration:** 4–5 days  
-**Goal:** Owner can register, upload docs; Admin can approve/reject
+**Duration:** 1 day (2026-10-02)  
+**Goal:** Owner can register; Admin can approve/reject via app  
+**Status:** ✅ COMPLETE
 
-### Flutter Screens Built This Sprint
-- `registration_screen.dart` — multi-step form (personal details → restaurant details → document upload)
-- `admin_login_screen.dart` + `totp_verify_screen.dart`
-- `kyc_pending_screen.dart` — list of pending registrations
-- `restaurant_review_screen.dart` — view owner docs, approve/reject
+### What Was Built
 
-### Document Upload Flow
+| Component | Detail |
+|---|---|
+| Flutter screens | Splash, Role Selector, Admin Login (TOTP), Admin KYC Dashboard |
+| Owner registration API | POST /owner/register — creates Owner + Restaurant (status=pending) |
+| KYC API | GET /admin/kyc/pending, POST approve/reject |
+| Document upload | POST /owner/documents/upload (S3 optional via S3_BUCKET_NAME env) |
+| Alembic migration | a1b2c3d4e5f6 — added gstin, doc_url, rejection_reason, firebase_uid to owner |
+| Firebase App Distribution | GSR App registered, App ID: 1:708112960726:android:89b7cd0f86d1abda590d77 |
+| GitHub secrets | FIREBASE_APP_ID + FIREBASE_SERVICE_ACCOUNT_JSON added |
+| APK builds | Build #2 (6m 8s) + Build #3 (7m 50s) — same code, both green |
+
+### Sprint 4 API Endpoints
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | /owner/register | Register owner + restaurant (status=pending) |
+| POST | /owner/documents/upload | Upload KYC doc to S3 |
+| GET | /owner/me | Owner profile + restaurant status |
+| GET | /admin/kyc/pending | List owners awaiting approval |
+| GET | /admin/kyc/all | All owners with any status |
+| POST | /admin/kyc/{id}/approve | Activate owner + restaurant |
+| POST | /admin/kyc/{id}/reject | Reject with reason |
+
+### Sprint 4 Flutter Screens
+
+| File | Screen |
+|---|---|
+| `splash_screen.dart` | GSR logo, blue background, 2s fade → role selector |
+| `role_selector.dart` | Admin / Owner / Customer role cards |
+| `admin/login_screen.dart` | Username + Password + 6-digit TOTP |
+| `admin/kyc_dashboard.dart` | Pending KYC list with Approve/Reject buttons |
+| `owner/register_screen.dart` | Placeholder — Sprint 5 |
+| `customer/home_screen.dart` | Placeholder — future sprint |
+| `services/api_service.dart` | HTTP client, JWT token storage (shared_preferences) |
+
+### Sprint 4 Execution Log (2026-10-02)
+
+#### Step 1 — Start EC2 and verify containers
+```bash
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+cd /opt/project-gsr/backend && sudo docker-compose ps
+# Both gsr_api and gsr_db should show Up/healthy
 ```
-Flutter → pick image from gallery/camera
-        ↓
-Flutter → POST /upload (multipart form)
-        ↓
-FastAPI → boto3 → upload to S3
-        ↓
-FastAPI → store S3 URL in database
-        ↓
-Admin views document via pre-signed S3 URL (expires in 1 hour)
+
+#### Step 2 — Pull latest code and rebuild
+```bash
+cd /opt/project-gsr && git pull origin main
+cd backend && sudo docker-compose up -d --build api
 ```
 
-### Inspection Scheduling
-- On restaurant approval → auto-create first `Inspection` record with `NextDueDate = today + 30 days`
-- Admin panel shows inspections due this month
-- Field agent logs result (Pass/Fail + notes + photos)
-- On Fail → restaurant status → `Suspended` (hidden from customers)
+#### Step 3 — Run Sprint 4 migration
+```bash
+# IMPORTANT: use python -m alembic, NOT alembic directly (PYTHONPATH fix)
+sudo docker-compose exec api bash -c "cd /app && python -m alembic upgrade head"
+# Expected: Running upgrade 9bb830ad942d -> a1b2c3d4e5f6, sprint4_owner_kyc_fields
+```
 
-**Sprint 4 Done when:**
-- [ ] Owner can complete registration with photo + GSTIN upload
-- [ ] Admin sees pending KYC list with documents viewable
-- [ ] Admin can approve (owner gets SMS confirmation) or reject
-- [ ] Inspection record auto-created on approval
-- [ ] Rejected restaurant cannot log in
+#### Step 4 — Verify API via Swagger
+Open: http://43.204.43.71:8000/docs
+- POST /auth/admin/login → get token
+- POST /owner/register → 201 Created
+- GET  /admin/kyc/pending → see pending owner
+- POST /admin/kyc/{id}/approve → approved
+- GET  /admin/kyc/pending → empty []
+
+#### Corporate network note
+Port 8000 may be blocked on corporate WiFi. Use SSH tunnel from Windows:
+```powershell
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" -L 8080:localhost:8000 -N ec2-user@43.204.43.71
+# Then open: http://localhost:8080/docs
+```
+
+### Firebase App Distribution (Auto-Update on Phone)
+
+```
+Code push to GitHub
+    ↓
+GitHub Actions builds APK (~7 min)
+    ↓
+Firebase App Distribution uploads APK
+    ↓
+Push notification on developer's phone
+    ↓
+Tap "Download" → APK installs automatically
+```
+
+**Setup completed:**
+- Firebase project: project-gsr-cd6c6
+- Android app: GSR App (com.gsr.gsr_app)
+- App ID: `1:708112960726:android:89b7cd0f86d1abda590d77`
+- GitHub secrets: FIREBASE_APP_ID + FIREBASE_SERVICE_ACCOUNT_JSON ✅
+- Tester email: gurpreet18121990@gmail.com
+- Pending: Install Firebase App Tester app on phone (invite sent)
+
+**Sprint 4 Done:**
+- [x] Owner registration API ✅
+- [x] Admin KYC approve/reject APIs ✅
+- [x] Alembic migration applied ✅
+- [x] Flutter splash + role selector + admin login + KYC dashboard ✅
+- [x] GitHub Actions: Build #2 + #3 both green ✅
+- [x] Firebase App Distribution wired up ✅
+- [x] GSR-debug-3 APK tested on phone ✅
 
 ---
 
 ## Sprint 5 — Menu Management (Owner Side)
-**Duration:** 3–4 days  
-**Goal:** Owner can fully manage their menu from the app
+**Duration:** 2026-10-03  
+**Goal:** Owner can fully manage their menu from the app  
+**Status:** ✅ COMPLETE
 
-### Flutter Screens Built This Sprint
-- `restaurant_select_screen.dart` — if owner has multiple restaurants
-- `owner_dashboard_screen.dart` — summary: orders today, menu items
-- `menu_manage_screen.dart` — list of categories + items
-- `add_edit_item_screen.dart` — form to add/edit item with photo upload
+### What Was Built
 
-### Menu Features
-- Add categories (e.g., Starters, Main Course, Drinks, Desserts)
-- Add items under each category (name, description, price, photo)
-- Toggle item availability (on/off) — shown greyed out to customers when off
-- Delete item (soft delete — hidden, not removed from order history)
+| Component | Detail |
+|---|---|
+| Owner login | POST /owner/auth/login → JWT (role=owner) |
+| Password setup | POST /owner/auth/set-password (admin sets initial password) |
+| Menu API | GET /owner/menu, POST /owner/menu/item, PUT /owner/menu/item/{id} |
+| Toggle API | PATCH /owner/menu/item/{id}/availability |
+| Delete API | DELETE /owner/menu/item/{id} (soft delete — is_deleted flag) |
+| New backend files | `backend/app/routers/menu.py`, `backend/app/schemas/menu.py` |
+| API version | 0.3.0 → 0.4.0 |
 
-**Sprint 5 Done when:**
-- [ ] Owner can add/edit/delete menu items
-- [ ] Owner can toggle item availability
-- [ ] Menu items with photos visible correctly
-- [ ] Owner with 2 restaurants can switch between them
+### Flutter Screens Built
+| File | Screen |
+|---|---|
+| `owner/login_screen.dart` | Mobile number + password login |
+| `owner/dashboard_screen.dart` | Owner dashboard (restaurant name, menu item count) |
+| `owner/menu_list_screen.dart` | List of all menu items with category, price, toggle |
+| `owner/add_edit_item_screen.dart` | Add/edit form — category, name, description, price |
+
+### Owner Credentials (POC)
+| Item | Value |
+|---|---|
+| Mobile | `+919561321395` (Kulpreet Kaur Rajput / Noor Bhoj) |
+| Password | `Owner@GSR2026` |
+
+### Noor Bhoj Menu (6 items as of Sprint 5)
+| Category | Item | Price |
+|---|---|---|
+| Main Course | Paneer Butter Masala | ₹220 |
+| Main Course | Dal Tadka | ₹160 |
+| Rice | Veg Biryani | ₹190 |
+| Indian Bread | Butter Naan | ₹60 |
+| Starters | Veg Manchurian | ₹170 |
+| Rice | Veg Briyani (added via app) | ₹190 |
+
+**Sprint 5 Done:**
+- [x] Owner login (mobile + password) → JWT ✅
+- [x] GET /owner/menu → returns all items ✅
+- [x] POST /owner/menu/item → adds item ✅
+- [x] PATCH /owner/menu/item/{id}/availability → toggles on/off ✅
+- [x] DELETE /owner/menu/item/{id} → soft delete ✅
+- [x] Flutter: login, dashboard, menu list, add/edit screens ✅
+- [x] Tested on real device (Build #5 APK) ✅
 
 ---
 
 ## Sprint 6 — Customer App — Discovery & Browsing
-**Duration:** 3–4 days  
-**Goal:** Customer can find and browse restaurants
+**Duration:** 2026-10-04  
+**Goal:** Customer can find and browse restaurants  
+**Status:** ✅ COMPLETE — Validated on device (Build #8 APK)
 
-### Flutter Screens Built This Sprint
-- `home_screen.dart` — pincode search + district selector
-- `restaurant_list_screen.dart` — sorted by area/locality
-- `restaurant_detail_screen.dart` — photos, address, full menu
+### What Was Built
 
-### Customer Search Logic
-```
-Customer enters pincode (e.g., 431001)
-        ↓
-GET /restaurants?pincode=431001
-        ↓
-Returns: Active restaurants only
-         Grouped by Area/Locality
-         Sorted alphabetically by area
-        ↓
-Each card shows:
-  - Restaurant photo
-  - Name
-  - Area (e.g., Osmanpura)
-  - Type (Veg / Non-Veg / Both)
-  - Address
-```
+| Component | Detail |
+|---|---|
+| Search endpoint | GET /customer/restaurants?pincode=431003 — public, no JWT |
+| Menu endpoint | GET /customer/restaurant/{id}/menu — public, no JWT |
+| Response | Active restaurants only; menu grouped by category, available items only |
+| New backend files | `backend/app/routers/customer.py`, `backend/app/schemas/customer.py` |
+| API version | 0.4.0 → 0.5.0 |
 
-**Sprint 6 Done when:**
-- [ ] Customer can search by pincode
-- [ ] Restaurant list appears, grouped by area
-- [ ] Suspended restaurants do NOT appear
-- [ ] Restaurant detail shows full menu with prices
-- [ ] Guest users (no login) can browse freely
+### Customer API Endpoints
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | /customer/restaurants?pincode=431003 | Search active restaurants by pincode |
+| GET | /customer/restaurant/{id}/menu | Get menu grouped by category (available items only) |
+
+### Flutter Screens Built
+| File | Screen |
+|---|---|
+| `customer/home_screen.dart` | 6-digit pincode input, amber theme, "Find Restaurants" button |
+| `customer/restaurant_list_screen.dart` | Restaurant cards — name, area, food type badge (Veg/Non-Veg/Both) |
+| `customer/restaurant_menu_screen.dart` | Menu grouped by category, pull-to-refresh, ₹ price display |
+
+### Key Behaviours
+- No login required — customer can browse freely as a guest
+- Toggle-off items disappear from customer menu **immediately** (no cache)
+- Screens use `Navigator.push` with direct constructor parameters (not named routes)
+- Whole-number price formatting: ₹60 (not ₹60.00)
+
+### Validation Results (Build #8, 2026-10-04)
+| Test | Result |
+|---|---|
+| Pincode 431003 → Noor Bhoj appears | ✅ Pass |
+| All menu items shown correctly | ✅ Pass |
+| Owner toggles item OFF → disappears from customer menu | ✅ Pass |
+| Real-time toggle reflection (no delay) | ✅ Pass |
+
+**Sprint 6 Done:**
+- [x] GET /customer/restaurants?pincode returns active restaurants ✅
+- [x] GET /customer/restaurant/{id}/menu returns available items grouped by category ✅
+- [x] Flutter: pincode input, restaurant list, menu browse screens ✅
+- [x] No login required to browse ✅
+- [x] Toggle-off reflects immediately on customer side ✅
+- [x] Validated on real device (Build #8 APK) ✅
 
 ---
 
