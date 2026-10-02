@@ -1,3 +1,7 @@
+import os
+import random
+import time
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -7,6 +11,41 @@ from app.models import Restaurant, MenuItem
 from app.schemas.customer import RestaurantResponse, CustomerMenuItemResponse
 
 router = APIRouter(prefix="/customer", tags=["Customer"])
+
+logger = logging.getLogger(__name__)
+
+# In-memory OTP store: {mobile: {'otp': str, 'expires': float}}
+_otp_store: dict = {}
+_OTP_TTL = 600  # 10 minutes
+
+
+def _send_otp_sms(mobile: str, otp: str) -> bool:
+    """Try to send OTP via Fast2SMS. Returns True if sent, False if not configured."""
+    api_key = os.getenv("FAST2SMS_API_KEY")
+    if not api_key:
+        return False
+    try:
+        import urllib.request
+        import json as _json
+        payload = _json.dumps({
+            "route": "otp",
+            "variables_values": otp,
+            "numbers": mobile,
+        }).encode()
+        req = urllib.request.Request(
+            "https://www.fast2sms.com/dev/bulkV2",
+            data=payload,
+            headers={
+                "authorization": api_key,
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            result = _json.loads(resp.read())
+            return result.get("return", False)
+    except Exception as exc:
+        logger.warning("Fast2SMS send failed: %s", exc)
+        return False
 
 
 @router.get("/restaurants", response_model=List[RestaurantResponse])
@@ -59,3 +98,39 @@ def get_restaurant_menu(restaurant_id: str, db: Session = Depends(get_db)):
         "restaurant": RestaurantResponse.model_validate(restaurant),
         "menu": grouped,
     }
+
+
+@router.post("/send-otp")
+def send_otp(mobile: str):
+    """Generate and send OTP to the given mobile number. No auth required."""
+    if len(mobile) != 10 or not mobile.isdigit():
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number.")
+
+    otp = str(random.randint(100000, 999999))
+    _otp_store[mobile] = {"otp": otp, "expires": time.time() + _OTP_TTL}
+
+    sms_sent = _send_otp_sms(mobile, otp)
+
+    if sms_sent:
+        logger.info("OTP sent via SMS to %s", mobile)
+        return {"message": "OTP sent to your mobile number."}
+    else:
+        # Dev mode: log and return OTP in response so testing works without SMS credits
+        logger.info("DEV MODE — OTP for %s: %s", mobile, otp)
+        return {"message": "OTP generated (SMS not configured).", "dev_otp": otp}
+
+
+@router.post("/verify-otp")
+def verify_otp(mobile: str, otp: str):
+    """Verify the OTP for a mobile number. Returns 200 on success, 400 on failure."""
+    record = _otp_store.get(mobile)
+    if not record:
+        raise HTTPException(status_code=400, detail="OTP not found. Please request a new one.")
+    if time.time() > record["expires"]:
+        _otp_store.pop(mobile, None)
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
+    if record["otp"] != otp:
+        raise HTTPException(status_code=400, detail="Incorrect OTP. Please try again.")
+
+    _otp_store.pop(mobile, None)
+    return {"verified": True, "message": "Mobile number verified successfully."}

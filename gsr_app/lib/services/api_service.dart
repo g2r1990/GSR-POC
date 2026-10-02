@@ -227,6 +227,26 @@ class ApiService {
     }
   }
 
+  // ── Customer OTP ──────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> customerSendOtp(String mobile) async {
+    final res = await http
+        .post(Uri.parse('$_base/customer/send-otp?mobile=$mobile'))
+        .timeout(const Duration(seconds: 15));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 200) return body;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to send OTP');
+  }
+
+  static Future<void> customerVerifyOtp(String mobile, String otp) async {
+    final res = await http
+        .post(Uri.parse('$_base/customer/verify-otp?mobile=$mobile&otp=$otp'))
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Invalid OTP');
+  }
+
   // ── Customer ──────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> searchRestaurants(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import 'otp_screen.dart';
 
 class CustomerOnboardingScreen extends StatefulWidget {
   const CustomerOnboardingScreen({super.key});
@@ -75,17 +76,38 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('customer_name', _nameCtr.text.trim());
-    await prefs.setString('customer_phone', _phoneCtr.text.trim());
-    if (_pincodeCtr.text.trim().isNotEmpty) {
-      await prefs.setString('customer_pincode', _pincodeCtr.text.trim());
+    try {
+      final result = await ApiService.customerSendOtp(_phoneCtr.text.trim());
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => CustomerOtpScreen(
+          mobile: _phoneCtr.text.trim(),
+          name: _nameCtr.text.trim(),
+          pincode: _pincodeCtr.text.trim(),
+          district: _district,
+          state: _state,
+          country: _country,
+          devOtp: result['dev_otp'] as String?,
+        ),
+      ));
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not send OTP. Check your connection.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (_district != null) await prefs.setString('customer_district', _district!);
-    if (_state != null) await prefs.setString('customer_state', _state!);
-    if (_country != null) await prefs.setString('customer_country', _country!);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/customer/home');
   }
 
   @override

@@ -124,6 +124,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         title: const Text('BossBite'),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'My Profile',
+            onPressed: () => Navigator.pushNamed(context, '/customer/profile'),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
