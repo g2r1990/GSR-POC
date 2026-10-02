@@ -6,11 +6,13 @@ from datetime import datetime
 class OwnerRegisterRequest(BaseModel):
     name: str
     mobile: str
+    password: str
     gstin: Optional[str] = None
     restaurant_name: str
     address: str
     area: str
     pincode: str
+    state: str = ""
     food_type: str = "both"   # veg | nonveg | both
 
     @field_validator('mobile')
@@ -31,6 +33,7 @@ class OwnerRegisterRequest(BaseModel):
 
 class OwnerRegisterResponse(BaseModel):
     owner_id: str
+    restaurant_code: str
     message: str = "Registration submitted. Awaiting admin approval."
 
 
@@ -40,6 +43,8 @@ class KycRestaurantInfo(BaseModel):
     address: str
     area: str
     pincode: str
+    state: Optional[str] = None
+    restaurant_code: Optional[str] = None
     food_type: str
 
 

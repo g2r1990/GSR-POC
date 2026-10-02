@@ -4,6 +4,7 @@ import 'screens/splash_screen.dart';
 import 'screens/role_selector.dart';
 import 'screens/admin/login_screen.dart';
 import 'screens/admin/kyc_dashboard.dart';
+import 'screens/owner/landing_screen.dart';
 import 'screens/owner/register_screen.dart';
 import 'screens/owner/login_screen.dart';
 import 'screens/customer/home_screen.dart';
@@ -34,6 +35,7 @@ class BossBiteApp extends StatelessWidget {
         '/roles': (ctx) => const RoleSelectorScreen(),
         '/admin/login': (ctx) => const AdminLoginScreen(),
         '/admin/dashboard': (ctx) => const AdminDashboardScreen(),
+        '/owner/landing': (ctx) => const OwnerLandingScreen(),
         '/owner/register': (ctx) => const OwnerRegisterScreen(),
         '/owner/login': (ctx) => const OwnerLoginScreen(),
         '/customer/root': (ctx) => const _CustomerRootScreen(),

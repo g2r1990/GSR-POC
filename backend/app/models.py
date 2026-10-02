@@ -46,9 +46,11 @@ class Restaurant(Base):
     name        = Column(String(150), nullable=False)
     address     = Column(Text, nullable=False)
     area        = Column(String(100), nullable=False)
-    pincode     = Column(String(10), nullable=False)
-    food_type   = Column(String(10), default="both")        # veg | nonveg | both
-    status      = Column(String(20), default="pending")     # pending | active | suspended
+    pincode         = Column(String(10), nullable=False)
+    state           = Column(String(100), nullable=True)
+    restaurant_code = Column(String(20), unique=True, nullable=True)
+    food_type       = Column(String(10), default="both")    # veg | nonveg | both
+    status          = Column(String(20), default="pending") # pending | active | suspended
     photo_url   = Column(String(500), nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)
     owner       = relationship("Owner", back_populates="restaurants")

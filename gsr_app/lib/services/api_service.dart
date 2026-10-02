@@ -90,6 +90,52 @@ class ApiService {
     }
   }
 
+  // ── Owner registration & status ──────────────────────────────────────────
+
+  static Future<void> ownerRegister({
+    required String name,
+    required String mobile,
+    required String password,
+    required String restaurantName,
+    required String address,
+    required String area,
+    required String pincode,
+    required String state,
+    required String foodType,
+    String? gstin,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse('$_base/owner/register'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'name': name,
+            'mobile': mobile,
+            'password': password,
+            'restaurant_name': restaurantName,
+            'address': address,
+            'area': area,
+            'pincode': pincode,
+            'state': state,
+            'food_type': foodType,
+            if (gstin != null) 'gstin': gstin,
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 201) return;
+    throw ApiException(body['detail']?.toString() ?? 'Registration failed');
+  }
+
+  static Future<Map<String, dynamic>> ownerStatus(String mobile) async {
+    final res = await http.get(
+      Uri.parse('$_base/owner/status?mobile=$mobile'),
+    ).timeout(const Duration(seconds: 15));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 200) return body;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to fetch status');
+  }
+
   // ── Owner auth ────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> ownerLogin(

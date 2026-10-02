@@ -54,6 +54,8 @@ def kyc_pending(
                 address=restaurant.address,
                 area=restaurant.area,
                 pincode=restaurant.pincode,
+                state=restaurant.state,
+                restaurant_code=restaurant.restaurant_code,
                 food_type=restaurant.food_type,
             ) if restaurant else None,
         ))
@@ -135,6 +137,8 @@ def kyc_all(
                 address=restaurant.address,
                 area=restaurant.area,
                 pincode=restaurant.pincode,
+                state=restaurant.state,
+                restaurant_code=restaurant.restaurant_code,
                 food_type=restaurant.food_type,
             ) if restaurant else None,
         ))

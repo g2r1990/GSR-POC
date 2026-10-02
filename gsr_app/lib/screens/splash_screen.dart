@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
         if (isAdminApp) {
           route = '/admin/login';
         } else if (isOwnerApp) {
-          route = '/owner/login';
+          route = '/owner/landing';
         } else {
           route = '/customer/root';
         }

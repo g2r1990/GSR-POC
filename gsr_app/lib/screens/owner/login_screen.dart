@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'dashboard_screen.dart';
+import 'pending_screen.dart';
 import 'tnc_screen.dart';
 
 class OwnerLoginScreen extends StatefulWidget {
@@ -41,6 +42,14 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
             : TncScreen(ownerName: ownerName, ownerId: ownerId),
       ));
     } on ApiException catch (e) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('pending') || msg.contains('rejected')) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => OwnerPendingScreen(mobile: _mobileCtr.text.trim()),
+        ));
+        return;
+      }
       setState(() => _error = e.message);
     } catch (_) {
       setState(() => _error = 'Connection error. Is EC2 running?');
@@ -165,6 +174,18 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
                         : const Text('Sign In',
                             style: TextStyle(fontSize: 16,
                                 fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pushReplacementNamed(
+                        context, '/owner/landing'),
+                    child: const Text(
+                      'New to BossBite? Register your restaurant',
+                      style: TextStyle(
+                          color: Color(0xFF166534), fontSize: 13),
+                    ),
                   ),
                 ),
               ],
