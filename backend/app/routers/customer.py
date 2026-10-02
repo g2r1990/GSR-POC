@@ -11,10 +11,12 @@ router = APIRouter(prefix="/customer", tags=["Customer"])
 
 @router.get("/restaurants", response_model=List[RestaurantResponse])
 def search_restaurants(pincode: str, db: Session = Depends(get_db)):
-    """Search active restaurants by 6-digit pincode. No auth required."""
+    """Search active restaurants within the same city area (first 5 pincode digits). No auth required."""
+    # Match first 5 digits so nearby pincodes in the same city area are included.
+    prefix = pincode[:5] if len(pincode) >= 5 else pincode
     restaurants = (
         db.query(Restaurant)
-        .filter(Restaurant.pincode == pincode, Restaurant.status == "active")
+        .filter(Restaurant.pincode.like(prefix + "%"), Restaurant.status == "active")
         .order_by(Restaurant.name)
         .all()
     )

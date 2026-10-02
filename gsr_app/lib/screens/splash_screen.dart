@@ -22,10 +22,15 @@ class _SplashScreenState extends State<SplashScreen>
     _ctrl.forward();
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(
-          context,
-          isOwnerApp ? '/roles' : '/customer/root',
-        );
+        String route;
+        if (isAdminApp) {
+          route = '/admin/login';
+        } else if (isOwnerApp) {
+          route = '/owner/login';
+        } else {
+          route = '/customer/root';
+        }
+        Navigator.pushReplacementNamed(context, route);
       }
     });
   }

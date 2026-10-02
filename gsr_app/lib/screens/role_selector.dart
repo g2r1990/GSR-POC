@@ -29,22 +29,25 @@ class RoleSelectorScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 16, color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 48),
-              _RoleCard(
-                icon: Icons.admin_panel_settings,
-                label: 'Admin',
-                description: 'Manage KYC approvals and inspections',
-                color: const Color(0xFF1E40AF),
-                onTap: () => Navigator.pushNamed(context, '/admin/login'),
-              ),
-              const SizedBox(height: 16),
-              _RoleCard(
-                icon: Icons.store,
-                label: 'Owner',
-                description: 'Register your restaurant and track status',
-                color: const Color(0xFF059669),
-                onTap: () => Navigator.pushNamed(context, '/owner/login'),
-              ),
-              if (!isOwnerApp) ...[
+              if (!isOwnerApp)
+                _RoleCard(
+                  icon: Icons.admin_panel_settings,
+                  label: 'Admin',
+                  description: 'Manage KYC approvals and inspections',
+                  color: const Color(0xFF1E40AF),
+                  onTap: () => Navigator.pushNamed(context, '/admin/login'),
+                ),
+              if (!isAdminApp) ...[
+                if (!isOwnerApp) const SizedBox(height: 16),
+                _RoleCard(
+                  icon: Icons.store,
+                  label: 'Restaurant Owner',
+                  description: 'Manage your menu and incoming orders',
+                  color: const Color(0xFF059669),
+                  onTap: () => Navigator.pushNamed(context, '/owner/login'),
+                ),
+              ],
+              if (!isAdminApp && !isOwnerApp) ...[
                 const SizedBox(height: 16),
                 _RoleCard(
                   icon: Icons.person,

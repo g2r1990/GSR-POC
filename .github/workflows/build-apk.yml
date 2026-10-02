@@ -36,7 +36,22 @@ jobs:
         working-directory: gsr_app
         run: dart run flutter_launcher_icons
 
-      # ── Owner APK (Admin + Owner roles only) ──────────────────────────
+      # ── Admin APK (Gurpreet only — KYC & approvals) ───────────────────
+      - name: Build Admin APK
+        working-directory: gsr_app
+        run: flutter build apk --debug --dart-define=APP_FLAVOR=admin
+
+      - name: Rename Admin APK
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-debug.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Admin.apk
+
+      - name: Upload Admin APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BossBite-Admin-${{ github.run_number }}
+          path: gsr_app/build/app/outputs/flutter-apk/BossBite-Admin.apk
+          retention-days: 30
+
+      # ── Owner APK (share to restaurant owners) ────────────────────────
       - name: Build Owner APK
         working-directory: gsr_app
         run: flutter build apk --debug --dart-define=APP_FLAVOR=owner
@@ -51,7 +66,7 @@ jobs:
           path: gsr_app/build/app/outputs/flutter-apk/BossBite-Owner.apk
           retention-days: 30
 
-      # ── Customer APK (ordering app for end users) ─────────────────────
+      # ── Customer APK (app-store ready for end users) ──────────────────
       - name: Build Customer APK
         working-directory: gsr_app
         run: flutter build apk --debug --dart-define=APP_FLAVOR=customer

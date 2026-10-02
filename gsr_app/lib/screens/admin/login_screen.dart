@@ -132,7 +132,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Open Google Authenticator → GSR Admin → copy 6-digit code',
+                  'Open Google Authenticator → BossBite Admin → copy 6-digit code',
                   style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ),

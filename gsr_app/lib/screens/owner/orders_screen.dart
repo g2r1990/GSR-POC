@@ -124,9 +124,9 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
 
   Widget _filterBar() {
     return Container(
-      color: Colors.white,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
       ),
       child: Column(

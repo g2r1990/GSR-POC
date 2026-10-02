@@ -5,13 +5,19 @@ class OrderConfirmScreen extends StatelessWidget {
   final String orderId;
   final String shortId;
   final double total;
+  final double deliveryFee;
+  final double gst;
 
   const OrderConfirmScreen({
     super.key,
     required this.orderId,
     required this.shortId,
     required this.total,
+    this.deliveryFee = 20.0,
+    this.gst = 0.0,
   });
+
+  double get _grandTotal => total + deliveryFee + gst;
 
   @override
   Widget build(BuildContext context) {
@@ -64,16 +70,28 @@ class OrderConfirmScreen extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: Color(0xFFD97706),
                             letterSpacing: 2)),
-                    const SizedBox(height: 12),
-                    const Text('Total Paid',
-                        style: TextStyle(
-                            fontSize: 13, color: Color(0xFF78716C))),
-                    const SizedBox(height: 4),
-                    Text('₹${total.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF166534))),
+                    const Divider(height: 24),
+                    // Bill breakdown
+                    _Row('Items subtotal', '₹${total.toStringAsFixed(0)}'),
+                    const SizedBox(height: 6),
+                    _Row('Delivery fee', '₹${deliveryFee.toStringAsFixed(0)}'),
+                    const SizedBox(height: 6),
+                    _Row('GST (5%)', '₹${gst.toStringAsFixed(2)}'),
+                    const Divider(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Paid',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14)),
+                        Text('₹${_grandTotal.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF166534))),
+                      ],
+                    ),
                   ]),
                 ),
                 const SizedBox(height: 16),
@@ -93,7 +111,7 @@ class OrderConfirmScreen extends StatelessWidget {
                         builder: (_) => OrderStatusScreen(
                           orderId: orderId,
                           shortId: shortId,
-                          total: total,
+                          total: _grandTotal,
                         ),
                       ));
                     },
@@ -120,6 +138,25 @@ class OrderConfirmScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Row(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
+        Text(value,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF374151))),
+      ],
     );
   }
 }

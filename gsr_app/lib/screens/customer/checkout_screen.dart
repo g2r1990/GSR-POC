@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../services/cart_service.dart';
 import 'order_confirm_screen.dart';
@@ -13,6 +14,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   static const _amber = Color(0xFFD97706);
+  static const _deliveryFee = 20.0;
 
   final _formKey = GlobalKey<FormState>();
   final _nameCtr = TextEditingController();
@@ -22,6 +24,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool _placing = false;
   String? _error;
+
+  double get _itemTotal => CartService.total;
+  double get _gst => double.parse((_itemTotal * 0.05).toStringAsFixed(2));
+  double get _grandTotal => _itemTotal + _deliveryFee + _gst;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillFromOnboarding();
+  }
+
+  Future<void> _prefillFromOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('customer_name') ?? '';
+    final phone = prefs.getString('customer_phone') ?? '';
+    if (mounted && name.isNotEmpty) {
+      _nameCtr.text = name;
+    }
+    if (mounted && phone.isNotEmpty) {
+      _phoneCtr.text = phone;
+    }
+  }
 
   @override
   void dispose() {
@@ -55,6 +79,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             orderId: result['order_id'] as String,
             shortId: result['short_id'] as String,
             total: (result['total'] as num).toDouble(),
+            deliveryFee: _deliveryFee,
+            gst: _gst,
           ),
         ),
         (r) => r.isFirst,
@@ -126,8 +152,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         height: 22,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : const Text('Place Order',
-                        style: TextStyle(
+                    : Text(
+                        'Place Order  •  ₹${_grandTotal.toStringAsFixed(0)}',
+                        style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),
@@ -141,58 +168,74 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Order summary
-              _SectionHeader('Order Summary'),
+              // Items ordered
+              _SectionHeader('Items Ordered'),
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFFDE68A)),
                 ),
-                child: Column(children: [
-                  // Scrollable items list capped at 120px
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 120),
-                    child: Scrollbar(
-                      thumbVisibility: CartService.items.length > 3,
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-                        shrinkWrap: true,
-                        children: CartService.items.map((item) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(children: [
-                            Expanded(
-                                child: Text('${item.qty}× ${item.name}',
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Color(0xFF374151)))),
-                            Text(
-                                '₹${(item.price * item.qty).toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                    fontSize: 13, color: Color(0xFF78716C))),
-                          ]),
-                        )).toList(),
-                      ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 140),
+                  child: Scrollbar(
+                    thumbVisibility: CartService.items.length > 3,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                      shrinkWrap: true,
+                      children: CartService.items.map((item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(children: [
+                          Expanded(
+                              child: Text('${item.qty}× ${item.name}',
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF374151)))),
+                          Text(
+                              '₹${(item.price * item.qty).toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                  fontSize: 13, color: Color(0xFF78716C))),
+                        ]),
+                      )).toList(),
                     ),
                   ),
-                  // Total always visible
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${CartService.itemCount} item${CartService.itemCount == 1 ? '' : 's'}',
-                            style: const TextStyle(
-                                fontSize: 13, color: Color(0xFF78716C))),
-                          Text(
-                              '₹${CartService.total.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFD97706))),
-                        ]),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Bill Summary (Zomato-style breakdown)
+              _SectionHeader('Bill Summary'),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Column(children: [
+                  _BillRow(
+                    label: 'Item total',
+                    value: '₹${_itemTotal.toStringAsFixed(0)}',
+                  ),
+                  const SizedBox(height: 8),
+                  _BillRow(
+                    label: 'Delivery fee',
+                    value: '₹${_deliveryFee.toStringAsFixed(0)}',
+                    sublabel: 'Flat rate for POC',
+                  ),
+                  const SizedBox(height: 8),
+                  _BillRow(
+                    label: 'GST (5%)',
+                    value: '₹${_gst.toStringAsFixed(2)}',
+                    sublabel: 'Govt. taxes on food',
+                  ),
+                  const Divider(height: 20),
+                  _BillRow(
+                    label: 'To Pay',
+                    value: '₹${_grandTotal.toStringAsFixed(0)}',
+                    bold: true,
+                    valueColor: _amber,
                   ),
                 ]),
               ),
@@ -242,6 +285,53 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BillRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? sublabel;
+  final bool bold;
+  final Color? valueColor;
+
+  const _BillRow({
+    required this.label,
+    required this.value,
+    this.sublabel,
+    this.bold = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: bold ? 14 : 13,
+                      fontWeight:
+                          bold ? FontWeight.bold : FontWeight.normal,
+                      color: const Color(0xFF374151))),
+              if (sublabel != null)
+                Text(sublabel!,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFFA8A29E))),
+            ],
+          ),
+        ),
+        Text(value,
+            style: TextStyle(
+                fontSize: bold ? 16 : 13,
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                color: valueColor ?? const Color(0xFF374151))),
+      ],
     );
   }
 }
