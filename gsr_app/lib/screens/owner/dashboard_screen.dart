@@ -3,6 +3,8 @@ import '../../services/api_service.dart';
 import 'menu_list_screen.dart';
 import 'orders_screen.dart';
 import 'offers_screen.dart';
+import 'billing_screen.dart';
+import 'stats_screen.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String ownerName;
@@ -170,6 +172,26 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     color: const Color(0xFF7C3AED),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const OwnerOffersScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.account_balance_wallet,
+                    title: 'Billing & Revenue',
+                    subtitle: 'Orders, earnings & BB Tech share',
+                    color: const Color(0xFF059669),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const OwnerBillingScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.bar_chart,
+                    title: 'Food Stats',
+                    subtitle: 'Top items, hourly volume & trends',
+                    color: const Color(0xFFD97706),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const OwnerStatsScreen()),
                     ),
                   ),
                 ],

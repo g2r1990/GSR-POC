@@ -12,17 +12,26 @@ class OwnerOffersScreen extends StatefulWidget {
   State<OwnerOffersScreen> createState() => _OwnerOffersScreenState();
 }
 
-class _OwnerOffersScreenState extends State<OwnerOffersScreen> {
+class _OwnerOffersScreenState extends State<OwnerOffersScreen>
+    with TickerProviderStateMixin {
   static const _purple = Color(0xFF7C3AED);
 
   List<Map<String, dynamic>> _offers = [];
   bool _loading = true;
   String? _error;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -65,7 +74,7 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen> {
     }
   }
 
-  void _showAddSheet() {
+  void _showAddSheet({Map<String, dynamic>? initialData}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -74,6 +83,7 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => _AddOfferSheet(
+        initialData: initialData,
         onCreated: () {
           Navigator.pop(ctx);
           _load();
@@ -82,17 +92,39 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen> {
     );
   }
 
-  String _formatDate(String? iso) {
+  bool _isExpired(String? iso) {
+    if (iso == null) return false;
+    try {
+      final dt = DateTime.parse('${iso}Z');
+      return dt.isBefore(DateTime.now().toUtc());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Returns "2 Oct 2026, 10:00 PM IST"
+  String _formatDatetime(String? iso) {
     if (iso == null) return '';
     try {
-      final dt = DateTime.parse(iso).toLocal();
-      final months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      final dt = DateTime.parse('${iso}Z').toLocal();
+      const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${dt.day} ${months[dt.month]} ${dt.year}';
+      final h = dt.hour > 12
+          ? dt.hour - 12
+          : (dt.hour == 0 ? 12 : dt.hour);
+      final m = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      return '${dt.day} ${months[dt.month]} ${dt.year}, $h:$m $ampm IST';
     } catch (_) {
       return '';
     }
   }
+
+  List<Map<String, dynamic>> get _activeOffers =>
+      _offers.where((o) => !_isExpired(o['valid_until'] as String?)).toList();
+
+  List<Map<String, dynamic>> get _historyOffers =>
+      _offers.where((o) => _isExpired(o['valid_until'] as String?)).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +143,16 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen> {
             onPressed: _showAddSheet,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: [
+            Tab(text: 'Active (${_loading ? '–' : _activeOffers.length})'),
+            Tab(text: 'History (${_loading ? '–' : _historyOffers.length})'),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddSheet,
@@ -129,99 +171,234 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen> {
                     OutlinedButton(onPressed: _load, child: const Text('Retry')),
                   ]),
                 )
-              : _offers.isEmpty
-                  ? Center(
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.local_offer_outlined,
-                            size: 64, color: Color(0xFFD8B4FE)),
-                        const SizedBox(height: 16),
-                        const Text('No offers yet',
-                            style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1C1917))),
-                        const SizedBox(height: 8),
-                        const Text('Tap + New Offer to push a deal to customers.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: Color(0xFF78716C))),
-                      ]),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                        itemCount: _offers.length,
-                        itemBuilder: (ctx, i) {
-                          final o = _offers[i];
-                          final validUntil = _formatDate(o['valid_until'] as String?);
-                          final discount = o['discount_pct'];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(color: Color(0xFFEDE9FE)),
-                            ),
-                            color: Colors.white,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(children: [
-                                Container(
-                                  width: 44, height: 44,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF5F3FF),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.local_offer,
-                                      color: _purple, size: 24),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(o['title'] as String? ?? '',
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1C1917))),
-                                      if ((o['description'] as String?)?.isNotEmpty == true) ...[
-                                        const SizedBox(height: 3),
-                                        Text(o['description'] as String,
-                                            style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Color(0xFF78716C))),
-                                      ],
-                                      const SizedBox(height: 6),
-                                      Wrap(spacing: 6, children: [
-                                        if (discount != null)
-                                          _Badge(
-                                            label: '${discount.toString()}% OFF',
-                                            bg: const Color(0xFFF0FDF4),
-                                            fg: const Color(0xFF166534),
-                                          ),
-                                        if (validUntil.isNotEmpty)
-                                          _Badge(
-                                            label: 'Valid till $validUntil',
-                                            bg: const Color(0xFFFEF3C7),
-                                            fg: const Color(0xFF92400E),
-                                          ),
-                                      ]),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Color(0xFFDC2626)),
-                                  onPressed: () => _delete(o['id'] as String),
-                                  tooltip: 'Delete',
-                                ),
-                              ]),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildActiveTab(),
+                    _buildHistoryTab(),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildActiveTab() {
+    final offers = _activeOffers;
+    if (offers.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          children: const [
+            SizedBox(height: 80),
+            Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.local_offer_outlined,
+                    size: 64, color: Color(0xFFD8B4FE)),
+                SizedBox(height: 16),
+                Text('No active offers',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1C1917))),
+                SizedBox(height: 8),
+                Text('Tap + New Offer to push a deal to customers.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Color(0xFF78716C))),
+              ]),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: offers.length,
+        itemBuilder: (ctx, i) => _OfferCard(
+          offer: offers[i],
+          formatDatetime: _formatDatetime,
+          onDelete: () => _delete(offers[i]['id'] as String),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab() {
+    final offers = _historyOffers;
+    if (offers.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          children: const [
+            SizedBox(height: 80),
+            Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.history, size: 64, color: Color(0xFFD8B4FE)),
+                SizedBox(height: 16),
+                Text('No expired offers yet',
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1C1917))),
+                SizedBox(height: 8),
+                Text('Expired offers appear here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Color(0xFF78716C))),
+              ]),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: offers.length,
+        itemBuilder: (ctx, i) => _OfferCard(
+          offer: offers[i],
+          expired: true,
+          formatDatetime: _formatDatetime,
+          onDelete: () => _delete(offers[i]['id'] as String),
+          onRepost: () => _showAddSheet(initialData: offers[i]),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Offer card (shared between tabs) ──────────────────────────────────────────
+
+class _OfferCard extends StatelessWidget {
+  static const _purple = Color(0xFF7C3AED);
+
+  final Map<String, dynamic> offer;
+  final bool expired;
+  final String Function(String?) formatDatetime;
+  final VoidCallback onDelete;
+  final VoidCallback? onRepost;
+
+  const _OfferCard({
+    required this.offer,
+    required this.formatDatetime,
+    required this.onDelete,
+    this.expired = false,
+    this.onRepost,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final discount = offer['discount_pct'];
+    final validDatetime = formatDatetime(offer['valid_until'] as String?);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+            color: expired
+                ? const Color(0xFFE5E7EB)
+                : const Color(0xFFEDE9FE)),
+      ),
+      color: expired ? const Color(0xFFF9FAFB) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: expired
+                    ? const Color(0xFFF3F4F6)
+                    : const Color(0xFFF5F3FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.local_offer,
+                  color: expired
+                      ? const Color(0xFF9CA3AF)
+                      : _purple,
+                  size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(offer['title'] as String? ?? '',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: expired
+                              ? const Color(0xFF6B7280)
+                              : const Color(0xFF1C1917))),
+                  if ((offer['description'] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 3),
+                    Text(offer['description'] as String,
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: expired
+                                ? const Color(0xFF9CA3AF)
+                                : const Color(0xFF78716C))),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
+              onPressed: onDelete,
+              tooltip: 'Delete',
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            if (discount != null)
+              _Badge(
+                label: '${discount.toString()}% OFF',
+                bg: expired
+                    ? const Color(0xFFF3F4F6)
+                    : const Color(0xFFF0FDF4),
+                fg: expired
+                    ? const Color(0xFF9CA3AF)
+                    : const Color(0xFF166534),
+              ),
+            if (validDatetime.isNotEmpty)
+              _Badge(
+                label: 'Valid till $validDatetime',
+                bg: expired
+                    ? const Color(0xFFF3F4F6)
+                    : const Color(0xFFFEF3C7),
+                fg: expired
+                    ? const Color(0xFF9CA3AF)
+                    : const Color(0xFF92400E),
+              ),
+            if (expired)
+              _Badge(
+                label: 'Expired',
+                bg: const Color(0xFFFEE2E2),
+                fg: const Color(0xFFDC2626),
+              ),
+          ]),
+          if (onRepost != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onRepost,
+                icon: const Icon(Icons.replay, size: 16),
+                label: const Text('Re-post this offer'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _purple,
+                  side: const BorderSide(color: _purple),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  textStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ]),
+      ),
     );
   }
 }
@@ -246,7 +423,8 @@ class _Badge extends StatelessWidget {
 
 class _AddOfferSheet extends StatefulWidget {
   final VoidCallback onCreated;
-  const _AddOfferSheet({required this.onCreated});
+  final Map<String, dynamic>? initialData;
+  const _AddOfferSheet({required this.onCreated, this.initialData});
 
   @override
   State<_AddOfferSheet> createState() => _AddOfferSheetState();
@@ -263,11 +441,9 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   bool _saving = false;
   String? _error;
 
-  // Menu items for the optional item picker
   List<Map<String, dynamic>> _menuItems = [];
   String? _selectedMenuItemId;
 
-  // Past offer templates (stored locally)
   List<Map<String, dynamic>> _templates = [];
 
   static const _prefsKey = 'owner_offer_templates';
@@ -282,6 +458,14 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     super.initState();
     _loadMenu();
     _loadTemplates();
+    // Pre-fill from initialData (re-post flow)
+    final d = widget.initialData;
+    if (d != null) {
+      _titleCtrl.text = d['title'] as String? ?? '';
+      _descCtrl.text = d['description'] as String? ?? '';
+      final disc = d['discount_pct'];
+      if (disc != null) _discCtrl.text = disc.toString();
+    }
   }
 
   Future<void> _loadMenu() async {
@@ -296,8 +480,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_prefsKey);
       if (raw != null && mounted) {
-        final list = (jsonDecode(raw) as List)
-            .cast<Map<String, dynamic>>();
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
         setState(() => _templates = list);
       }
     } catch (_) {}
@@ -372,7 +555,6 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     if (_validUntil == null) return null;
     final d = _validUntil!;
     final t = _validTime ?? const TimeOfDay(hour: 23, minute: 59);
-    // Device is in IST; toUtc() converts correctly.
     return DateTime(d.year, d.month, d.day, t.hour, t.minute).toUtc();
   }
 
@@ -409,8 +591,8 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
         child: Form(
           key: _formKey,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('New Offer',
-                style: TextStyle(
+            Text(widget.initialData != null ? 'Re-post Offer' : 'New Offer',
+                style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1C1917))),
@@ -501,8 +683,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                   setState(() => _selectedMenuItemId = val);
                   if (val != null) {
                     final item = _menuItems
-                        .firstWhere((m) => m['id'] == val,
-                            orElse: () => {});
+                        .firstWhere((m) => m['id'] == val, orElse: () => {});
                     final name = item['name'] as String? ?? '';
                     final disc = _discCtrl.text.trim();
                     if (name.isNotEmpty && _titleCtrl.text.trim().isEmpty) {
@@ -525,41 +706,46 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
             const SizedBox(height: 12),
             _SheetField(
               label: 'Description (optional)',
-              hint: 'Extra details for customers',
+              hint: 'What does this offer include?',
               controller: _descCtrl,
               maxLines: 2,
             ),
             const SizedBox(height: 12),
             _SheetField(
               label: 'Discount % (optional)',
-              hint: 'e.g. 20',
+              hint: 'e.g. 15',
               controller: _discCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
               validator: Validators.discountPct,
             ),
             const SizedBox(height: 12),
+
+            // Date + time picker
             GestureDetector(
               onTap: _pickDateTime,
               child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFEDE9FE)),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.event, size: 18, color: _purple),
+                  const Icon(Icons.schedule,
+                      color: Color(0xFF7C3AED), size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       _formatValidUntil(),
                       style: TextStyle(
-                          fontSize: 13,
-                          color: _validUntil != null
-                              ? const Color(0xFF1C1917)
-                              : const Color(0xFF94A3B8)),
+                          fontSize: 14,
+                          color: _validUntil == null
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF1C1917)),
                     ),
                   ),
                   if (_validUntil != null)
@@ -568,38 +754,43 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                         _validUntil = null;
                         _validTime = null;
                       }),
-                      child: const Icon(Icons.close, size: 18,
-                          color: Color(0xFF94A3B8)),
+                      child: const Icon(Icons.close,
+                          size: 16, color: Color(0xFF94A3B8)),
                     ),
                 ]),
               ),
             ),
+
             if (_error != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(_error!,
                   style: const TextStyle(
                       color: Color(0xFFDC2626), fontSize: 13)),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 50,
               child: ElevatedButton(
                 onPressed: _saving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _purple,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
                 ),
                 child: _saving
                     ? const SizedBox(
-                        width: 22, height: 22,
+                        height: 20, width: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Publish Offer',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                            color: Colors.white, strokeWidth: 2))
+                    : Text(
+                        widget.initialData != null
+                            ? 'Re-post Offer'
+                            : 'Publish Offer',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
               ),
             ),
           ]),
@@ -613,19 +804,19 @@ class _SheetField extends StatelessWidget {
   final String label;
   final String hint;
   final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? formatters;
-  final String? Function(String?)? validator;
   final int maxLines;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final String? Function(String?)? validator;
 
   const _SheetField({
     required this.label,
     required this.hint,
     required this.controller,
-    this.keyboardType,
-    this.formatters,
-    this.validator,
     this.maxLines = 1,
+    this.keyboardType,
+    this.inputFormatters,
+    this.validator,
   });
 
   @override
@@ -639,13 +830,14 @@ class _SheetField extends StatelessWidget {
       const SizedBox(height: 6),
       TextFormField(
         controller: controller,
-        keyboardType: keyboardType,
-        inputFormatters: formatters,
         maxLines: maxLines,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
         validator: validator,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+          hintStyle: const TextStyle(
+              color: Color(0xFF94A3B8), fontSize: 14),
           filled: true,
           fillColor: Colors.white,
           contentPadding:
@@ -663,6 +855,10 @@ class _SheetField extends StatelessWidget {
           errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFFDC2626))),
+          focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide:
+                  const BorderSide(color: Color(0xFFDC2626), width: 2)),
         ),
       ),
     ]);

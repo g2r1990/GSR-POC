@@ -17,6 +17,8 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   String? _error;
   String _statusFilter = '';
   String _dateFilter = 'today';
+  DateTime? _customStart;
+  DateTime? _customEnd;
 
   static const _statuses = [
     '',
@@ -42,7 +44,9 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     ('today', 'Today'),
     ('yesterday', 'Yesterday'),
     ('7days', 'Last 7 days'),
+    ('30days', 'Last 30 days'),
     ('all', 'All time'),
+    ('custom', 'Custom Range…'),
   ];
 
   List<Map<String, dynamic>> get _filtered {
@@ -50,10 +54,13 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     final todayStart = DateTime(now.year, now.month, now.day);
     final yesterdayStart = todayStart.subtract(const Duration(days: 1));
     final sevenDaysStart = todayStart.subtract(const Duration(days: 6));
+    final thirtyDaysStart = todayStart.subtract(const Duration(days: 29));
 
     return _allOrders.where((o) {
       final raw = o['created_at'] as String? ?? '';
-      final dt = raw.isEmpty ? null : DateTime.tryParse(raw)?.toLocal();
+      // Backend stores UTC; add Z to parse correctly
+      final rawUtc = raw.isNotEmpty && !raw.endsWith('Z') ? '${raw}Z' : raw;
+      final dt = rawUtc.isEmpty ? null : DateTime.tryParse(rawUtc)?.toLocal();
       if (dt != null) {
         switch (_dateFilter) {
           case 'today':
@@ -63,6 +70,14 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
               return false;
           case '7days':
             if (dt.isBefore(sevenDaysStart)) return false;
+          case '30days':
+            if (dt.isBefore(thirtyDaysStart)) return false;
+          case 'custom':
+            if (_customStart != null && dt.isBefore(_customStart!)) return false;
+            if (_customEnd != null &&
+                dt.isAfter(_customEnd!.add(const Duration(days: 1)))) {
+              return false;
+            }
         }
       }
       if (_statusFilter.isNotEmpty && o['status'] != _statusFilter) {
@@ -72,8 +87,18 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     }).toList();
   }
 
-  String get _dateLabel =>
-      _dateOptions.firstWhere((d) => d.$1 == _dateFilter).$2;
+  String _fmtShort(DateTime d) {
+    const m = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${d.day} ${m[d.month]}';
+  }
+
+  String get _dateLabel {
+    if (_dateFilter == 'custom' && _customStart != null && _customEnd != null) {
+      return '${_fmtShort(_customStart!)} – ${_fmtShort(_customEnd!)}';
+    }
+    return _dateOptions.firstWhere((d) => d.$1 == _dateFilter).$2;
+  }
 
   @override
   void initState() {
@@ -169,7 +194,29 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
                     ),
                   ),
                 );
-                if (picked != null && mounted) {
+                if (picked == 'custom') {
+                  final start = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(2024),
+                    lastDate: DateTime.now(),
+                    helpText: 'Select start date',
+                  );
+                  if (start == null || !mounted) return;
+                  final end = await showDatePicker(
+                    context: context,
+                    initialDate: start,
+                    firstDate: start,
+                    lastDate: DateTime.now(),
+                    helpText: 'Select end date',
+                  );
+                  if (end == null || !mounted) return;
+                  setState(() {
+                    _dateFilter = 'custom';
+                    _customStart = start;
+                    _customEnd = end;
+                  });
+                } else if (picked != null && mounted) {
                   setState(() => _dateFilter = picked);
                 }
               },
