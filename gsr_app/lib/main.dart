@@ -10,6 +10,7 @@ import 'screens/owner/login_screen.dart';
 import 'screens/customer/home_screen.dart';
 import 'screens/customer/onboarding_screen.dart';
 import 'screens/customer/profile_screen.dart';
+import 'screens/customer/order_history_screen.dart';
 
 void main() {
   runApp(const BossBiteApp());
@@ -43,6 +44,7 @@ class BossBiteApp extends StatelessWidget {
         '/customer/onboarding': (ctx) => const CustomerOnboardingScreen(),
         '/customer/home': (ctx) => const CustomerHomeScreen(),
         '/customer/profile': (ctx) => const CustomerProfileScreen(),
+        '/customer/orders': (ctx) => const CustomerOrderHistoryScreen(),
       },
     );
   }

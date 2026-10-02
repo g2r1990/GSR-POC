@@ -100,6 +100,33 @@ def get_restaurant_menu(restaurant_id: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/orders")
+def customer_order_history(mobile: str, db: Session = Depends(get_db)):
+    """Return all orders placed from a mobile number, newest first. No auth required."""
+    from app.models import Order as OrderModel
+    if len(mobile) != 10 or not mobile.isdigit():
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit mobile number.")
+    orders = (
+        db.query(OrderModel)
+        .filter(OrderModel.customer_mobile == mobile)
+        .order_by(OrderModel.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "order_id": o.id,
+            "short_id": o.id[:8].upper(),
+            "status": o.status,
+            "total": float(o.total),
+            "restaurant_name": o.restaurant.name if o.restaurant else "",
+            "items_count": len((o.items_snapshot or {}).get("items", [])),
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "delivery_address": o.delivery_address or "",
+        }
+        for o in orders
+    ]
+
+
 @router.post("/send-otp")
 def send_otp(mobile: str):
     """Generate and send OTP to the given mobile number. No auth required."""

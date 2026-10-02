@@ -141,6 +141,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'My Orders',
+            onPressed: () async {
+              await Navigator.pushNamed(context, '/customer/orders');
+              _loadActiveOrder();
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'My Profile',
             onPressed: () => Navigator.pushNamed(context, '/customer/profile'),

@@ -238,6 +238,18 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Failed to send OTP');
   }
 
+  static Future<List<Map<String, dynamic>>> customerOrderHistory(
+      String mobile) async {
+    final res = await http.get(
+      Uri.parse('$_base/customer/orders?mobile=$mobile'),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
+  }
+
   static Future<void> customerVerifyOtp(String mobile, String otp) async {
     final res = await http
         .post(Uri.parse('$_base/customer/verify-otp?mobile=$mobile&otp=$otp'))
