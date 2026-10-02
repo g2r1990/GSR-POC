@@ -122,7 +122,8 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.restaurant_menu, size: 64, color: _amber),
+                Image.asset('assets/icon/bossbite_logo.png',
+                    width: 72, height: 72),
                 const SizedBox(height: 14),
                 const Text(
                   'Welcome to BossBite',

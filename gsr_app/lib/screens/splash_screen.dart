@@ -105,11 +105,11 @@ class _SplashScreenState extends State<SplashScreen>
               opacity: _charIdx == _full.length ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 500),
               child: const Text(
-                'Order food from local restaurants',
+                'Your Restaurant, Your Rule',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
-                  letterSpacing: 0.4,
+                  letterSpacing: 0.6,
                 ),
               ),
             ),

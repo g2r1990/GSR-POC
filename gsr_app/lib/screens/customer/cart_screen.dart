@@ -65,17 +65,22 @@ class _CartScreenState extends State<CartScreen> {
                   ),
 
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    itemCount: items.length,
-                    itemBuilder: (ctx, i) =>
-                        _CartItemRow(item: items[i], onChanged: _refresh),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      itemCount: items.length,
+                      itemBuilder: (ctx, i) =>
+                          _CartItemRow(item: items[i], onChanged: _refresh),
+                    ),
                   ),
                 ),
 
                 // Summary + checkout
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                SafeArea(
+                  top: false,
+                  child: Container(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     border: Border(
@@ -120,6 +125,7 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ]),
                 ),
+                ), // SafeArea
               ],
             ),
     );
