@@ -140,8 +140,6 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
       double.parse((_totalItemSubtotal * 0.85).toStringAsFixed(2));
   double get _bbTechFee =>
       double.parse((_totalItemSubtotal * 0.15).toStringAsFixed(2));
-  double get _totalDeliveryFees => _filtered.length * 20.0;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -171,7 +169,6 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
   }
 
   Widget _body() {
-    final count = _filtered.length;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
@@ -216,9 +213,9 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          count == 0
+          _filtered.isEmpty
               ? 'No delivered orders in this period'
-              : '$count delivered order${count == 1 ? '' : 's'}',
+              : '${_filtered.length} delivered order${_filtered.length == 1 ? '' : 's'}',
           style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
         ),
         const SizedBox(height: 16),
@@ -260,61 +257,13 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
           Expanded(
             child: _KpiTile(
               icon: Icons.phone_android,
-              label: 'BB Tech Fee',
+              label: 'BossBite Platform Fee',
               value: '₹${_bbTechFee.toStringAsFixed(0)}',
               sub: '15% of subtotal',
               color: const Color(0xFF7C3AED),
             ),
           ),
         ]),
-        const SizedBox(height: 20),
-
-        // ── Revenue breakdown ─────────────────────────────────────────────────
-        _SectionHeader(
-          title: 'Revenue Breakdown',
-          subtitle: _filterLabel,
-        ),
-        const SizedBox(height: 8),
-        _DetailCard(rows: [
-          _BRow('Total Sales (Gross)', '₹${_totalSales.toStringAsFixed(2)}',
-              bold: true),
-          _BRow('  Item Subtotal', '₹${_totalItemSubtotal.toStringAsFixed(2)}'),
-          _BRow('  Delivery Fees', '₹${_totalDeliveryFees.toStringAsFixed(2)}'),
-          _BRow('  GST (5%)', '₹${_totalGst.toStringAsFixed(2)}'),
-        ]),
-        const SizedBox(height: 20),
-
-        // ── Commission split ──────────────────────────────────────────────────
-        _SectionHeader(
-          title: 'Commission Split',
-          subtitle: 'Based on item subtotal (excl. delivery & GST)',
-        ),
-        const SizedBox(height: 8),
-        _DetailCard(rows: [
-          _BRow('Restaurant Profit (85%)',
-              '₹${_restaurantProfit.toStringAsFixed(2)}',
-              valueColor: const Color(0xFF059669)),
-          _BRow('BB Tech Platform Fee (15%)',
-              '₹${_bbTechFee.toStringAsFixed(2)}',
-              valueColor: _purple),
-        ]),
-        const SizedBox(height: 20),
-
-        // ── Per-order averages ────────────────────────────────────────────────
-        if (count > 0) ...[
-          _SectionHeader(title: 'Per-Order Averages', subtitle: ''),
-          const SizedBox(height: 8),
-          _DetailCard(rows: [
-            _BRow('Avg order value',
-                '₹${(_totalSales / count).toStringAsFixed(2)}'),
-            _BRow('Avg item subtotal',
-                '₹${(_totalItemSubtotal / count).toStringAsFixed(2)}'),
-            _BRow('Avg restaurant profit',
-                '₹${(_restaurantProfit / count).toStringAsFixed(2)}'),
-            _BRow('Avg BB Tech fee',
-                '₹${(_bbTechFee / count).toStringAsFixed(2)}'),
-          ]),
-        ],
       ],
     );
   }
@@ -373,80 +322,3 @@ class _KpiTile extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  const _SectionHeader({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title,
-          style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF374151))),
-      if (subtitle.isNotEmpty)
-        Text(subtitle,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-    ]);
-  }
-}
-
-class _DetailCard extends StatelessWidget {
-  final List<_BRow> rows;
-  const _DetailCard({required this.rows});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEDE9FE)),
-      ),
-      child: Column(
-        children: rows.asMap().entries.map((e) {
-          final idx = e.key;
-          final row = e.value;
-          return Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              border: idx < rows.length - 1
-                  ? const Border(
-                      bottom: BorderSide(color: Color(0xFFF3F4F6)))
-                  : null,
-            ),
-            child: Row(children: [
-              Expanded(
-                child: Text(row.label,
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: const Color(0xFF374151),
-                        fontWeight: row.bold
-                            ? FontWeight.bold
-                            : FontWeight.normal)),
-              ),
-              Text(row.amount,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          row.bold ? FontWeight.bold : FontWeight.w600,
-                      color: row.valueColor ?? const Color(0xFF1C1917))),
-            ]),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _BRow {
-  final String label;
-  final String amount;
-  final bool bold;
-  final Color? valueColor;
-  const _BRow(this.label, this.amount,
-      {this.bold = false, this.valueColor});
-}
