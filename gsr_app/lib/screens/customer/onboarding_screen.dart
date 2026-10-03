@@ -19,6 +19,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _nameCtr = TextEditingController();
+  final _emailCtr = TextEditingController();
   final _phoneCtr = TextEditingController();
   final _pincodeCtr = TextEditingController();
 
@@ -35,6 +36,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
   @override
   void dispose() {
     _nameCtr.dispose();
+    _emailCtr.dispose();
     _phoneCtr.dispose();
     _pincodeCtr.dispose();
     super.dispose();
@@ -95,6 +97,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
         builder: (_) => CustomerOtpScreen(
           mobile: _phoneCtr.text.trim(),
           name: _nameCtr.text.trim(),
+          email: _emailCtr.text.trim(),
           pincode: _pincodeCtr.text.trim(),
           district: _district,
           state: _state,
@@ -165,6 +168,21 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                   textCapitalization: TextCapitalization.words,
                   decoration: _inputDec('e.g. Rahul Sharma'),
                   validator: Validators.personName,
+                ),
+                const SizedBox(height: 14),
+
+                _label('Email Address'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _emailCtr,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  decoration: _inputDec('you@example.com'),
+                  validator: (v) {
+                    final s = v?.trim() ?? '';
+                    if (s.isEmpty) return 'Email is required';
+                    return Validators.email(v);
+                  },
                 ),
                 const SizedBox(height: 14),
 

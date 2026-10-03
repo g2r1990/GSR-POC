@@ -61,6 +61,11 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   String? _error;
   Timer? _timer;
 
+  // 60-second cancel window
+  int _cancelSecondsLeft = 0;
+  Timer? _cancelTimer;
+  bool _cancelling = false;
+
   @override
   void initState() {
     super.initState();
@@ -73,22 +78,73 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _cancelTimer?.cancel();
     super.dispose();
+  }
+
+  void _startCancelTimer() {
+    if (_order == null || _status != 'placed') return;
+    final raw = _order!['created_at'] as String? ?? '';
+    if (raw.isEmpty) return;
+    try {
+      final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
+      final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
+      final remaining = 60 - elapsed;
+      if (remaining <= 0) return;
+      if (mounted) setState(() => _cancelSecondsLeft = remaining);
+      _cancelTimer?.cancel();
+      _cancelTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted || _status != 'placed') { t.cancel(); return; }
+        setState(() {
+          _cancelSecondsLeft--;
+          if (_cancelSecondsLeft <= 0) { _cancelSecondsLeft = 0; t.cancel(); }
+        });
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _cancelOrder() async {
+    setState(() => _cancelling = true);
+    try {
+      await ApiService.cancelOrder(widget.orderId);
+      _cancelTimer?.cancel();
+      if (mounted) setState(() { _status = 'cancelled'; _cancelSecondsLeft = 0; });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('active_order_id');
+      await prefs.remove('active_order_short_id');
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not cancel. Try again.'), backgroundColor: Color(0xFFDC2626)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
   }
 
   Future<void> _fetch() async {
     try {
       final data = await ApiService.getOrderStatus(widget.orderId);
       if (mounted) {
+        final wasPlaced = _status == 'placed';
         setState(() {
           _order = data;
           _status = data['status'] as String? ?? 'placed';
           _loading = false;
           _error = null;
         });
+        // Start cancel countdown on first load when order is 'placed'
+        if (!wasPlaced || _cancelTimer == null) _startCancelTimer();
         if (_status == 'delivered' || _status == 'cancelled') {
           _timer?.cancel();
-          // Clear persisted active order — it's done
+          _cancelTimer?.cancel();
           SharedPreferences.getInstance().then(
             (p) => p..remove('active_order_id')..remove('active_order_short_id'),
           );
@@ -227,6 +283,39 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
               ],
             ]),
           ),
+
+          // Cancel button (only while placed + within 60s window)
+          if (_status == 'placed' && _cancelSecondsLeft > 0) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _cancelling ? null : _cancelOrder,
+                icon: _cancelling
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Color(0xFFDC2626)))
+                    : const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 20),
+                label: Text(
+                  _cancelling
+                      ? 'Cancelling…'
+                      : 'Cancel Order  ($_cancelSecondsLeft s)',
+                  style: const TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFDC2626)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
 
           // Progress stepper
           if (!isCancelled) ...[

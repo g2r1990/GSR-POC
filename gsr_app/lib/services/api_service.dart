@@ -414,6 +414,15 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Order not found');
   }
 
+  static Future<void> cancelOrder(String orderId) async {
+    final res = await http
+        .post(Uri.parse('$_base/orders/$orderId/cancel'))
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Cancel failed');
+  }
+
   static Future<String?> getPincodeFromCoords(double lat, double lon) async {
     final loc = await getLocationFromCoords(lat, lon);
     return loc['pincode'];

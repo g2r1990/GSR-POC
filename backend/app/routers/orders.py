@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -189,6 +190,26 @@ def owner_update_status(
     db.commit()
     db.refresh(order)
     return {"order_id": order.id, "status": order.status, "message": "Status updated."}
+
+
+# ── Customer: cancel order within 60-second window ───────────────────────────
+
+@router.post("/{order_id}/cancel")
+def customer_cancel_order(order_id: str, db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    if order.status != "placed":
+        raise HTTPException(status_code=400, detail="Order cannot be cancelled at this stage.")
+    elapsed = (datetime.utcnow() - order.created_at).total_seconds()
+    if elapsed > 60:
+        raise HTTPException(
+            status_code=400,
+            detail="Cancellation window has expired. Orders can only be cancelled within 60 seconds of placing.",
+        )
+    order.status = "cancelled"
+    db.commit()
+    return {"order_id": order.id, "status": "cancelled", "message": "Order cancelled."}
 
 
 # ── Customer: get order status (public, poll) ─────────────────────────────────

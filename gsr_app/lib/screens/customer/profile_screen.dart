@@ -12,6 +12,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   static const _amber = Color(0xFFD97706);
 
   String _name = '';
+  String _email = '';
   String _phone = '';
   String _pincode = '';
   String _district = '';
@@ -29,6 +30,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     if (mounted) {
       setState(() {
         _name = prefs.getString('customer_name') ?? '';
+        _email = prefs.getString('customer_email') ?? '';
         _phone = prefs.getString('customer_phone') ?? '';
         _pincode = prefs.getString('customer_pincode') ?? '';
         _district = prefs.getString('customer_district') ?? '';
@@ -109,6 +111,13 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                         label: 'Mobile',
                         value:
                             _phone.isNotEmpty ? '+91 $_phone' : '—'),
+                    if (_email.isNotEmpty) ...[
+                      const _Divider(),
+                      _Row(
+                          icon: Icons.email_outlined,
+                          label: 'Email',
+                          value: _email),
+                    ],
                   ]),
 
                   const SizedBox(height: 20),
@@ -154,7 +163,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFF374151))),
-                      trailing: const Text('1.0 · Sprint 9',
+                      trailing: const Text('1.0 · Sprint 10',
                           style: TextStyle(
                               fontSize: 13, color: Color(0xFF78716C))),
                       dense: true,

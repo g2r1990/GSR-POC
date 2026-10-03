@@ -15,7 +15,8 @@ class CheckoutScreen extends StatefulWidget {
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutScreenState extends State<CheckoutScreen> {
+class _CheckoutScreenState extends State<CheckoutScreen>
+    with WidgetsBindingObserver {
   static const _amber = Color(0xFFD97706);
   static const _deliveryFee = 20.0;
 
@@ -33,6 +34,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _placing = false;
   bool _detectingAddress = false;
   String? _error;
+  String _customerArea = '';
+  bool _shouldPopOnResume = false;
 
   double get _itemTotal => CartService.total;
 
@@ -99,7 +102,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _prefillFromOnboarding();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _shouldPopOnResume = true;
+    } else if (state == AppLifecycleState.resumed && _shouldPopOnResume) {
+      _shouldPopOnResume = false;
+      if (mounted) {
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/customer/home', (_) => false);
+      }
+    }
   }
 
   Future<void> _prefillFromOnboarding() async {
@@ -107,8 +124,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final name = prefs.getString('customer_name') ?? '';
     final phone = prefs.getString('customer_phone') ?? '';
     final savedAddress = prefs.getString('customer_address') ?? '';
+    final area = prefs.getString('customer_area') ?? '';
     if (mounted && name.isNotEmpty) _nameCtr.text = name;
     if (mounted && phone.isNotEmpty) _phoneCtr.text = phone;
+    if (mounted && area.isNotEmpty) setState(() => _customerArea = area);
     if (savedAddress.isNotEmpty) {
       if (mounted) _addressCtr.text = savedAddress;
     } else {
@@ -153,6 +172,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nameCtr.dispose();
     _phoneCtr.dispose();
     _addressCtr.dispose();
@@ -174,6 +194,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'customer_phone': _phoneCtr.text.trim(),
         'delivery_address': _addressCtr.text.trim(),
         'notes': _notesCtr.text.trim().isEmpty ? null : _notesCtr.text.trim(),
+        'customer_area': _customerArea.isNotEmpty ? _customerArea : null,
         'items': CartService.toOrderItems(),
       });
 
@@ -398,6 +419,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               const SizedBox(height: 24),
               _SectionHeader('Delivery Details'),
+
+              // Area badge (read-only, from profile)
+              if (_customerArea.isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.place_outlined, color: Color(0xFF166534), size: 16),
+                    const SizedBox(width: 8),
+                    const Text('Area: ',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w600)),
+                    Text(_customerArea,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF1C1917), fontWeight: FontWeight.w500)),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               _Field(
                 label: 'Your Name',

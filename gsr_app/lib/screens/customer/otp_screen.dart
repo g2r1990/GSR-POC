@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 class CustomerOtpScreen extends StatefulWidget {
   final String mobile;
   final String name;
+  final String email;
   final String pincode;
   final String? district;
   final String? state;
@@ -18,6 +19,7 @@ class CustomerOtpScreen extends StatefulWidget {
     super.key,
     required this.mobile,
     required this.name,
+    required this.email,
     required this.pincode,
     this.district,
     this.state,
@@ -99,6 +101,9 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('customer_name', widget.name);
       await prefs.setString('customer_phone', widget.mobile);
+      if (widget.email.isNotEmpty) {
+        await prefs.setString('customer_email', widget.email);
+      }
       if (widget.pincode.isNotEmpty) {
         await prefs.setString('customer_pincode', widget.pincode);
       }

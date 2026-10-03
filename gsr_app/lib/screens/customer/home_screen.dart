@@ -343,9 +343,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          RefreshIndicator(
+      bottomNavigationBar: CartService.itemCount > 0
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: _cartBar(),
+              ),
+            )
+          : null,
+      body: RefreshIndicator(
         color: _amber,
         onRefresh: _loadAll,
         child: Scrollbar(
@@ -784,19 +791,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                 ),
               ),
 
-              SizedBox(height: CartService.itemCount > 0 ? 100 : 32),
+              const SizedBox(height: 32),
             ],
           ),
         ),
         ), // Scrollbar
-          ), // RefreshIndicator
-          if (CartService.itemCount > 0)
-            Positioned(
-              bottom: 16, left: 16, right: 16,
-              child: _cartBar(),
-            ),
-        ], // Stack children
-      ), // Stack / body
+      ), // RefreshIndicator / body
     );
   }
 
@@ -877,6 +877,32 @@ class _OfferCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (restaurantId.isEmpty) return;
+
+        // If user already has cart items from this restaurant, don't let them
+        // keep re-entering via the offer card — send them to cart instead.
+        if (CartService.restaurantId == restaurantId && CartService.itemCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Offer already applied! Proceed to checkout.'),
+              backgroundColor: Color(0xFF7C3AED),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
+        // If cart has items from a DIFFERENT restaurant, block
+        if (CartService.itemCount > 0 && CartService.restaurantId != restaurantId) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Clear your current cart to use this offer.'),
+              backgroundColor: Color(0xFFDC2626),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
         OfferService.apply(offer);
         Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => RestaurantMenuScreen(

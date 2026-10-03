@@ -15,6 +15,7 @@ class PlaceOrderRequest(BaseModel):
     delivery_address: str
     items: List[OrderItemIn]
     notes: Optional[str] = None
+    customer_area: Optional[str] = None   # stored for Food Stat by Area
 
 
 class OrderStatusUpdate(BaseModel):
