@@ -54,10 +54,11 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
         if (mounted) setState(() => _detecting = false);
         return;
       }
-      final pos = await Geolocator.getCurrentPosition(
+      Position? pos = await Geolocator.getLastKnownPosition();
+      pos ??= await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: Duration(seconds: 20),
         ),
       );
       final loc =

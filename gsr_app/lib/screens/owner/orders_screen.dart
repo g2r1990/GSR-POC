@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
@@ -468,6 +469,41 @@ class _OrderCard extends StatefulWidget {
 
 class _OrderCardState extends State<_OrderCard> {
   bool _expanded = false;
+  int _cancelSecondsLeft = 0;
+  Timer? _cancelTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCancelCountdown();
+  }
+
+  @override
+  void dispose() {
+    _cancelTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCancelCountdown() {
+    final status = widget.order['status'] as String;
+    if (status != 'placed') return;
+    final raw = widget.order['created_at'] as String? ?? '';
+    if (raw.isEmpty) return;
+    try {
+      final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
+      final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
+      final remaining = 60 - elapsed;
+      if (remaining <= 0) return;
+      setState(() => _cancelSecondsLeft = remaining);
+      _cancelTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) { t.cancel(); return; }
+        setState(() {
+          _cancelSecondsLeft--;
+          if (_cancelSecondsLeft <= 0) { _cancelSecondsLeft = 0; t.cancel(); }
+        });
+      });
+    } catch (_) {}
+  }
 
   static const _nextStatus = {
     'placed': 'accepted',
@@ -650,19 +686,30 @@ class _OrderCardState extends State<_OrderCard> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _advance(id, nextSt),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF166534),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: Text(_nextLabel[status] ?? 'Advance',
+                child: Builder(builder: (_) {
+                  final blocked = status == 'placed' && _cancelSecondsLeft > 0;
+                  return ElevatedButton(
+                    onPressed: blocked ? null : () => _advance(id, nextSt),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: blocked
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF166534),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFFCBD5E1),
+                      disabledForegroundColor: const Color(0xFF64748B),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: Text(
+                      blocked
+                          ? 'Accept (${_cancelSecondsLeft}s)'
+                          : (_nextLabel[status] ?? 'Advance'),
                       style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
-                ),
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  );
+                }),
               ),
             ),
 

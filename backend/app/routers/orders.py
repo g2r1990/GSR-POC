@@ -186,6 +186,15 @@ def owner_update_status(
             detail=f"Cannot move from '{order.status}' to '{body.status}'.",
         )
 
+    if order.status == "placed" and body.status == "accepted":
+        elapsed = (datetime.utcnow() - order.created_at).total_seconds()
+        remaining = int(60 - elapsed)
+        if remaining > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Customer cancel window active. Please wait {remaining}s.",
+            )
+
     order.status = body.status
     db.commit()
     db.refresh(order)

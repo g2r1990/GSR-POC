@@ -71,7 +71,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   void initState() {
     super.initState();
     _fetch();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (_status != 'delivered' && _status != 'cancelled') _fetch();
     });
   }
