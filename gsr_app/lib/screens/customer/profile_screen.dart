@@ -16,6 +16,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   String _pincode = '';
   String _district = '';
   String _state = '';
+  String _area = '';
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         _pincode = prefs.getString('customer_pincode') ?? '';
         _district = prefs.getString('customer_district') ?? '';
         _state = prefs.getString('customer_state') ?? '';
+        _area = prefs.getString('customer_area') ?? '';
       });
     }
   }
@@ -130,6 +132,13 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                           icon: Icons.map_outlined,
                           label: 'State',
                           value: _state),
+                    ],
+                    if (_area.isNotEmpty) ...[
+                      const _Divider(),
+                      _Row(
+                          icon: Icons.place_outlined,
+                          label: 'Area',
+                          value: _area),
                     ],
                   ]),
 

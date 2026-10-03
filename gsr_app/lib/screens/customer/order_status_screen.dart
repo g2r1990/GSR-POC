@@ -340,18 +340,24 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                       s + ((item['subtotal'] as num?)?.toDouble() ?? 0.0));
                   final _gst = double.parse((_sub * 0.05).toStringAsFixed(2));
                   final _grand = _sub + 20.0 + _gst;
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Total',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('₹${_grand.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: _amber)),
-                    ],
-                  );
+                  return Column(children: [
+                    _BillRow('Delivery Fee', '₹20'),
+                    const SizedBox(height: 4),
+                    _BillRow('GST (5%)', '₹${_gst.toStringAsFixed(2)}'),
+                    const Divider(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('₹${_grand.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _amber)),
+                      ],
+                    ),
+                  ]);
                 }),
               ]),
             ),
@@ -380,4 +386,21 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
       ), // SingleChildScrollView
     ); // Scrollbar
   }
+}
+
+class _BillRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _BillRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
+          Text(value,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
+        ],
+      );
 }

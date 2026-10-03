@@ -46,6 +46,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   // Controllers
   late TextEditingController _pincodeCtrl;
   late TextEditingController _foodQueryCtrl;
+  final ScrollController _scrollCtrl = ScrollController();
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void dispose() {
     _pincodeCtrl.dispose();
     _foodQueryCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -137,6 +139,27 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       _findRestaurants();
       return;
     }
+
+    // Client-side: match restaurant names first
+    final q = query.toLowerCase();
+    final matchedByName = _nearbyRestaurants
+        .where((r) => (r['name'] as String? ?? '').toLowerCase().contains(q))
+        .toList();
+    if (matchedByName.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RestaurantListScreen(
+            pincode: _pincode,
+            restaurants: matchedByName,
+            searchLabel: 'Restaurants for "$query"',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Backend: search food items
     setState(() { _searching = true; _searchError = null; });
     try {
       final results = await ApiService.searchFood(query, _pincode);
@@ -299,7 +322,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       body: RefreshIndicator(
         color: _amber,
         onRefresh: _loadAll,
-        child: SingleChildScrollView(
+        child: Scrollbar(
+          controller: _scrollCtrl,
+          child: SingleChildScrollView(
+          controller: _scrollCtrl,
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -736,6 +762,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ],
           ),
         ),
+        ), // Scrollbar
       ),
     );
   }
