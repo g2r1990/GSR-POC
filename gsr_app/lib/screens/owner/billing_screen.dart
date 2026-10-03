@@ -12,6 +12,8 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
   static const _purple = Color(0xFF7C3AED);
 
   List<Map<String, dynamic>> _orders = [];
+  String _restaurantName = '';
+  String _restaurantArea = '';
   bool _loading = true;
   String? _error;
 
@@ -41,7 +43,20 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final orders = await ApiService.getOwnerOrders();
-      if (mounted) setState(() { _orders = orders; _loading = false; });
+      Map<String, dynamic>? profile;
+      try {
+        profile = await ApiService.getOwnerProfile();
+      } catch (_) {}
+      final restaurant =
+          profile?['restaurant'] as Map<String, dynamic>?;
+      if (mounted) {
+        setState(() {
+          _orders = orders;
+          _restaurantName = restaurant?['name'] as String? ?? '';
+          _restaurantArea = restaurant?['area'] as String? ?? '';
+          _loading = false;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (_) {
@@ -247,7 +262,9 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
           Expanded(
             child: _KpiTile(
               icon: Icons.store,
-              label: 'Restaurant Profit',
+              label: _restaurantName.isNotEmpty
+                  ? '$_restaurantName${_restaurantArea.isNotEmpty ? ' ($_restaurantArea)' : ''} Profit'
+                  : 'Restaurant Profit',
               value: '₹${_restaurantProfit.toStringAsFixed(0)}',
               sub: '85% of subtotal',
               color: const Color(0xFF059669),

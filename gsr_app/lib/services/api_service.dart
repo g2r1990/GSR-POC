@@ -522,6 +522,52 @@ class ApiService {
           body['detail']?.toString() ?? 'Failed to update status');
     }
   }
+
+  static Future<Map<String, dynamic>> getOwnerProfile() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/profile'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load profile');
+  }
+
+  static Future<void> submitOwnerProfileUpdate(
+      Map<String, dynamic> data) async {
+    final token = await getToken();
+    final res = await http
+        .post(
+          Uri.parse('$_base/owner/profile/update-request'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(data),
+        )
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(
+          body['detail']?.toString() ?? 'Failed to submit update');
+    }
+  }
+
+  static Future<void> cancelOwnerProfileUpdate() async {
+    final token = await getToken();
+    final res = await http.delete(
+      Uri.parse('$_base/owner/profile/update-request'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(
+          body['detail']?.toString() ?? 'Failed to cancel update');
+    }
+  }
 }
 
 class ApiException implements Exception {

@@ -36,6 +36,8 @@ class Owner(Base):
     fcm_token         = Column(String(500), nullable=True)
     tnc_accepted      = Column(Boolean, default=False)
     created_at        = Column(DateTime, default=datetime.utcnow)
+    pending_profile_update      = Column(Text, nullable=True)
+    pending_update_submitted_at = Column(DateTime, nullable=True)
     restaurants       = relationship("Restaurant", back_populates="owner")
 
 

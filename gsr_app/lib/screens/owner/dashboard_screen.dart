@@ -5,6 +5,7 @@ import 'orders_screen.dart';
 import 'offers_screen.dart';
 import 'billing_screen.dart';
 import 'stats_screen.dart';
+import 'owner_profile_screen.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String ownerName;
@@ -65,6 +66,13 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const OwnerProfileScreen()),
+            ),
+            tooltip: 'My Profile',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -178,7 +186,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   _ActionTile(
                     icon: Icons.account_balance_wallet,
                     title: 'Billing & Revenue',
-                    subtitle: 'Orders, earnings & BB Tech share',
+                    subtitle: 'Orders, earnings & platform fee',
                     color: const Color(0xFF059669),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const OwnerBillingScreen()),
@@ -192,6 +200,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     color: const Color(0xFFD97706),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const OwnerStatsScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.person_outline,
+                    title: 'My Profile',
+                    subtitle: 'View & request updates to your details',
+                    color: const Color(0xFF0891B2),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const OwnerProfileScreen()),
                     ),
                   ),
                 ],

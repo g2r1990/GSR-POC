@@ -1,5 +1,6 @@
 import os
 import uuid
+import json as _json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -320,3 +321,65 @@ def owner_me(
             "status": restaurant.status,
         } if restaurant else None,
     }
+
+
+@router.get("/profile")
+def get_owner_profile(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    restaurant = owner.restaurants[0] if owner.restaurants else None
+    return {
+        "id": owner.id,
+        "name": owner.name,
+        "mobile": owner.mobile,
+        "email": owner.email,
+        "gstin": owner.gstin,
+        "restaurant": {
+            "id": restaurant.id,
+            "name": restaurant.name,
+            "area": restaurant.area,
+            "address": restaurant.address,
+            "pincode": restaurant.pincode,
+            "state": restaurant.state,
+            "food_type": restaurant.food_type,
+            "restaurant_code": restaurant.restaurant_code,
+        } if restaurant else None,
+        "pending_update": _json.loads(owner.pending_profile_update) if owner.pending_profile_update else None,
+        "pending_update_submitted_at": owner.pending_update_submitted_at.isoformat() if owner.pending_update_submitted_at else None,
+    }
+
+
+@router.post("/profile/update-request")
+def request_profile_update(
+    body: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    owner.pending_profile_update = _json.dumps(body)
+    owner.pending_update_submitted_at = _dt.utcnow()
+    db.commit()
+    return {"message": "Update request submitted. Pending admin review."}
+
+
+@router.delete("/profile/update-request")
+def cancel_profile_update(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    owner.pending_profile_update = None
+    owner.pending_update_submitted_at = None
+    db.commit()
+    return {"message": "Update request cancelled."}

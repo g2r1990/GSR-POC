@@ -720,7 +720,7 @@ class _OrderCardState extends State<_OrderCard> {
                 _BillRow('Customer Paid', '₹${total.toStringAsFixed(0)}',
                     bold: true),
                 const Divider(height: 14),
-                _BillRow('BB Tech Commission (15%)',
+                _BillRow('BossBite Platform Fee (15%)',
                     '-₹${bbCut.toStringAsFixed(0)}',
                     valueColor: const Color(0xFFDC2626)),
                 const SizedBox(height: 4),

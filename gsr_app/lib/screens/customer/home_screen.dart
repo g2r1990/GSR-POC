@@ -320,6 +320,57 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
 
+              // ── Active order banner ──────────────────────────────────
+              if (_activeOrderId != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: GestureDetector(
+                    onTap: () async {
+                      await Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => OrderStatusScreen(
+                          orderId: _activeOrderId!,
+                          shortId: _activeOrderShortId ?? '',
+                          total: 0,
+                        ),
+                      ));
+                      _loadActiveOrder();
+                      _loadRecentOrder();
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: _amber, width: 1.5),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(children: [
+                        const Icon(Icons.delivery_dining,
+                            color: _amber, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Order in Progress',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF92400E))),
+                              Text(
+                                  'Tap to track  #${_activeOrderShortId ?? ''}',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFFB45309))),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: _amber),
+                      ]),
+                    ),
+                  ),
+                ),
+
               // ── Food search card ─────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -542,7 +593,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   )
                 else
                   SizedBox(
-                    height: 130,
+                    height: 115,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -612,57 +663,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     ),
                   ),
               ],
-
-              // ── Active order banner ──────────────────────────────────
-              if (_activeOrderId != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: GestureDetector(
-                    onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => OrderStatusScreen(
-                          orderId: _activeOrderId!,
-                          shortId: _activeOrderShortId ?? '',
-                          total: 0,
-                        ),
-                      ));
-                      _loadActiveOrder();
-                      _loadRecentOrder();
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: _amber, width: 1.5),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      child: Row(children: [
-                        const Icon(Icons.delivery_dining,
-                            color: _amber, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Order in Progress',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF92400E))),
-                              Text(
-                                  'Tap to track  #${_activeOrderShortId ?? ''}',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFFB45309))),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right, color: _amber),
-                      ]),
-                    ),
-                  ),
-                ),
 
               // ── Recent order ────────────────────────────────────────
               if (_recentOrder != null)
@@ -846,6 +846,7 @@ class _OfferCard extends StatelessWidget {
     final discount = offer['discount_pct'];
     final restaurantId = offer['restaurant_id'] as String? ?? '';
     final restaurant = offer['restaurant_name'] as String? ?? '';
+    final area = offer['restaurant_area'] as String? ?? '';
     final title = offer['title'] as String? ?? '';
     return GestureDetector(
       onTap: () {
@@ -859,9 +860,9 @@ class _OfferCard extends StatelessWidget {
         ));
       },
       child: Container(
-        width: 210,
+        width: 160,
         margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
@@ -874,19 +875,25 @@ class _OfferCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              const Icon(Icons.local_offer, color: Colors.white70, size: 14),
+              const Icon(Icons.local_offer, color: Colors.white70, size: 12),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(restaurant,
                     style: const TextStyle(
-                        fontSize: 11, color: Colors.white70),
+                        fontSize: 10, color: Colors.white70),
                     overflow: TextOverflow.ellipsis),
               ),
             ]),
-            const SizedBox(height: 6),
+            if (area.isNotEmpty) ...[
+              const SizedBox(height: 1),
+              Text(area,
+                  style: const TextStyle(fontSize: 9, color: Colors.white54),
+                  overflow: TextOverflow.ellipsis),
+            ],
+            const SizedBox(height: 4),
             Text(title,
                 style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.white),
                 maxLines: 2,
@@ -896,23 +903,23 @@ class _OfferCard extends StatelessWidget {
               if (discount != null) ...[
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(51),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text('$discount% OFF',
                       style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                           color: Colors.white)),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
               ],
               const Spacer(),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(38),
                   borderRadius: BorderRadius.circular(20),

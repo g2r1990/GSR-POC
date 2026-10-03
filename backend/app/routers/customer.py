@@ -3,7 +3,7 @@ import random
 import time
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_
+from sqlalchemy import or_, nullslast
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -28,7 +28,7 @@ def get_customer_offers(pincode: str, db: Session = Depends(get_db)):
             Restaurant.pincode.like(prefix + "%"),
             or_(Offer.valid_until == None, Offer.valid_until > now),
         )
-        .order_by(Offer.created_at.desc())
+        .order_by(nullslast(Offer.valid_until.asc()))
         .limit(20)
         .all()
     )
@@ -45,6 +45,7 @@ def get_customer_offers(pincode: str, db: Session = Depends(get_db)):
             "free_qty": o.free_qty,
             "valid_until": o.valid_until.isoformat() if o.valid_until else None,
             "restaurant_name": o.restaurant.name,
+            "restaurant_area": o.restaurant.area,
             "restaurant_id": o.restaurant_id,
         }
         for o in offers
