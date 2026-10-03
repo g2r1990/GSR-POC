@@ -24,6 +24,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
+  bool _offerItemAutoAdded = false;
 
   @override
   void initState() {
@@ -35,7 +36,10 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final data = await ApiService.getRestaurantMenu(widget.restaurantId);
-      if (mounted) setState(() { _data = data; _loading = false; });
+      if (mounted) {
+        setState(() { _data = data; _loading = false; });
+        _autoAddOfferItem(data);
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (_) {
@@ -43,6 +47,63 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
         setState(() { _error = 'Could not load menu. Tap to retry.'; _loading = false; });
       }
     }
+  }
+
+  void _autoAddOfferItem(Map<String, dynamic> data) {
+    if (_offerItemAutoAdded) return;
+    if (!OfferService.hasOffer) return;
+    if (OfferService.restaurantId != widget.restaurantId) return;
+    final offerType = OfferService.offerType;
+    if (offerType == 'order') return;
+    final mid = OfferService.menuItemId;
+    if (mid == null) return;
+
+    final menuRaw = data['menu'] as Map<String, dynamic>? ?? {};
+    Map<String, dynamic>? foundItem;
+    for (final cat in menuRaw.values) {
+      for (final rawItem in cat as List) {
+        final item = rawItem as Map<String, dynamic>;
+        if (item['id'] == mid) { foundItem = item; break; }
+      }
+      if (foundItem != null) break;
+    }
+    if (foundItem == null) return;
+
+    _offerItemAutoAdded = true;
+    final itemId = foundItem['id'] as String;
+    final name = foundItem['name'] as String? ?? '';
+    final category = foundItem['category'] as String? ?? '';
+    final price = (foundItem['price'] as num).toDouble();
+    final qty = offerType == 'bogo'
+        ? (OfferService.buyQty + OfferService.freeQty).clamp(1, 20)
+        : 1;
+    for (int i = 0; i < qty; i++) {
+      CartService.add(widget.restaurantId, widget.restaurantName, itemId, name, category, price);
+    }
+    if (mounted) {
+      final msg = offerType == 'bogo'
+          ? '$name × $qty added (Buy ${OfferService.buyQty} Get ${OfferService.freeQty} Free)'
+          : '$name added to your cart';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: const Color(0xFF7C3AED),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      setState(() {});
+    }
+  }
+
+  String _offerBannerText() {
+    final type = OfferService.offerType;
+    if (type == 'bogo') {
+      return 'Buy ${OfferService.buyQty} Get ${OfferService.freeQty} Free — ${OfferService.menuItemName}';
+    }
+    if (type == 'item') {
+      return '${OfferService.discountPct.toStringAsFixed(0)}% off on ${OfferService.menuItemName}';
+    }
+    return '${OfferService.discountPct.toStringAsFixed(0)}% off on your order';
   }
 
   void _refreshCart() => setState(() {});
@@ -155,7 +216,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${OfferService.discountPct.toStringAsFixed(0)}% off applied — ${OfferService.title}',
+                          _offerBannerText(),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,

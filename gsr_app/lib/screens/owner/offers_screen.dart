@@ -190,13 +190,10 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
             SizedBox(height: 80),
             Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.local_offer_outlined,
-                    size: 64, color: Color(0xFFD8B4FE)),
+                Icon(Icons.local_offer_outlined, size: 64, color: Color(0xFFD8B4FE)),
                 SizedBox(height: 16),
                 Text('No active offers',
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
                         color: Color(0xFF1C1917))),
                 SizedBox(height: 8),
                 Text('Tap + New Offer to push a deal to customers.',
@@ -235,9 +232,7 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
                 Icon(Icons.history, size: 64, color: Color(0xFFD8B4FE)),
                 SizedBox(height: 16),
                 Text('No expired offers yet',
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
                         color: Color(0xFF1C1917))),
                 SizedBox(height: 8),
                 Text('Expired offers appear here.',
@@ -270,7 +265,6 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
 
 class _OfferCard extends StatelessWidget {
   static const _purple = Color(0xFF7C3AED);
-
   final Map<String, dynamic> offer;
   final bool expired;
   final String Function(String?) formatDatetime;
@@ -315,9 +309,7 @@ class _OfferCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-            color: expired
-                ? const Color(0xFFE5E7EB)
-                : const Color(0xFFEDE9FE)),
+            color: expired ? const Color(0xFFE5E7EB) : const Color(0xFFEDE9FE)),
       ),
       color: expired ? const Color(0xFFF9FAFB) : Colors.white,
       child: Padding(
@@ -327,44 +319,32 @@ class _OfferCard extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: expired
-                    ? const Color(0xFFF3F4F6)
-                    : const Color(0xFFF5F3FF),
+                color: expired ? const Color(0xFFF3F4F6) : const Color(0xFFF5F3FF),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                offerType == 'bogo'
-                    ? Icons.redeem
-                    : offerType == 'item'
-                        ? Icons.restaurant_menu
-                        : Icons.local_offer,
+                offerType == 'bogo' ? Icons.redeem
+                    : offerType == 'item' ? Icons.restaurant_menu
+                    : Icons.local_offer,
                 color: expired ? const Color(0xFF9CA3AF) : _purple,
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(offer['title'] as String? ?? '',
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(offer['title'] as String? ?? '',
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold,
+                        color: expired ? const Color(0xFF6B7280) : const Color(0xFF1C1917))),
+                if ((offer['description'] as String?)?.isNotEmpty == true) ...[
+                  const SizedBox(height: 3),
+                  Text(offer['description'] as String,
                       style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: expired
-                              ? const Color(0xFF6B7280)
-                              : const Color(0xFF1C1917))),
-                  if ((offer['description'] as String?)?.isNotEmpty == true) ...[
-                    const SizedBox(height: 3),
-                    Text(offer['description'] as String,
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: expired
-                                ? const Color(0xFF9CA3AF)
-                                : const Color(0xFF78716C))),
-                  ],
+                          fontSize: 13,
+                          color: expired ? const Color(0xFF9CA3AF) : const Color(0xFF78716C))),
                 ],
-              ),
+              ]),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
@@ -376,39 +356,23 @@ class _OfferCard extends StatelessWidget {
           Wrap(spacing: 6, runSpacing: 4, children: [
             _Badge(
               label: _typeLabel(),
-              bg: expired
-                  ? const Color(0xFFF3F4F6)
-                  : const Color(0xFFEDE9FE),
-              fg: expired
-                  ? const Color(0xFF9CA3AF)
-                  : _purple,
+              bg: expired ? const Color(0xFFF3F4F6) : const Color(0xFFEDE9FE),
+              fg: expired ? const Color(0xFF9CA3AF) : _purple,
             ),
             if (discount != null && offerType != 'bogo')
               _Badge(
                 label: '${discount.toString()}% OFF',
-                bg: expired
-                    ? const Color(0xFFF3F4F6)
-                    : const Color(0xFFF0FDF4),
-                fg: expired
-                    ? const Color(0xFF9CA3AF)
-                    : const Color(0xFF166534),
+                bg: expired ? const Color(0xFFF3F4F6) : const Color(0xFFF0FDF4),
+                fg: expired ? const Color(0xFF9CA3AF) : const Color(0xFF166534),
               ),
             if (validDatetime.isNotEmpty)
               _Badge(
                 label: 'Valid till $validDatetime',
-                bg: expired
-                    ? const Color(0xFFF3F4F6)
-                    : const Color(0xFFFEF3C7),
-                fg: expired
-                    ? const Color(0xFF9CA3AF)
-                    : const Color(0xFF92400E),
+                bg: expired ? const Color(0xFFF3F4F6) : const Color(0xFFFEF3C7),
+                fg: expired ? const Color(0xFF9CA3AF) : const Color(0xFF92400E),
               ),
             if (expired)
-              _Badge(
-                label: 'Expired',
-                bg: const Color(0xFFFEE2E2),
-                fg: const Color(0xFFDC2626),
-              ),
+              _Badge(label: 'Expired', bg: const Color(0xFFFEE2E2), fg: const Color(0xFFDC2626)),
           ]),
           if (onRepost != null) ...[
             const SizedBox(height: 10),
@@ -422,8 +386,7 @@ class _OfferCard extends StatelessWidget {
                   foregroundColor: _purple,
                   side: const BorderSide(color: _purple),
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  textStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -446,8 +409,7 @@ class _Badge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Text(label,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
     );
   }
 }
@@ -471,16 +433,20 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   final _discCtrl = TextEditingController();
   final _buyQtyCtrl = TextEditingController();
   final _freeQtyCtrl = TextEditingController();
+
   DateTime? _validUntil;
   TimeOfDay? _validTime;
   bool _saving = false;
   String? _error;
 
-  // 'order' | 'item' | 'bogo'
   String _offerType = 'order';
   List<Map<String, dynamic>> _menuItems = [];
   String? _selectedMenuItemId;
   String? _selectedMenuItemName;
+
+  // Auto-title state
+  bool _applyingAutoTitle = false;
+  String _lastAutoTitle = '';
 
   List<Map<String, dynamic>> _templates = [];
   static const _prefsKey = 'owner_offer_templates_v2';
@@ -493,11 +459,15 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   @override
   void initState() {
     super.initState();
+    _discCtrl.addListener(_applyAutoTitle);
+    _buyQtyCtrl.addListener(_applyAutoTitle);
+    _freeQtyCtrl.addListener(_applyAutoTitle);
     _loadMenu();
     _loadTemplates();
     final d = widget.initialData;
     if (d != null) {
       _titleCtrl.text = d['title'] as String? ?? '';
+      _lastAutoTitle = _titleCtrl.text;
       _descCtrl.text = d['description'] as String? ?? '';
       _offerType = (d['offer_type'] as String?) ?? 'order';
       final disc = d['discount_pct'];
@@ -510,6 +480,46 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       _selectedMenuItemName = d['menu_item_name'] as String?;
     }
   }
+
+  // ── Auto-title ───────────────────────────────────────────────────────────────
+
+  String _computeAutoTitle() {
+    switch (_offerType) {
+      case 'item':
+        final name = _selectedMenuItemName ?? '';
+        final disc = double.tryParse(_discCtrl.text.trim()) ?? 0;
+        if (name.isEmpty || disc <= 0) return '';
+        return '${disc.toStringAsFixed(0)}% off on $name';
+      case 'bogo':
+        final name = _selectedMenuItemName ?? '';
+        final bq = int.tryParse(_buyQtyCtrl.text.trim()) ?? 0;
+        final fq = int.tryParse(_freeQtyCtrl.text.trim()) ?? 0;
+        if (name.isEmpty || bq <= 0 || fq <= 0) return '';
+        return 'Buy $bq Get $fq Free · $name';
+      case 'order':
+        final disc = double.tryParse(_discCtrl.text.trim()) ?? 0;
+        if (disc <= 0) return '';
+        return '${disc.toStringAsFixed(0)}% off on your order';
+      default:
+        return '';
+    }
+  }
+
+  void _applyAutoTitle() {
+    if (_applyingAutoTitle) return;
+    final auto = _computeAutoTitle();
+    if (auto.isEmpty) return;
+    if (_titleCtrl.text.isEmpty || _titleCtrl.text == _lastAutoTitle) {
+      _applyingAutoTitle = true;
+      _titleCtrl.text = auto;
+      _titleCtrl.selection =
+          TextSelection.fromPosition(TextPosition(offset: auto.length));
+      _applyingAutoTitle = false;
+      _lastAutoTitle = auto;
+    }
+  }
+
+  // ── Data loading ─────────────────────────────────────────────────────────────
 
   Future<void> _loadMenu() async {
     try {
@@ -534,7 +544,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       final template = {
         'title': payload['title'],
         if (payload['description'] != null) 'description': payload['description'],
-        if (payload['offer_type'] != null) 'offer_type': payload['offer_type'],
+        'offer_type': payload['offer_type'],
         if (payload['discount_pct'] != null) 'discount_pct': payload['discount_pct'],
         if (payload['menu_item_id'] != null) 'menu_item_id': payload['menu_item_id'],
         if (payload['menu_item_name'] != null) 'menu_item_name': payload['menu_item_name'],
@@ -552,18 +562,19 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
 
   void _applyTemplate(Map<String, dynamic> t) {
     setState(() {
-      _titleCtrl.text = t['title'] as String? ?? '';
-      _descCtrl.text = t['description'] as String? ?? '';
       _offerType = (t['offer_type'] as String?) ?? 'order';
-      final disc = t['discount_pct'];
-      _discCtrl.text = disc != null ? disc.toString() : '';
-      final buyQ = t['buy_qty'];
-      _buyQtyCtrl.text = buyQ != null ? buyQ.toString() : '';
-      final freeQ = t['free_qty'];
-      _freeQtyCtrl.text = freeQ != null ? freeQ.toString() : '';
+      _discCtrl.text = t['discount_pct'] != null ? t['discount_pct'].toString() : '';
+      _buyQtyCtrl.text = t['buy_qty'] != null ? t['buy_qty'].toString() : '';
+      _freeQtyCtrl.text = t['free_qty'] != null ? t['free_qty'].toString() : '';
       _selectedMenuItemId = t['menu_item_id'] as String?;
       _selectedMenuItemName = t['menu_item_name'] as String?;
     });
+    // Re-apply title from template (override auto-title)
+    final title = t['title'] as String? ?? '';
+    _lastAutoTitle = '';
+    _titleCtrl.text = title;
+    _lastAutoTitle = title;
+    _descCtrl.text = t['description'] as String? ?? '';
   }
 
   @override
@@ -576,11 +587,13 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     super.dispose();
   }
 
+  // ── Date/time picker ─────────────────────────────────────────────────────────
+
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: now.add(const Duration(days: 7)),
+      initialDate: now,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
     );
@@ -588,8 +601,8 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     if (!mounted) return;
     final pickedTime = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 23, minute: 59),
-      helpText: 'Select time (IST)',
+      initialTime: TimeOfDay(hour: now.hour, minute: now.minute),
+      helpText: 'Select expiry time (IST)',
     );
     setState(() {
       _validUntil = pickedDate;
@@ -598,7 +611,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   }
 
   String _formatValidUntil() {
-    if (_validUntil == null) return 'Valid until (optional) — tap to set';
+    if (_validUntil == null) return 'Valid until * — tap to set';
     final d = _validUntil!;
     final dateStr = '${d.day} ${_months[d.month]} ${d.year}';
     if (_validTime == null) return 'Valid until: $dateStr';
@@ -615,9 +628,10 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     return DateTime(d.year, d.month, d.day, t.hour, t.minute).toUtc();
   }
 
+  // ── Save ─────────────────────────────────────────────────────────────────────
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    // Extra validation per type
     if (_offerType != 'order' && _selectedMenuItemId == null) {
       setState(() => _error = 'Please select a menu item for this offer type.');
       return;
@@ -629,6 +643,10 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
         setState(() => _error = 'Buy qty and Free qty must both be at least 1.');
         return;
       }
+    }
+    if (_validUntil == null) {
+      setState(() => _error = 'Please set a valid until date for this offer.');
+      return;
     }
     setState(() { _saving = true; _error = null; });
     try {
@@ -647,8 +665,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
           'buy_qty': int.tryParse(_buyQtyCtrl.text.trim()),
           'free_qty': int.tryParse(_freeQtyCtrl.text.trim()),
         },
-        if (utcDt != null)
-          'valid_until': utcDt.toIso8601String(),
+        if (utcDt != null) 'valid_until': utcDt.toIso8601String(),
       };
       await ApiService.createOffer(payload);
       await _saveTemplate(payload);
@@ -660,11 +677,12 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         child: Form(
@@ -672,17 +690,14 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.initialData != null ? 'Re-post Offer' : 'New Offer',
                 style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 18, fontWeight: FontWeight.bold,
                     color: Color(0xFF1C1917))),
             const SizedBox(height: 16),
 
             // ── Past templates ─────────────────────────────────────────
             if (_templates.isNotEmpty) ...[
               const Text('Reuse a Past Offer',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
                       color: Color(0xFF374151))),
               const SizedBox(height: 8),
               SingleChildScrollView(
@@ -692,19 +707,15 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                     final disc = t['discount_pct'];
                     final bq = t['buy_qty'];
                     final fq = t['free_qty'];
-                    String label;
-                    if (bq != null && fq != null) {
-                      label = '${t['title']} (B$bq G$fq)';
-                    } else if (disc != null) {
-                      label = '${t['title']} (${disc}% off)';
-                    } else {
-                      label = t['title'] as String? ?? '';
-                    }
+                    final label = (bq != null && fq != null)
+                        ? '${t['title']} (B$bq G$fq)'
+                        : disc != null
+                            ? '${t['title']} ($disc% off)'
+                            : t['title'] as String? ?? '';
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ActionChip(
-                        label: Text(label,
-                            style: const TextStyle(fontSize: 12)),
+                        label: Text(label, style: const TextStyle(fontSize: 12)),
                         onPressed: () => _applyTemplate(t),
                         backgroundColor: const Color(0xFFF5F3FF),
                         side: const BorderSide(color: Color(0xFFEDE9FE)),
@@ -720,23 +731,22 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
 
             // ── Offer type selector ────────────────────────────────────
             const Text('Offer Type',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
                     color: Color(0xFF374151))),
             const SizedBox(height: 8),
             _OfferTypeSelector(
               value: _offerType,
-              onChanged: (v) => setState(() { _offerType = v; _error = null; }),
+              onChanged: (v) {
+                setState(() { _offerType = v; _error = null; });
+                _applyAutoTitle();
+              },
             ),
             const SizedBox(height: 16),
 
-            // ── Menu item dropdown (item / bogo types) ─────────────────
+            // ── Menu item dropdown (item / bogo) ───────────────────────
             if (_offerType != 'order') ...[
               const Text('Menu Item *',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
                       color: Color(0xFF374151))),
               const SizedBox(height: 6),
               DropdownButtonFormField<String?>(
@@ -746,10 +756,8 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                 decoration: _dropdownDecor('Select a menu item'),
                 items: _menuItems.map((m) => DropdownMenuItem<String?>(
                   value: m['id'] as String?,
-                  child: Text(
-                    m['name'] as String? ?? '',
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(m['name'] as String? ?? '',
+                      overflow: TextOverflow.ellipsis),
                 )).toList(),
                 onChanged: (val) {
                   setState(() {
@@ -762,6 +770,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                       _selectedMenuItemName = null;
                     }
                   });
+                  _applyAutoTitle();
                 },
               ),
               const SizedBox(height: 12),
@@ -803,35 +812,31 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
               const SizedBox(height: 12),
             ],
 
-            // ── Discount % (order / item types) ────────────────────────
+            // ── Discount % (order / item) ──────────────────────────────
             if (_offerType != 'bogo') ...[
               _SheetField(
                 label: _offerType == 'item'
                     ? 'Discount % on this item *'
-                    : 'Discount % (optional)',
+                    : 'Discount % *',
                 hint: 'e.g. 20',
                 controller: _discCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 ],
-                validator: _offerType == 'item'
-                    ? (v) {
-                        final n = double.tryParse(v ?? '');
-                        if (n == null || n <= 0 || n > 100) {
-                          return 'Enter 1–100';
-                        }
-                        return null;
-                      }
-                    : Validators.discountPct,
+                validator: (v) {
+                  final n = double.tryParse(v ?? '');
+                  if (n == null || n <= 0 || n > 100) return 'Enter 1–100';
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
             ],
 
-            // ── Title ──────────────────────────────────────────────────
+            // ── Offer title ────────────────────────────────────────────
             _SheetField(
               label: 'Offer Title *',
-              hint: 'e.g. 20% off on Veg Biryani',
+              hint: 'Auto-filled — you can edit it',
               controller: _titleCtrl,
               validator: Validators.offerTitle,
             ),
@@ -844,20 +849,27 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
             ),
             const SizedBox(height: 12),
 
-            // ── Valid until ────────────────────────────────────────────
+            // ── Valid until (mandatory) ────────────────────────────────
             GestureDetector(
               onTap: _pickDateTime,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _validUntil == null
+                      ? const Color(0xFFFFF1F2)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFEDE9FE)),
+                  border: Border.all(
+                      color: _validUntil == null
+                          ? const Color(0xFFFECACA)
+                          : const Color(0xFFEDE9FE)),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.schedule,
-                      color: Color(0xFF7C3AED), size: 18),
+                  Icon(Icons.schedule,
+                      color: _validUntil == null
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFF7C3AED),
+                      size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -865,7 +877,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                       style: TextStyle(
                           fontSize: 14,
                           color: _validUntil == null
-                              ? const Color(0xFF94A3B8)
+                              ? const Color(0xFFDC2626)
                               : const Color(0xFF1C1917)),
                     ),
                   ),
@@ -885,8 +897,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
             if (_error != null) ...[
               const SizedBox(height: 12),
               Text(_error!,
-                  style: const TextStyle(
-                      color: Color(0xFFDC2626), fontSize: 13)),
+                  style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
             ],
             const SizedBox(height: 24),
             SizedBox(
@@ -902,14 +913,11 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                   elevation: 0,
                 ),
                 child: _saving
-                    ? const SizedBox(
-                        height: 20, width: 20,
+                    ? const SizedBox(height: 20, width: 20,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2))
                     : Text(
-                        widget.initialData != null
-                            ? 'Re-post Offer'
-                            : 'Publish Offer',
+                        widget.initialData != null ? 'Re-post Offer' : 'Publish Offer',
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600)),
               ),
@@ -939,7 +947,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       );
 }
 
-// ── Offer type segment control ─────────────────────────────────────────────────
+// ── Offer type selector ────────────────────────────────────────────────────────
 
 class _OfferTypeSelector extends StatelessWidget {
   final String value;
@@ -962,13 +970,10 @@ class _OfferTypeSelector extends StatelessWidget {
           child: GestureDetector(
             onTap: () => onChanged(t.$1),
             child: Container(
-              margin: EdgeInsets.only(
-                  right: t.$1 == 'bogo' ? 0 : 8),
+              margin: EdgeInsets.only(right: t.$1 == 'bogo' ? 0 : 8),
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
               decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0xFF7C3AED)
-                    : Colors.white,
+                color: selected ? const Color(0xFF7C3AED) : Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                     color: selected
@@ -983,11 +988,8 @@ class _OfferTypeSelector extends StatelessWidget {
                 Text(t.$3,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: selected
-                            ? Colors.white
-                            : const Color(0xFF6B7280))),
+                        fontSize: 10, fontWeight: FontWeight.w600,
+                        color: selected ? Colors.white : const Color(0xFF6B7280))),
               ]),
             ),
           ),
@@ -1023,8 +1025,7 @@ class _SheetField extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label,
           style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: 13, fontWeight: FontWeight.w600,
               color: Color(0xFF374151))),
       const SizedBox(height: 6),
       TextFormField(
@@ -1035,8 +1036,7 @@ class _SheetField extends StatelessWidget {
         validator: validator,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(
-              color: Color(0xFF94A3B8), fontSize: 14),
+          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
           filled: true,
           fillColor: Colors.white,
           contentPadding:
@@ -1049,8 +1049,7 @@ class _SheetField extends StatelessWidget {
               borderSide: const BorderSide(color: Color(0xFFEDE9FE))),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFF7C3AED), width: 2)),
+              borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2)),
           errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFFDC2626))),
