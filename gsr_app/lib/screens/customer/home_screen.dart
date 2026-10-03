@@ -874,24 +874,25 @@ class _OfferCard extends StatelessWidget {
     final restaurant = offer['restaurant_name'] as String? ?? '';
     final area = offer['restaurant_area'] as String? ?? '';
     final title = offer['title'] as String? ?? '';
+    final offerCode = offer['offer_code'] as String? ?? '';
     return GestureDetector(
       onTap: () {
         if (restaurantId.isEmpty) return;
 
-        // If user already has cart items from this restaurant, don't let them
-        // keep re-entering via the offer card — send them to cart instead.
-        if (CartService.restaurantId == restaurantId && CartService.itemCount > 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Offer already applied! Proceed to checkout.'),
-              backgroundColor: Color(0xFF7C3AED),
-              duration: Duration(seconds: 2),
-            ),
-          );
+        // One offer at a time — block if any offer is already applied
+        if (OfferService.hasOffer) {
+          final msg = OfferService.restaurantId == restaurantId
+              ? 'Offer already applied! Proceed to checkout or remove the current offer.'
+              : 'Remove your current offer before applying another.';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(msg),
+            backgroundColor: const Color(0xFF7C3AED),
+            duration: const Duration(seconds: 3),
+          ));
           return;
         }
 
-        // If cart has items from a DIFFERENT restaurant, block
+        // Cart has items from a different restaurant with no offer → block
         if (CartService.itemCount > 0 && CartService.restaurantId != restaurantId) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -951,6 +952,23 @@ class _OfferCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
             const Spacer(),
+            if (offerCode.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(38),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.white54, width: 0.5),
+                ),
+                child: Text(offerCode,
+                    style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1)),
+              ),
+              const SizedBox(height: 4),
+            ],
             Row(children: [
               if (discount != null) ...[
                 Container(

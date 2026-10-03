@@ -108,7 +108,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
       _shouldPopOnResume = true;
     } else if (state == AppLifecycleState.resumed && _shouldPopOnResume) {
       _shouldPopOnResume = false;
@@ -195,6 +196,9 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         'delivery_address': _addressCtr.text.trim(),
         'notes': _notesCtr.text.trim().isEmpty ? null : _notesCtr.text.trim(),
         'customer_area': _customerArea.isNotEmpty ? _customerArea : null,
+        'offer_code': _offerApplied && OfferService.offerCode.isNotEmpty
+            ? OfferService.offerCode
+            : null,
         'items': CartService.toOrderItems(),
       });
 
@@ -324,12 +328,28 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                         color: Color(0xFF7C3AED), size: 18),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        _offerBannerText(),
-                        style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF6D28D9),
-                            fontWeight: FontWeight.w500),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _offerBannerText(),
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6D28D9),
+                                fontWeight: FontWeight.w500),
+                          ),
+                          if (OfferService.offerCode.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Code: ${OfferService.offerCode}',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF7C3AED),
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.8),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ]),

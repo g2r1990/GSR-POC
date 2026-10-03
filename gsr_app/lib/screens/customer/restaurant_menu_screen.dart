@@ -127,21 +127,58 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      floatingActionButton: cartCount > 0
-          ? FloatingActionButton.extended(
-              onPressed: () async {
-                await Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => const CartScreen()));
-                _refreshCart();
-              },
-              backgroundColor: _amber,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.shopping_cart),
-              label: Text(
-                  '$cartCount item${cartCount == 1 ? '' : 's'} · ₹${cartTotal.toStringAsFixed(0)}'),
+      bottomNavigationBar: cartCount > 0
+          ? SafeArea(
+              top: false,
+              child: GestureDetector(
+                onTap: () async {
+                  await Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const CartScreen()));
+                  _refreshCart();
+                },
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _amber,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      '$cartCount item${cartCount == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '₹${cartTotal.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(51),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('View Cart',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
+                    ),
+                  ]),
+                ),
+              ),
             )
           : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(color: _amber))
@@ -259,7 +296,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
             ),
           ],
           const SliverToBoxAdapter(
-            child: SizedBox(height: 96),
+            child: SizedBox(height: 24),
           ),
         ],
       ),

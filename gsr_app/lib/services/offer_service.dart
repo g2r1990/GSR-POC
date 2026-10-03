@@ -26,4 +26,5 @@ class OfferService {
   static int get freeQty => (_applied?['free_qty'] as num?)?.toInt() ?? 0;
 
   static String get title => _applied?['title'] as String? ?? '';
+  static String get offerCode => _applied?['offer_code'] as String? ?? '';
 }

@@ -359,6 +359,12 @@ class _OfferCard extends StatelessWidget {
               bg: expired ? const Color(0xFFF3F4F6) : const Color(0xFFEDE9FE),
               fg: expired ? const Color(0xFF9CA3AF) : _purple,
             ),
+            if ((offer['offer_code'] as String?)?.isNotEmpty == true)
+              _Badge(
+                label: offer['offer_code'] as String,
+                bg: expired ? const Color(0xFFF3F4F6) : const Color(0xFFF0FDF4),
+                fg: expired ? const Color(0xFF9CA3AF) : const Color(0xFF166534),
+              ),
             if (discount != null && offerType != 'bogo')
               _Badge(
                 label: '${discount.toString()}% OFF',
