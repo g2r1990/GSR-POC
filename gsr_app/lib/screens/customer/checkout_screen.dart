@@ -23,7 +23,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool get _offerApplied =>
       OfferService.hasOffer &&
       OfferService.restaurantId == CartService.restaurantId;
-  double get _offerDiscount => _offerApplied ? OfferService.discountPct : 0;
 
   final _formKey = GlobalKey<FormState>();
   final _nameCtr = TextEditingController();
@@ -36,12 +35,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _error;
 
   double get _itemTotal => CartService.total;
-  double get _discountAmount =>
-      double.parse((_itemTotal * _offerDiscount / 100).toStringAsFixed(2));
+
+  double get _discountAmount {
+    if (!_offerApplied) return 0;
+    final type = OfferService.offerType;
+    if (type == 'item') {
+      final mid = OfferService.menuItemId;
+      if (mid == null) return 0;
+      final matched = CartService.items
+          .where((i) => i.itemId == mid)
+          .fold<double>(0, (s, i) => s + i.price * i.qty);
+      return double.parse(
+          (matched * OfferService.discountPct / 100).toStringAsFixed(2));
+    }
+    if (type == 'bogo') {
+      final mid = OfferService.menuItemId;
+      final buyQty = OfferService.buyQty;
+      if (mid == null || buyQty <= 0) return 0;
+      final matched =
+          CartService.items.where((i) => i.itemId == mid).toList();
+      if (matched.isEmpty) return 0;
+      final item = matched.first;
+      final sets = item.qty ~/ buyQty;
+      final freeCount = sets * OfferService.freeQty;
+      return double.parse((freeCount * item.price).toStringAsFixed(2));
+    }
+    // 'order': discount on entire item total
+    return double.parse(
+        (_itemTotal * OfferService.discountPct / 100).toStringAsFixed(2));
+  }
+
   double get _discountedItemTotal => _itemTotal - _discountAmount;
   double get _gst =>
       double.parse((_discountedItemTotal * 0.05).toStringAsFixed(2));
   double get _grandTotal => _discountedItemTotal + _deliveryFee + _gst;
+
+  String _offerBannerText() {
+    final type = OfferService.offerType;
+    final title = OfferService.title;
+    if (type == 'bogo') {
+      final bq = OfferService.buyQty;
+      final fq = OfferService.freeQty;
+      return 'Buy $bq Get $fq Free applied! $title';
+    }
+    if (type == 'item') {
+      return '${OfferService.discountPct.toStringAsFixed(0)}% off on ${OfferService.menuItemName}';
+    }
+    return '${OfferService.discountPct.toStringAsFixed(0)}% off applied! $title';
+  }
+
+  String _offerDiscountLabel() {
+    final type = OfferService.offerType;
+    if (type == 'bogo') {
+      return 'BOGO discount';
+    }
+    if (type == 'item') {
+      return 'Offer discount on ${OfferService.menuItemName}';
+    }
+    return 'Offer discount (${OfferService.discountPct.toStringAsFixed(0)}%)';
+  }
 
   @override
   void initState() {
@@ -247,7 +299,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${OfferService.discountPct.toStringAsFixed(0)}% off applied!  ${OfferService.title}',
+                        _offerBannerText(),
                         style: const TextStyle(
                             fontSize: 13,
                             color: Color(0xFF6D28D9),
@@ -309,10 +361,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     label: 'Item total',
                     value: '₹${_itemTotal.toStringAsFixed(0)}',
                   ),
-                  if (_offerApplied) ...[
+                  if (_offerApplied && _discountAmount > 0) ...[
                     const SizedBox(height: 8),
                     _BillRow(
-                      label: 'Offer discount (${_offerDiscount.toStringAsFixed(0)}%)',
+                      label: _offerDiscountLabel(),
                       value: '-₹${_discountAmount.toStringAsFixed(0)}',
                       valueColor: const Color(0xFF166534),
                     ),

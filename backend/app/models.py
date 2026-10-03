@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -106,15 +106,20 @@ class Order(Base):
 
 class Offer(Base):
     __tablename__ = "offer"
-    id            = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
-    restaurant_id = Column(UUID(as_uuid=False), ForeignKey("restaurant.id"), nullable=False)
-    title         = Column(String(200), nullable=False)
-    description   = Column(Text, nullable=True)
-    discount_pct  = Column(Numeric(5, 2), nullable=True)
-    valid_until   = Column(DateTime, nullable=True)
-    is_active     = Column(Boolean, default=True)
-    created_at    = Column(DateTime, default=datetime.utcnow)
-    restaurant    = relationship("Restaurant", back_populates="offers")
+    id             = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    restaurant_id  = Column(UUID(as_uuid=False), ForeignKey("restaurant.id"), nullable=False)
+    title          = Column(String(200), nullable=False)
+    description    = Column(Text, nullable=True)
+    offer_type     = Column(String(20), nullable=False, default='order')  # order | item | bogo
+    discount_pct   = Column(Numeric(5, 2), nullable=True)
+    menu_item_id   = Column(String(36), nullable=True)   # FK to menu_item.id (soft ref)
+    menu_item_name = Column(String(150), nullable=True)
+    buy_qty        = Column(Integer, nullable=True)
+    free_qty       = Column(Integer, nullable=True)
+    valid_until    = Column(DateTime, nullable=True)
+    is_active      = Column(Boolean, default=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    restaurant     = relationship("Restaurant", back_populates="offers")
 
 
 class Inspection(Base):

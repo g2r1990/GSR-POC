@@ -1,0 +1,78 @@
+1. First run this command.
+(Invoke-WebRequest -Uri "https://checkip.amazonaws.com" -UseBasicParsing).Content.Trim()
+
+Copy the IP and replace in the SG group.
+then export the below keys. 
+
+powershell secret tokens.
+
+$env:AWS_CA_BUNDLE         = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
+$env:SSL_CERT_FILE         = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
+
+
+
+
+Step 1 — Set CA bundle (same session as your credentials)
+
+$env:AWS_CA_BUNDLE = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
+$env:SSL_CERT_FILE = "C:\Claude\Project-GSR\corporate-ca-bundle.pem"
+export the credentials from AWS console ( powershell) 
+
+Step 2 — Verify credentials work
+
+aws sts get-caller-identity
+You should see your QAD Lab account ID. Confirm before going further.
+Then SSH 
+
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71 
+
+
+Step 3 — Create your tfvars
+
+cd C:\Claude\Project-GSR\terraform
+Copy-Item terraform.tfvars.example terraform.tfvars
+notepad terraform.tfvars
+Fill in: key_pair_name, allowed_ssh_cidr (your IP/32), s3_bucket_suffix (e.g. qadpoc01)
+
+Step 4 — Deploy
+
+cd C:\Claude\Project-GSR\terraform
+terraform init 2>&1 | Tee-Object -FilePath "C:\Claude\Project-GSR\terraform\tfinit.txt"
+
+terraform plan -out="C:\Claude\Project-GSR\terraform\tfplan.binary" 2>&1 | Tee-Object -FilePath "C:\Claude\Project-GSR\terraform\tfplan.txt"
+
+
+#####################################################
+The application is now installed below is what needs to be done. 
+
+# 1. Start EC2 from AWS Console (i-02bb92a9fa97bd78b)
+# 2. SSH in
+ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+
+# 3. Check containers
+cd /opt/project-gsr/backend && sudo docker-compose ps
+
+# 4. Pull Sprint 5 code (after we push it)
+cd /opt/project-gsr && git pull origin main
+
+# 5. Rebuild + migrate
+cd backend && sudo docker-compose up -d --build api
+sudo docker-compose exec api bash -c "cd /app && python -m alembic upgrade head"
+
+#############################
+
+
+Below are my all project URL
+
+All Project URLs — save these:
+
+What	URL
+Swagger UI	http://43.204.43.71/docs
+Health check	http://43.204.43.71/health
+EC2 Console	https://ap-south-1.console.aws.amazon.com/ec2/home?region=ap-south-1#Instances
+GitHub repo	https://github.com/gurupreet18121990/GSR-Project
+GitHub Actions	https://github.com/gurupreet18121990/GSR-Project/actions
+Firebase console	https://console.firebase.google.com/project/project-gsr-cd6c6
+App Distribution	https://console.firebase.google.com/project/project-gsr-cd6c6/appdistribution
+This Runbook	
+Project GSR Runbook

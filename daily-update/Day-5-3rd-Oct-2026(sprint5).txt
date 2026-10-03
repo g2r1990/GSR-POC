@@ -1,0 +1,189 @@
+================================================================================
+PROJECT GSR — DAY 5 ACTUAL UPDATE
+Date       : 3rd October 2026 (Saturday)
+Sprint     : Sprint 5 — Menu Management (Owner App)
+Work Hours : Non-working hours (personal learning / upskilling)
+Status     : COMPLETE — Owner login + full menu CRUD + Flutter screens working on device
+================================================================================
+
+------------------------------------------------------------------------
+SPRINT 5 TASKS COMPLETED TODAY
+------------------------------------------------------------------------
+
+[DONE] T1  EC2 started and verified healthy
+           sudo docker-compose ps → gsr_api Up, gsr_db Up (healthy)
+           Confirmed: Docker auto-start via systemd is already enabled
+           (sudo systemctl is-enabled docker → enabled)
+           restart: always in docker-compose handles containers on boot
+
+[DONE] T2  Sprint 5 backend code written and deployed (v0.4.0)
+
+           Owner Auth (password-based for POC):
+             POST /owner/auth/set-password  Set password for existing owner
+             POST /owner/auth/login         Mobile + password → JWT (role=owner)
+
+           Menu CRUD:
+             GET  /owner/menu               List all items (grouped by category)
+             POST /owner/menu/item          Add item (category, name, desc, price)
+             PUT  /owner/menu/item/{id}     Edit item
+             PATCH /owner/menu/item/{id}/availability  Toggle on/off (real-time DB)
+             DELETE /owner/menu/item/{id}  Soft delete (is_deleted=true)
+
+           New files:
+             backend/app/routers/menu.py       Full menu CRUD router
+             backend/app/schemas/menu.py       MenuItemCreate, MenuItemUpdate, MenuItemResponse
+
+           Updated files:
+             backend/app/routers/owner.py      Added set-password + login endpoints
+             backend/app/schemas/owner.py      Added OwnerSetPasswordRequest, OwnerLoginRequest
+             backend/app/models.py             Fixed Owner.password_hash nullable=True
+             backend/app/main.py               Included menu router, version 0.4.0
+
+[DONE] T3  Sprint 5 Flutter screens written
+
+           New screens:
+             lib/screens/owner/login_screen.dart      Mobile + password login (green theme)
+             lib/screens/owner/dashboard_screen.dart  Menu item count, navigate to menu
+             lib/screens/owner/menu_list_screen.dart  Grouped list, toggle switch, edit/delete
+             lib/screens/owner/add_edit_item_screen.dart  Form with category autocomplete
+
+           Updated files:
+             lib/services/api_service.dart    ownerLogin, getMenu, addMenuItem,
+                                              updateMenuItem, toggleAvailability, deleteMenuItem
+             lib/main.dart                    Added /owner/login route
+             lib/screens/role_selector.dart   Owner card → /owner/login
+
+[DONE] T4  Git push to master + main
+           Commit: 8553c2f — Sprint 5: Owner login + Menu Management API + Flutter screens
+           15 files changed, 1462 insertions
+
+[DONE] T5  Quick Reference URLs section added to Runbook.md + Artifact
+           Swagger, Health, EC2, GitHub, Firebase, SSH — all in one place
+
+[DONE] T6  EC2 git pull + docker rebuild
+           git pull → 27 objects fetched
+           docker-compose up -d --build api → rebuilt in 1.4s (cached layers)
+           API version: 0.3.0 → 0.4.0 ✅
+
+[DONE] T7  Backend API tested end-to-end via Swagger
+           ✅ POST /owner/auth/set-password (mobile: 9561321395) → "Password set"
+           ✅ POST /owner/auth/login → JWT received (role=owner)
+           ✅ POST /owner/menu/item × 5 → 201 for each item
+           ✅ GET /owner/menu → all 5 items returned, is_available=true
+
+           Owner: Kulpreet Kaur Rajput / Restaurant: Noor Bhoj
+           Mobile: +919561321395 / Password: Owner@GSR2026
+
+           Menu items added:
+             Main Course  Paneer Butter Masala  ₹220
+             Main Course  Dal Tadka             ₹160
+             Rice         Veg Biryani           ₹190
+             Indian Bread Butter Naan           ₹60
+             Starters     Veg Manchurian        ₹170
+
+[DONE] T8  Firebase App Distribution fixed
+           Issue: workflow used "groups: testers" but group didn't exist in Firebase
+           Fix: changed to "testers: gurpreet18121990@gmail.com" (direct email)
+           Build #6 triggered manually via workflow_dispatch
+           Result: ✅ APK uploaded + invite email received at gurpreet18121990@gmail.com
+
+[DONE] T9  Flutter app tested on real device (user's own phone)
+           GSR-debug-6 installed manually
+           ✅ Owner card → Owner Login screen
+           ✅ Login with mobile + password → Owner Dashboard
+           ✅ Dashboard shows "5 menu items"
+           ✅ Manage Menu → all 5 items grouped by category with toggle switches
+           ✅ Added new item "Veg Briyani" via Add Item form → appeared in list
+           ✅ Toggle switch → real-time DB update confirmed
+
+------------------------------------------------------------------------
+ISSUES ENCOUNTERED & RESOLVED
+------------------------------------------------------------------------
+
+Issue 1 : Firebase distribution 404 — group "testers" not found
+Cause   : workflow.yml used "groups: testers" but Firebase group was never created
+Fix     : Changed to "testers: gurpreet18121990@gmail.com" (direct email in workflow)
+          Manual trigger: Actions → Build Flutter APK → Run workflow
+
+Issue 2 : Workflow didn't auto-trigger after fixing build-apk.yml
+Cause   : Workflow path filter is "gsr_app/**" — only triggers on app code changes
+Fix     : Manual trigger via workflow_dispatch
+
+Issue 3 : Swagger GET /admin/kyc/all returning 403 "Not authenticated"
+Cause   : Token from yesterday was expired; Authorize step not re-done on fresh page
+Fix     : Refresh Swagger page → re-login with fresh TOTP → re-authorize
+
+Issue 4 : POST /owner/menu/item — 422 JSON decode error
+Cause   : User pasted all 5 items at once; endpoint accepts 1 item per call
+Fix     : Execute one item at a time (5 separate calls)
+
+------------------------------------------------------------------------
+KEY CREDENTIALS (SPRINT 5)
+------------------------------------------------------------------------
+
+Owner login (POC password-based):
+  Mobile   : 9561321395 (stored as +919561321395)
+  Password : Owner@GSR2026
+
+Admin login:
+  Username : admin
+  Password : Admin@GSR2026
+  TOTP     : Google Authenticator (secret: YBSQN43UNUXX7F4BEE7IBEZD63H7KMDZ)
+
+------------------------------------------------------------------------
+SPRINT 5 COMPLETION STATUS
+------------------------------------------------------------------------
+
+Backend:
+[DONE] Owner set-password API
+[DONE] Owner login API (mobile + password → JWT)
+[DONE] GET /owner/menu
+[DONE] POST /owner/menu/item
+[DONE] PUT /owner/menu/item/{id}
+[DONE] PATCH /owner/menu/item/{id}/availability
+[DONE] DELETE /owner/menu/item/{id}
+
+Flutter:
+[DONE] Owner login screen
+[DONE] Owner dashboard
+[DONE] Menu list screen (grouped, toggle, edit/delete)
+[DONE] Add/Edit item form (category autocomplete)
+
+Testing:
+[DONE] Backend via Swagger ✅
+[DONE] Flutter app on real device ✅
+
+Firebase:
+[DONE] Distribution fixed — direct email testers ✅
+[PEND] Firebase App Tester installed on wife's phone (deferred)
+[PEND] Auto-update notification tested end-to-end (deferred)
+
+------------------------------------------------------------------------
+EC2 STATUS
+------------------------------------------------------------------------
+
+EC2 running at end of Day 5 — stop before leaving
+Restart: AWS Console → EC2 → i-02bb92a9fa97bd78b → Start instance
+SSH: ssh -i "C:\Claude\Project-GSR\g2r-poc.pem" ec2-user@43.204.43.71
+
+------------------------------------------------------------------------
+NEXT — DAY 6: SPRINT 6 — Customer Discovery
+------------------------------------------------------------------------
+
+This is the customer-facing product:
+
+Backend:
+  [ ] GET /customer/restaurants?pincode=431003  — search by pincode
+  [ ] GET /customer/restaurant/{id}/menu         — browse restaurant menu
+      (filter: is_available=true, is_deleted=false)
+  [ ] GET /customer/restaurants?area=Cidco      — search by area
+
+Flutter:
+  [ ] Customer home screen (pincode search input)
+  [ ] Restaurant list screen (cards with name, area, food type)
+  [ ] Restaurant menu screen (read-only, grouped, ₹prices)
+  [ ] Basic customer flow end-to-end
+
+================================================================================
+END OF DAY 5 UPDATE
+================================================================================

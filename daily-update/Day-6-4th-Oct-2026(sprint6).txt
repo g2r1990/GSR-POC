@@ -1,0 +1,87 @@
+PROJECT GSR — DAY 6 DAILY UPDATE
+Date: 4th October 2026 (Sunday)
+Sprint: Sprint 6 — Customer Discovery
+Status: COMPLETE ✅
+
+═══════════════════════════════════════════════════════════════
+WHAT WAS DONE TODAY
+═══════════════════════════════════════════════════════════════
+
+1. SPRINT 6 — CUSTOMER DISCOVERY (Backend)
+   - New FastAPI router: GET /customer/restaurants?pincode=<6digits>
+   - New FastAPI router: GET /customer/restaurant/{id}/menu
+   - Both endpoints are public (no JWT required)
+   - Menu grouped by category at API level
+   - Only active restaurants + available (toggled ON) items returned
+   - Backend version bumped: 0.4.0 → 0.5.0
+   - Deployed to EC2 (43.204.43.71), verified via Swagger
+
+2. SPRINT 6 — CUSTOMER DISCOVERY (Flutter)
+   - customer/home_screen.dart: 6-digit pincode input, amber theme
+   - customer/restaurant_list_screen.dart: cards with food type badges
+   - customer/restaurant_menu_screen.dart: grouped menu, pull-to-refresh
+   - api_service.dart: searchRestaurants() + getRestaurantMenu() added
+   - Screens use Navigator.push (not named routes) — data passed directly
+
+3. GITHUB ACTIONS — BUILDS
+   - Build #7 (master) — green ✅
+   - Build #8 (main) — green ✅
+   - APK downloaded manually: App-GSR-APK\GSR-debug-8\app-debug.apk
+
+4. APP FLOW RUNBOOK (Non-Technical)
+   - Created: App-Flow-Runbook.md (business/product flow only)
+   - Published as artifact: https://claude.ai/artifact/HSey2S92To5dNFmScBH7Zs
+   - Pinned to Claude sidebar
+   - Committed and pushed to GitHub (commit 469739f)
+   - Covers: Owner Onboarding, Customer Orders, Admin Manages
+   - Covers: Business rules, live toggle, platform phases, T&C outline
+
+5. TECHNICAL RUNBOOK UPDATED
+   - Runbook-Phase1.md: Sprint 5 → Done, Sprint 6 → In Progress
+
+═══════════════════════════════════════════════════════════════
+VALIDATION RESULTS — BUILD #8 APK (GURPREET TESTED)
+═══════════════════════════════════════════════════════════════
+
+Customer Flow:
+  [PASS] Enter pincode 431003 → Noor Bhoj appears in restaurant list
+  [PASS] Tap Noor Bhoj → all menu items displayed correctly
+  [PASS] Owner toggles item OFF → item disappears from customer menu immediately
+  [PASS] Toggle reflects in real time — no delay, no stale data
+
+(Admin and Owner flows validated in previous sprints — still working)
+
+═══════════════════════════════════════════════════════════════
+SPRINT 6 — COMPLETE ✅
+═══════════════════════════════════════════════════════════════
+
+All Sprint 1–6 features validated end-to-end on physical device.
+
+═══════════════════════════════════════════════════════════════
+NEXT — SPRINT 7 (to be decided)
+═══════════════════════════════════════════════════════════════
+
+Proposed: Customer Cart + Order Placement + Push Notifications to Owner
+
+  - Customer: Add to cart, review, place order
+  - Owner: Receive push notification on new order
+  - Order status: Placed → Accepted → Ready → Out for Delivery → Delivered
+  - SMS confirmation to customer on order placed
+  - Payment: Cash / UPI on delivery (no in-app payment in Phase 1)
+
+═══════════════════════════════════════════════════════════════
+CREDENTIALS (unchanged from Sprint 5)
+═══════════════════════════════════════════════════════════════
+
+Admin:
+  Username: admin
+  Password: GsrAdmin2026
+
+Owner (Kulpreet / Noor Bhoj):
+  Mobile: +919561321395
+  Password: Owner@GSR2026
+
+Backend: http://43.204.43.71:8000
+Swagger: http://43.204.43.71:8000/docs
+
+═══════════════════════════════════════════════════════════════

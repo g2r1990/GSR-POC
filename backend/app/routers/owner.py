@@ -215,11 +215,19 @@ def create_offer(
             valid_until = _dt.fromisoformat(body["valid_until"])
         except ValueError:
             pass
+    offer_type = body.get("offer_type", "order")
+    if offer_type not in ("order", "item", "bogo"):
+        offer_type = "order"
     offer = Offer(
         restaurant_id=restaurant.id,
         title=body["title"],
         description=body.get("description"),
+        offer_type=offer_type,
         discount_pct=body.get("discount_pct"),
+        menu_item_id=body.get("menu_item_id"),
+        menu_item_name=body.get("menu_item_name"),
+        buy_qty=body.get("buy_qty"),
+        free_qty=body.get("free_qty"),
         valid_until=valid_until,
         is_active=True,
     )
@@ -250,7 +258,12 @@ def get_owner_offers(
             "id": o.id,
             "title": o.title,
             "description": o.description,
+            "offer_type": o.offer_type or "order",
             "discount_pct": float(o.discount_pct) if o.discount_pct else None,
+            "menu_item_id": o.menu_item_id,
+            "menu_item_name": o.menu_item_name,
+            "buy_qty": o.buy_qty,
+            "free_qty": o.free_qty,
             "valid_until": o.valid_until.isoformat() if o.valid_until else None,
             "is_active": o.is_active,
             "created_at": o.created_at.isoformat(),

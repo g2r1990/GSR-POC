@@ -102,7 +102,6 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
     }
   }
 
-  // Returns "2 Oct 2026, 10:00 PM IST"
   String _formatDatetime(String? iso) {
     if (iso == null) return '';
     try {
@@ -267,7 +266,7 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
   }
 }
 
-// ── Offer card (shared between tabs) ──────────────────────────────────────────
+// ── Offer card ─────────────────────────────────────────────────────────────────
 
 class _OfferCard extends StatelessWidget {
   static const _purple = Color(0xFF7C3AED);
@@ -286,10 +285,29 @@ class _OfferCard extends StatelessWidget {
     this.onRepost,
   });
 
+  String _typeLabel() {
+    final t = offer['offer_type'] as String? ?? 'order';
+    final itemName = offer['menu_item_name'] as String? ?? '';
+    final buyQty = offer['buy_qty'];
+    final freeQty = offer['free_qty'];
+    switch (t) {
+      case 'item':
+        return itemName.isNotEmpty ? 'Item: $itemName' : 'Specific Item';
+      case 'bogo':
+        if (buyQty != null && freeQty != null) {
+          return 'Buy $buyQty Get $freeQty Free${itemName.isNotEmpty ? ' · $itemName' : ''}';
+        }
+        return 'Buy X Get Y Free';
+      default:
+        return 'Order-wide';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final discount = offer['discount_pct'];
     final validDatetime = formatDatetime(offer['valid_until'] as String?);
+    final offerType = offer['offer_type'] as String? ?? 'order';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -314,11 +332,15 @@ class _OfferCard extends StatelessWidget {
                     : const Color(0xFFF5F3FF),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.local_offer,
-                  color: expired
-                      ? const Color(0xFF9CA3AF)
-                      : _purple,
-                  size: 24),
+              child: Icon(
+                offerType == 'bogo'
+                    ? Icons.redeem
+                    : offerType == 'item'
+                        ? Icons.restaurant_menu
+                        : Icons.local_offer,
+                color: expired ? const Color(0xFF9CA3AF) : _purple,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -352,7 +374,16 @@ class _OfferCard extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           Wrap(spacing: 6, runSpacing: 4, children: [
-            if (discount != null)
+            _Badge(
+              label: _typeLabel(),
+              bg: expired
+                  ? const Color(0xFFF3F4F6)
+                  : const Color(0xFFEDE9FE),
+              fg: expired
+                  ? const Color(0xFF9CA3AF)
+                  : _purple,
+            ),
+            if (discount != null && offerType != 'bogo')
               _Badge(
                 label: '${discount.toString()}% OFF',
                 bg: expired
@@ -421,6 +452,8 @@ class _Badge extends StatelessWidget {
   }
 }
 
+// ── Add / Re-post offer sheet ──────────────────────────────────────────────────
+
 class _AddOfferSheet extends StatefulWidget {
   final VoidCallback onCreated;
   final Map<String, dynamic>? initialData;
@@ -436,17 +469,21 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _discCtrl = TextEditingController();
+  final _buyQtyCtrl = TextEditingController();
+  final _freeQtyCtrl = TextEditingController();
   DateTime? _validUntil;
   TimeOfDay? _validTime;
   bool _saving = false;
   String? _error;
 
+  // 'order' | 'item' | 'bogo'
+  String _offerType = 'order';
   List<Map<String, dynamic>> _menuItems = [];
   String? _selectedMenuItemId;
+  String? _selectedMenuItemName;
 
   List<Map<String, dynamic>> _templates = [];
-
-  static const _prefsKey = 'owner_offer_templates';
+  static const _prefsKey = 'owner_offer_templates_v2';
 
   static const _months = [
     '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -458,13 +495,19 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     super.initState();
     _loadMenu();
     _loadTemplates();
-    // Pre-fill from initialData (re-post flow)
     final d = widget.initialData;
     if (d != null) {
       _titleCtrl.text = d['title'] as String? ?? '';
       _descCtrl.text = d['description'] as String? ?? '';
+      _offerType = (d['offer_type'] as String?) ?? 'order';
       final disc = d['discount_pct'];
       if (disc != null) _discCtrl.text = disc.toString();
+      final buyQ = d['buy_qty'];
+      if (buyQ != null) _buyQtyCtrl.text = buyQ.toString();
+      final freeQ = d['free_qty'];
+      if (freeQ != null) _freeQtyCtrl.text = freeQ.toString();
+      _selectedMenuItemId = d['menu_item_id'] as String?;
+      _selectedMenuItemName = d['menu_item_name'] as String?;
     }
   }
 
@@ -491,7 +534,12 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       final template = {
         'title': payload['title'],
         if (payload['description'] != null) 'description': payload['description'],
+        if (payload['offer_type'] != null) 'offer_type': payload['offer_type'],
         if (payload['discount_pct'] != null) 'discount_pct': payload['discount_pct'],
+        if (payload['menu_item_id'] != null) 'menu_item_id': payload['menu_item_id'],
+        if (payload['menu_item_name'] != null) 'menu_item_name': payload['menu_item_name'],
+        if (payload['buy_qty'] != null) 'buy_qty': payload['buy_qty'],
+        if (payload['free_qty'] != null) 'free_qty': payload['free_qty'],
       };
       final updated = [
         template,
@@ -506,8 +554,15 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     setState(() {
       _titleCtrl.text = t['title'] as String? ?? '';
       _descCtrl.text = t['description'] as String? ?? '';
+      _offerType = (t['offer_type'] as String?) ?? 'order';
       final disc = t['discount_pct'];
       _discCtrl.text = disc != null ? disc.toString() : '';
+      final buyQ = t['buy_qty'];
+      _buyQtyCtrl.text = buyQ != null ? buyQ.toString() : '';
+      final freeQ = t['free_qty'];
+      _freeQtyCtrl.text = freeQ != null ? freeQ.toString() : '';
+      _selectedMenuItemId = t['menu_item_id'] as String?;
+      _selectedMenuItemName = t['menu_item_name'] as String?;
     });
   }
 
@@ -516,6 +571,8 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _discCtrl.dispose();
+    _buyQtyCtrl.dispose();
+    _freeQtyCtrl.dispose();
     super.dispose();
   }
 
@@ -560,14 +617,36 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    // Extra validation per type
+    if (_offerType != 'order' && _selectedMenuItemId == null) {
+      setState(() => _error = 'Please select a menu item for this offer type.');
+      return;
+    }
+    if (_offerType == 'bogo') {
+      final bq = int.tryParse(_buyQtyCtrl.text.trim()) ?? 0;
+      final fq = int.tryParse(_freeQtyCtrl.text.trim()) ?? 0;
+      if (bq <= 0 || fq <= 0) {
+        setState(() => _error = 'Buy qty and Free qty must both be at least 1.');
+        return;
+      }
+    }
     setState(() { _saving = true; _error = null; });
     try {
       final utcDt = _combinedUtc();
       final payload = <String, dynamic>{
         'title': _titleCtrl.text.trim(),
         if (_descCtrl.text.trim().isNotEmpty) 'description': _descCtrl.text.trim(),
-        if (_discCtrl.text.trim().isNotEmpty)
+        'offer_type': _offerType,
+        if (_offerType != 'bogo' && _discCtrl.text.trim().isNotEmpty)
           'discount_pct': double.tryParse(_discCtrl.text.trim()),
+        if (_offerType != 'order') ...{
+          'menu_item_id': _selectedMenuItemId,
+          'menu_item_name': _selectedMenuItemName,
+        },
+        if (_offerType == 'bogo') ...{
+          'buy_qty': int.tryParse(_buyQtyCtrl.text.trim()),
+          'free_qty': int.tryParse(_freeQtyCtrl.text.trim()),
+        },
         if (utcDt != null)
           'valid_until': utcDt.toIso8601String(),
       };
@@ -596,14 +675,9 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1C1917))),
-            const SizedBox(height: 4),
-            const Text(
-              'Restaurant: your registered restaurant (multi-branch coming soon)',
-              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-            ),
             const SizedBox(height: 16),
 
-            // ── Recent / reuse past offers ─────────────────────────
+            // ── Past templates ─────────────────────────────────────────
             if (_templates.isNotEmpty) ...[
               const Text('Reuse a Past Offer',
                   style: TextStyle(
@@ -616,9 +690,16 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
                 child: Row(
                   children: _templates.map((t) {
                     final disc = t['discount_pct'];
-                    final label = disc != null
-                        ? '${t['title']} (${disc}% off)'
-                        : t['title'] as String? ?? '';
+                    final bq = t['buy_qty'];
+                    final fq = t['free_qty'];
+                    String label;
+                    if (bq != null && fq != null) {
+                      label = '${t['title']} (B$bq G$fq)';
+                    } else if (disc != null) {
+                      label = '${t['title']} (${disc}% off)';
+                    } else {
+                      label = t['title'] as String? ?? '';
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ActionChip(
@@ -637,69 +718,120 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
               const SizedBox(height: 16),
             ],
 
-            // Optional: link to a menu item
-            if (_menuItems.isNotEmpty) ...[
-              const Text('Menu Item (optional)',
+            // ── Offer type selector ────────────────────────────────────
+            const Text('Offer Type',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151))),
+            const SizedBox(height: 8),
+            _OfferTypeSelector(
+              value: _offerType,
+              onChanged: (v) => setState(() { _offerType = v; _error = null; }),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Menu item dropdown (item / bogo types) ─────────────────
+            if (_offerType != 'order') ...[
+              const Text('Menu Item *',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF374151))),
               const SizedBox(height: 6),
               DropdownButtonFormField<String?>(
-                value: _selectedMenuItemId,
-                decoration: InputDecoration(
-                  hintText: 'Select an item to highlight',
-                  hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8), fontSize: 14),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: Color(0xFFEDE9FE))),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: Color(0xFFEDE9FE))),
-                  focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: _purple, width: 2)),
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                      value: null, child: Text('None — general offer')),
-                  ..._menuItems.map((m) => DropdownMenuItem<String?>(
-                        value: m['id'] as String?,
-                        child: Text(
-                          m['name'] as String? ?? '',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      )),
-                ],
+                value: _menuItems.any((m) => m['id'] == _selectedMenuItemId)
+                    ? _selectedMenuItemId
+                    : null,
+                decoration: _dropdownDecor('Select a menu item'),
+                items: _menuItems.map((m) => DropdownMenuItem<String?>(
+                  value: m['id'] as String?,
+                  child: Text(
+                    m['name'] as String? ?? '',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )).toList(),
                 onChanged: (val) {
-                  setState(() => _selectedMenuItemId = val);
-                  if (val != null) {
-                    final item = _menuItems
-                        .firstWhere((m) => m['id'] == val, orElse: () => {});
-                    final name = item['name'] as String? ?? '';
-                    final disc = _discCtrl.text.trim();
-                    if (name.isNotEmpty && _titleCtrl.text.trim().isEmpty) {
-                      _titleCtrl.text = disc.isNotEmpty
-                          ? '$disc% off on $name'
-                          : 'Special offer on $name';
+                  setState(() {
+                    _selectedMenuItemId = val;
+                    if (val != null) {
+                      final item = _menuItems
+                          .firstWhere((m) => m['id'] == val, orElse: () => {});
+                      _selectedMenuItemName = item['name'] as String?;
+                    } else {
+                      _selectedMenuItemName = null;
                     }
-                  }
+                  });
                 },
               ),
               const SizedBox(height: 12),
             ],
 
+            // ── BOGO qty fields ────────────────────────────────────────
+            if (_offerType == 'bogo') ...[
+              Row(children: [
+                Expanded(
+                  child: _SheetField(
+                    label: 'Buy Qty *',
+                    hint: 'e.g. 2',
+                    controller: _buyQtyCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) {
+                      final n = int.tryParse(v ?? '');
+                      if (n == null || n <= 0) return 'Enter ≥1';
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _SheetField(
+                    label: 'Free Qty *',
+                    hint: 'e.g. 1',
+                    controller: _freeQtyCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) {
+                      final n = int.tryParse(v ?? '');
+                      if (n == null || n <= 0) return 'Enter ≥1';
+                      return null;
+                    },
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+            ],
+
+            // ── Discount % (order / item types) ────────────────────────
+            if (_offerType != 'bogo') ...[
+              _SheetField(
+                label: _offerType == 'item'
+                    ? 'Discount % on this item *'
+                    : 'Discount % (optional)',
+                hint: 'e.g. 20',
+                controller: _discCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: _offerType == 'item'
+                    ? (v) {
+                        final n = double.tryParse(v ?? '');
+                        if (n == null || n <= 0 || n > 100) {
+                          return 'Enter 1–100';
+                        }
+                        return null;
+                      }
+                    : Validators.discountPct,
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // ── Title ──────────────────────────────────────────────────
             _SheetField(
               label: 'Offer Title *',
-              hint: 'e.g. 20% off on all biryanis',
+              hint: 'e.g. 20% off on Veg Biryani',
               controller: _titleCtrl,
               validator: Validators.offerTitle,
             ),
@@ -711,19 +843,8 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
               maxLines: 2,
             ),
             const SizedBox(height: 12),
-            _SheetField(
-              label: 'Discount % (optional)',
-              hint: 'e.g. 15',
-              controller: _discCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-              ],
-              validator: Validators.discountPct,
-            ),
-            const SizedBox(height: 12),
 
-            // Date + time picker
+            // ── Valid until ────────────────────────────────────────────
             GestureDetector(
               onTap: _pickDateTime,
               child: Container(
@@ -798,7 +919,85 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
       ),
     );
   }
+
+  InputDecoration _dropdownDecor(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFEDE9FE))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFEDE9FE))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: _purple, width: 2)),
+      );
 }
+
+// ── Offer type segment control ─────────────────────────────────────────────────
+
+class _OfferTypeSelector extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  static const _types = [
+    ('order', Icons.shopping_cart_outlined, 'Whole Order'),
+    ('item', Icons.restaurant_menu, 'Specific Item'),
+    ('bogo', Icons.redeem, 'Buy X Get Y'),
+  ];
+
+  const _OfferTypeSelector({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: _types.map((t) {
+        final selected = value == t.$1;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(t.$1),
+            child: Container(
+              margin: EdgeInsets.only(
+                  right: t.$1 == 'bogo' ? 0 : 8),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFF7C3AED)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: selected
+                        ? const Color(0xFF7C3AED)
+                        : const Color(0xFFEDE9FE)),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(t.$2,
+                    size: 18,
+                    color: selected ? Colors.white : const Color(0xFF6B7280)),
+                const SizedBox(height: 4),
+                Text(t.$3,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF6B7280))),
+              ]),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ── Sheet field ────────────────────────────────────────────────────────────────
 
 class _SheetField extends StatelessWidget {
   final String label;
