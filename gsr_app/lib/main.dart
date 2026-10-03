@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
+import 'services/route_observer.dart';
 import 'screens/splash_screen.dart';
 import 'screens/role_selector.dart';
 import 'screens/admin/login_screen.dart';
@@ -32,6 +33,7 @@ class BossBiteApp extends StatelessWidget {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
+      navigatorObservers: [appRouteObserver],
       initialRoute: '/',
       routes: {
         '/': (ctx) => const SplashScreen(),

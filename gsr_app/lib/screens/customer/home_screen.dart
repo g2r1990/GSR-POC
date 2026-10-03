@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../services/cart_service.dart';
 import '../../services/offer_service.dart';
+import '../../services/route_observer.dart';
 import 'cart_screen.dart';
 import 'order_status_screen.dart';
 import 'order_history_screen.dart';
@@ -20,7 +21,8 @@ class CustomerHomeScreen extends StatefulWidget {
   State<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
+class _CustomerHomeScreenState extends State<CustomerHomeScreen>
+    with RouteAware {
   static const _amber = Color(0xFFD97706);
 
   // Profile
@@ -73,7 +75,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) appRouteObserver.subscribe(this, route);
+  }
+
+  @override
+  void didPopNext() {
+    // Triggered whenever a route on top of home is popped (e.g. restaurant menu)
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     _offersTimer?.cancel();
     _pincodeCtrl.dispose();
     _foodQueryCtrl.dispose();
