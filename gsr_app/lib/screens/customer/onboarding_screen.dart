@@ -77,6 +77,16 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_area == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Area not detected. Tap Re-detect to enable location — it is required for registration.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final result = await ApiService.customerSendOtp(_phoneCtr.text.trim());
@@ -245,13 +255,13 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                   ],
                 ],
 
-                if (!_detecting && _district == null)
+                if (!_detecting && _area == null)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: Text(
-                      'Location not detected — you can enter pincode manually',
+                      'Area not detected — tap Re-detect to enable location (required for registration)',
                       style:
-                          TextStyle(fontSize: 12, color: Color(0xFFA8A29E)),
+                          TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
                     ),
                   ),
 

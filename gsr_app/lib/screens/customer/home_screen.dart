@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/cart_service.dart';
 import '../../services/offer_service.dart';
+import 'cart_screen.dart';
 import 'order_status_screen.dart';
 import 'order_history_screen.dart';
 import 'profile_screen.dart';
@@ -47,6 +50,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   late TextEditingController _pincodeCtrl;
   late TextEditingController _foodQueryCtrl;
   final ScrollController _scrollCtrl = ScrollController();
+  Timer? _offersTimer;
 
   @override
   void initState() {
@@ -55,6 +59,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     _foodQueryCtrl = TextEditingController();
     _foodQueryCtrl.addListener(() { if (mounted) setState(() {}); });
     _loadAll();
+    _offersTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _loadOffers();
+    });
   }
 
   List<Map<String, dynamic>> get _filteredRestaurants {
@@ -67,6 +74,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   @override
   void dispose() {
+    _offersTimer?.cancel();
     _pincodeCtrl.dispose();
     _foodQueryCtrl.dispose();
     _scrollCtrl.dispose();
@@ -319,7 +327,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: Stack(
+        children: [
+          RefreshIndicator(
         color: _amber,
         onRefresh: _loadAll,
         child: Scrollbar(
@@ -758,11 +768,78 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              SizedBox(height: CartService.itemCount > 0 ? 100 : 32),
             ],
           ),
         ),
         ), // Scrollbar
+          ), // RefreshIndicator
+          if (CartService.itemCount > 0)
+            Positioned(
+              bottom: 16, left: 16, right: 16,
+              child: _cartBar(),
+            ),
+        ], // Stack children
+      ), // Stack / body
+    );
+  }
+
+  Widget _cartBar() {
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CartScreen()),
+        );
+        if (mounted) setState(() {});
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: _amber,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(64),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(children: [
+          const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                '${CartService.itemCount} item${CartService.itemCount == 1 ? '' : 's'} in cart',
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+              ),
+              if (CartService.restaurantName != null)
+                Text(CartService.restaurantName!,
+                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                    overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+          Text(
+            '₹${CartService.total.toStringAsFixed(0)}',
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(51),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text('View Cart',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
+          ),
+        ]),
       ),
     );
   }

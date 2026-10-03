@@ -253,7 +253,6 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
           offer: offers[i],
           expired: true,
           formatDatetime: _formatDatetime,
-          onDelete: () => _delete(offers[i]['id'] as String),
           onRepost: () => _showAddSheet(initialData: offers[i]),
         ),
       ),
@@ -268,13 +267,13 @@ class _OfferCard extends StatelessWidget {
   final Map<String, dynamic> offer;
   final bool expired;
   final String Function(String?) formatDatetime;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   final VoidCallback? onRepost;
 
   const _OfferCard({
     required this.offer,
     required this.formatDatetime,
-    required this.onDelete,
+    this.onDelete,
     this.expired = false,
     this.onRepost,
   });
@@ -346,11 +345,12 @@ class _OfferCard extends StatelessWidget {
                 ],
               ]),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
-              onPressed: onDelete,
-              tooltip: 'Delete',
-            ),
+            if (onDelete != null)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
+                onPressed: onDelete,
+                tooltip: 'Delete',
+              ),
           ]),
           const SizedBox(height: 8),
           Wrap(spacing: 6, runSpacing: 4, children: [

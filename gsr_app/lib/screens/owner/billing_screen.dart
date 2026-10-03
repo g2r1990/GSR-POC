@@ -130,14 +130,8 @@ class _OwnerBillingScreenState extends State<OwnerBillingScreen> {
 
   // ── Computed values ──────────────────────────────────────────────────────────
 
-  double _itemSubtotal(Map<String, dynamic> order) {
-    final items = (order['items'] as List?) ?? [];
-    return items.fold(0.0, (sum, item) {
-      final price = (item['price'] as num?)?.toDouble() ?? 0;
-      final qty = (item['quantity'] as num?)?.toInt() ?? 1;
-      return sum + price * qty;
-    });
-  }
+  double _itemSubtotal(Map<String, dynamic> order) =>
+      (order['total'] as num?)?.toDouble() ?? 0.0;
 
   double get _totalSales {
     return _filtered.fold(0.0, (sum, o) {

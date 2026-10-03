@@ -154,7 +154,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFF374151))),
-                      trailing: const Text('1.0 · Sprint 8',
+                      trailing: const Text('1.0 · Sprint 9',
                           style: TextStyle(
                               fontSize: 13, color: Color(0xFF78716C))),
                       dense: true,
