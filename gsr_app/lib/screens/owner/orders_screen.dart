@@ -35,7 +35,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     'placed': 'New',
     'accepted': 'Accepted',
     'ready': 'Ready',
-    'out_for_delivery': 'Out',
+    'out_for_delivery': 'Out-for-Delivery',
     'delivered': 'Delivered',
     'cancelled': 'Cancelled',
   };
@@ -644,6 +644,28 @@ class _OrderCardState extends State<_OrderCard> {
             ),
           ),
 
+          // ── Always-visible advance button ─────────────────────────
+          if (nextSt != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _advance(id, nextSt),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF166534),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: Text(_nextLabel[status] ?? 'Advance',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ),
+
           // ── Expanded body ─────────────────────────────────────────
           if (_expanded) ...[
             // Items list
@@ -739,40 +761,25 @@ class _OrderCardState extends State<_OrderCard> {
               ]),
             ),
 
-            // Action buttons
-            if (nextSt != null || canCancel)
+            // Cancel button (inside expanded only — destructive action)
+            if (canCancel)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                child: Row(children: [
-                  if (canCancel) ...[
-                    OutlinedButton(
-                      onPressed: () => _cancel(id),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFDC2626),
-                        side: const BorderSide(color: Color(0xFFDC2626)),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('Cancel'),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _cancel(id),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      side: const BorderSide(color: Color(0xFFDC2626)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (nextSt != null)
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _advance(id, nextSt),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF166534),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(_nextLabel[status] ?? 'Advance'),
-                      ),
-                    ),
-                ]),
+                    child: const Text('Cancel Order'),
+                  ),
+                ),
               ),
-            if (nextSt == null && !canCancel)
+            if (!canCancel)
               const SizedBox(height: 12),
           ],
         ],

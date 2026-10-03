@@ -25,6 +25,9 @@ class Validators {
   static final _itemRe =
       RegExp(r"^[A-Za-z0-9\s.,\-'&()]{2,150}$");
 
+  static final _offerTitleRe =
+      RegExp(r"^[A-Za-z0-9\s.,\-'&()%·]{2,200}$");
+
   // ── Public validators ────────────────────────────────────────────────────────
 
   static String? personName(String? v) {
@@ -125,7 +128,14 @@ class Validators {
     return null;
   }
 
-  static String? offerTitle(String? v) => itemName(v);
+  static String? offerTitle(String? v) {
+    final s = v?.trim() ?? '';
+    if (s.isEmpty) return 'Required';
+    if (!_offerTitleRe.hasMatch(s)) {
+      return 'Only letters, numbers & basic punctuation allowed';
+    }
+    return null;
+  }
 
   static String? discountPct(String? v) {
     final s = v?.trim() ?? '';

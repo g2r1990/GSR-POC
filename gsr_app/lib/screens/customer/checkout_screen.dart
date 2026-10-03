@@ -56,9 +56,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           CartService.items.where((i) => i.itemId == mid).toList();
       if (matched.isEmpty) return 0;
       final item = matched.first;
-      final sets = item.qty ~/ buyQty;
-      final freeCount = sets * OfferService.freeQty;
-      return double.parse((freeCount * item.price).toStringAsFixed(2));
+      // Discount is fixed: freeQty items free regardless of how many more are added
+      if (item.qty < buyQty) return 0;
+      return double.parse(
+          (OfferService.freeQty * item.price).toStringAsFixed(2));
     }
     // 'order': discount on entire item total
     return double.parse(
@@ -163,6 +164,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() { _placing = true; _error = null; });
 
     try {
+      // Capture totals before clearing cart/offer (getters read CartService)
+      final gstAmount = _gst;
+
       final result = await ApiService.placeOrder({
         'restaurant_id': CartService.restaurantId,
         'customer_name': _nameCtr.text.trim(),
@@ -190,7 +194,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             shortId: shortId,
             total: (result['total'] as num).toDouble(),
             deliveryFee: _deliveryFee,
-            gst: _gst,
+            gst: gstAmount,
           ),
         ),
         (r) => r.isFirst,
