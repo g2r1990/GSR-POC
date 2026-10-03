@@ -129,7 +129,7 @@ class OrderConfirmScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 TextButton(
                   onPressed: () => Navigator.of(context)
-                      .pushNamedAndRemoveUntil('/', (_) => false),
+                      .pushNamedAndRemoveUntil('/customer/home', (_) => false),
                   child: const Text('Back to Home',
                       style: TextStyle(color: Color(0xFF78716C))),
                 ),

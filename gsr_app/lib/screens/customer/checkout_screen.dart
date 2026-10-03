@@ -113,10 +113,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (mounted) _addressCtr.text = savedAddress;
     } else {
       // Compose a basic address from stored location data
+      final area = prefs.getString('customer_area') ?? '';
       final district = prefs.getString('customer_district') ?? '';
       final state = prefs.getString('customer_state') ?? '';
       final pincode = prefs.getString('customer_pincode') ?? '';
-      final parts = [district, state, pincode].where((s) => s.isNotEmpty).toList();
+      final parts = [area, district, state, pincode].where((s) => s.isNotEmpty).toList();
       if (parts.isNotEmpty && mounted) _addressCtr.text = parts.join(', ');
       // Then try GPS for a more precise address
       _detectAddress();

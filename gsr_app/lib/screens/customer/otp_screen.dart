@@ -11,6 +11,7 @@ class CustomerOtpScreen extends StatefulWidget {
   final String? district;
   final String? state;
   final String? country;
+  final String? area;
   final String? devOtp;
 
   const CustomerOtpScreen({
@@ -21,6 +22,7 @@ class CustomerOtpScreen extends StatefulWidget {
     this.district,
     this.state,
     this.country,
+    this.area,
     this.devOtp,
   });
 
@@ -108,6 +110,9 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
       }
       if (widget.country != null) {
         await prefs.setString('customer_country', widget.country!);
+      }
+      if (widget.area != null) {
+        await prefs.setString('customer_area', widget.area!);
       }
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/customer/home');

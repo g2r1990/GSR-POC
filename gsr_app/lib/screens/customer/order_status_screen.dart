@@ -334,17 +334,25 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                     ]),
                   ),
                 const Divider(height: 16),
-                Row(
+                Builder(builder: (_) {
+                  final _items = (_order!['items'] as List<dynamic>? ?? []);
+                  final _sub = _items.fold(0.0, (s, item) =>
+                      s + ((item['subtotal'] as num?)?.toDouble() ?? 0.0));
+                  final _gst = double.parse((_sub * 0.05).toStringAsFixed(2));
+                  final _grand = _sub + 20.0 + _gst;
+                  return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Total',
                           style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('₹${widget.total.toStringAsFixed(0)}',
+                      Text('₹${_grand.toStringAsFixed(0)}',
                           style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: _amber)),
-                    ]),
+                    ],
+                  );
+                }),
               ]),
             ),
           ],
@@ -355,7 +363,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
             height: 50,
             child: OutlinedButton(
               onPressed: () => Navigator.of(context)
-                  .pushNamedAndRemoveUntil('/', (_) => false),
+                  .pushNamedAndRemoveUntil('/customer/home', (_) => false),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _amber,
                 side: const BorderSide(color: _amber),

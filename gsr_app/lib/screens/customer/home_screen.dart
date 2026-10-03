@@ -52,7 +52,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     super.initState();
     _pincodeCtrl = TextEditingController();
     _foodQueryCtrl = TextEditingController();
+    _foodQueryCtrl.addListener(() { if (mounted) setState(() {}); });
     _loadAll();
+  }
+
+  List<Map<String, dynamic>> get _filteredRestaurants {
+    final q = _foodQueryCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return _nearbyRestaurants;
+    return _nearbyRestaurants
+        .where((r) => (r['name'] as String? ?? '').toLowerCase().contains(q))
+        .toList();
   }
 
   @override
@@ -615,6 +624,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1C1917))),
                     ),
+                    if (_nearbyRestaurants.length > 5)
+                      GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RestaurantListScreen(
+                              pincode: _pincode,
+                              restaurants: _nearbyRestaurants,
+                            ),
+                          ),
+                        ),
+                        child: const Text('View All',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: _amber,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    if (_nearbyRestaurants.length > 5) const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -633,7 +660,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ]),
                 ),
                 const SizedBox(height: 10),
-                for (final r in _nearbyRestaurants.take(3))
+                for (final r in _filteredRestaurants.take(5))
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                     child: _NearbyRestaurantTile(
@@ -649,76 +676,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       ),
                     ),
                   ),
-                if (_nearbyRestaurants.length > 3)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                    child: TextButton.icon(
-                      onPressed: _findRestaurants,
-                      icon: const Icon(Icons.storefront_outlined,
-                          size: 16, color: _amber),
-                      label: Text(
-                        'See all ${_nearbyRestaurants.length} restaurants →',
-                        style: const TextStyle(fontSize: 13, color: _amber),
-                      ),
-                    ),
-                  ),
               ],
 
-              // ── Recent order ────────────────────────────────────────
-              if (_recentOrder != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionHeader(
-                        title: 'Recent Order',
-                        action: 'View All',
-                        onAction: () async {
-                          await Navigator.pushNamed(context, '/customer/orders');
-                          _loadActiveOrder();
-                          _loadRecentOrder();
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _RecentOrderCard(
-                        order: _recentOrder!,
-                        onTrack: (id, shortId, total) async {
-                          await Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => OrderStatusScreen(
-                              orderId: id,
-                              shortId: shortId,
-                              total: total,
-                            ),
-                          ));
-                          _loadActiveOrder();
-                          _loadRecentOrder();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-              // ── Order history shortcut ───────────────────────────────
+              // ── My Orders ───────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _SectionHeader(
-                  title: 'Order History',
-                  action: 'See All',
-                  onAction: () async {
-                    await Navigator.pushNamed(context, '/customer/orders');
-                    _loadActiveOrder();
-                    _loadRecentOrder();
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                 child: GestureDetector(
                   onTap: () async {
                     await Navigator.pushNamed(context, '/customer/orders');
                     _loadActiveOrder();
-                    _loadRecentOrder();
                   },
                   child: Container(
                     width: double.infinity,
@@ -753,74 +719,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF1C1917))),
-                            Text('View all your past & active orders',
+                            Text('Track active & view order history',
                                 style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF78716C))),
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right,
-                          color: Color(0xFFD6D3D1)),
-                    ]),
-                  ),
-                ),
-              ),
-
-              // ── Profile shortcut ─────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: GestureDetector(
-                  onTap: () async {
-                    await Navigator.pushNamed(context, '/customer/profile');
-                    _loadAll();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withAlpha(13),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2))
-                      ],
-                    ),
-                    child: Row(children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.person_outline,
-                            color: _amber, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('My Profile',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1C1917))),
-                            Text(
-                                _name.isNotEmpty
-                                    ? '$_name  •  +91 $_phone'
-                                    : 'View and edit your profile',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF78716C)),
-                                overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right,
-                          color: Color(0xFFD6D3D1)),
+                      const Icon(Icons.chevron_right, color: _amber),
                     ]),
                   ),
                 ),

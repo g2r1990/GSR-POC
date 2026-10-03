@@ -12,8 +12,9 @@ class CustomerOrderHistoryScreen extends StatefulWidget {
 }
 
 class _CustomerOrderHistoryScreenState
-    extends State<CustomerOrderHistoryScreen> {
+    extends State<CustomerOrderHistoryScreen> with SingleTickerProviderStateMixin {
   static const _amber = Color(0xFFD97706);
+  late TabController _tabCtrl;
 
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
@@ -23,7 +24,14 @@ class _CustomerOrderHistoryScreenState
   @override
   void initState() {
     super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -62,14 +70,29 @@ class _CustomerOrderHistoryScreenState
             onPressed: _load,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabCtrl,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          tabs: const [
+            Tab(text: 'Active Orders'),
+            Tab(text: 'History'),
+          ],
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _amber))
           : _error != null
               ? _errorView()
-              : _orders.isEmpty
-                  ? _emptyView()
-                  : _listView(),
+              : TabBarView(
+                  controller: _tabCtrl,
+                  children: [
+                    _tabView(active: true),
+                    _tabView(active: false),
+                  ],
+                ),
     );
   }
 
@@ -93,75 +116,46 @@ class _CustomerOrderHistoryScreenState
         ),
       );
 
-  Widget _emptyView() => Center(
+  Widget _tabView({required bool active}) {
+    final filtered = _orders.where((o) {
+      final isDone = o['status'] == 'delivered' || o['status'] == 'cancelled';
+      return active ? !isDone : isDone;
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.receipt_long_outlined,
-                size: 72, color: Color(0xFFD6D3D1)),
+            const Icon(Icons.receipt_long_outlined, size: 72, color: Color(0xFFD6D3D1)),
             const SizedBox(height: 16),
-            const Text('No Orders Yet',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1C1917))),
+            Text(
+              active ? 'No Active Orders' : 'No Order History',
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1C1917)),
+            ),
             const SizedBox(height: 8),
-            const Text(
-              'Your order history will appear here once you place your first order.',
+            Text(
+              active
+                  ? 'Your active orders will appear here.'
+                  : 'Completed and cancelled orders will appear here.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF78716C)),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF78716C)),
             ),
           ]),
         ),
       );
-
-  Widget _listView() {
-    // Separate active (not delivered/cancelled) vs past
-    final active = _orders
-        .where((o) =>
-            o['status'] != 'delivered' && o['status'] != 'cancelled')
-        .toList();
-    final past = _orders
-        .where((o) =>
-            o['status'] == 'delivered' || o['status'] == 'cancelled')
-        .toList();
+    }
 
     return RefreshIndicator(
       color: _amber,
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(16),
-        children: [
-          if (active.isNotEmpty) ...[
-            _SectionLabel('Active Orders'),
-            const SizedBox(height: 10),
-            ...active.map((o) => _OrderCard(order: o, mobile: _mobile)),
-            const SizedBox(height: 20),
-          ],
-          if (past.isNotEmpty) ...[
-            _SectionLabel('Past Orders'),
-            const SizedBox(height: 10),
-            ...past.map((o) => _OrderCard(order: o, mobile: _mobile)),
-          ],
-        ],
+        children: filtered.map((o) => _OrderCard(order: o, mobile: _mobile)).toList(),
       ),
     );
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) => Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF92400E),
-            letterSpacing: 0.8),
-      );
 }
 
 class _OrderCard extends StatefulWidget {

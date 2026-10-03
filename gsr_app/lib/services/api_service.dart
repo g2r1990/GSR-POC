@@ -434,11 +434,15 @@ class ApiService {
             addr['state_district'] as String? ??
             addr['city'] as String? ??
             addr['town'] as String?;
+        final area = addr['suburb'] as String? ??
+            addr['neighbourhood'] as String? ??
+            addr['quarter'] as String?;
         return {
           'pincode': addr['postcode'] as String?,
           'district': district,
           'state': addr['state'] as String?,
           'country': addr['country'] as String?,
+          'area': area,
         };
       }
     } catch (_) {}
