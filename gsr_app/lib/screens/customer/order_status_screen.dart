@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
@@ -103,15 +104,23 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     } catch (_) {}
   }
 
+  Future<void> _removeFromActiveOrders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('active_orders') ?? '[]';
+      final List<dynamic> list = jsonDecode(raw);
+      final updated = list.where((e) => (e as Map)['order_id'] != widget.orderId).toList();
+      await prefs.setString('active_orders', jsonEncode(updated));
+    } catch (_) {}
+  }
+
   Future<void> _cancelOrder() async {
     setState(() => _cancelling = true);
     try {
       await ApiService.cancelOrder(widget.orderId);
       _cancelTimer?.cancel();
       if (mounted) setState(() { _status = 'cancelled'; _cancelSecondsLeft = 0; });
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('active_order_id');
-      await prefs.remove('active_order_short_id');
+      _removeFromActiveOrders();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,9 +154,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         if (_status == 'delivered' || _status == 'cancelled') {
           _timer?.cancel();
           _cancelTimer?.cancel();
-          SharedPreferences.getInstance().then(
-            (p) => p..remove('active_order_id')..remove('active_order_short_id'),
-          );
+          _removeFromActiveOrders();
         }
       }
     } catch (_) {

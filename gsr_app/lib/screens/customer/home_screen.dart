@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -31,9 +32,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   String _pincode = '';
   String _district = '';
 
-  // Active order
-  String? _activeOrderId;
-  String? _activeOrderShortId;
+  // Active orders (list — one banner per order)
+  List<Map<String, String>> _activeOrders = [];
 
   // Recent order
   Map<String, dynamic>? _recentOrder;
@@ -100,13 +100,32 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   Future<void> _loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+
+    // Read active orders list; migrate from legacy single-key format if needed
+    final activeRaw = prefs.getString('active_orders') ?? '[]';
+    List<dynamic> decoded;
+    try { decoded = jsonDecode(activeRaw) as List<dynamic>; } catch (_) { decoded = []; }
+    if (decoded.isEmpty) {
+      final oldId = prefs.getString('active_order_id');
+      final oldShortId = prefs.getString('active_order_short_id');
+      if (oldId != null) {
+        decoded = [{'order_id': oldId, 'short_id': oldShortId ?? ''}];
+        await prefs.setString('active_orders', jsonEncode(decoded));
+        await prefs.remove('active_order_id');
+        await prefs.remove('active_order_short_id');
+      }
+    }
+    final activeOrders = decoded
+        .map((e) => Map<String, String>.from(e as Map))
+        .toList();
+
+    if (!mounted) return;
     setState(() {
       _name = prefs.getString('customer_name') ?? '';
       _phone = prefs.getString('customer_phone') ?? '';
       _pincode = prefs.getString('customer_pincode') ?? '';
       _district = prefs.getString('customer_district') ?? '';
-      _activeOrderId = prefs.getString('active_order_id');
-      _activeOrderShortId = prefs.getString('active_order_short_id');
+      _activeOrders = activeOrders;
       _pincodeCtrl.text = _pincode;
     });
     _loadRecentOrder();
@@ -124,14 +143,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     } catch (_) {}
   }
 
-  Future<void> _loadActiveOrder() async {
+  Future<void> _loadActiveOrders() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _activeOrderId = prefs.getString('active_order_id');
-        _activeOrderShortId = prefs.getString('active_order_short_id');
-      });
-    }
+    if (!mounted) return;
+    final raw = prefs.getString('active_orders') ?? '[]';
+    List<dynamic> decoded;
+    try { decoded = jsonDecode(raw) as List<dynamic>; } catch (_) { decoded = []; }
+    setState(() {
+      _activeOrders = decoded
+          .map((e) => Map<String, String>.from(e as Map))
+          .toList();
+    });
   }
 
   Future<void> _loadRestaurantCount() async {
@@ -317,7 +339,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             tooltip: 'My Orders',
             onPressed: () async {
               await Navigator.pushNamed(context, '/customer/orders');
-              _loadActiveOrder();
+              _loadActiveOrders();
               _loadRecentOrder();
             },
           ),
@@ -388,56 +410,64 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                 ),
               ),
 
-              // ── Active order banner ──────────────────────────────────
-              if (_activeOrderId != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: GestureDetector(
-                    onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => OrderStatusScreen(
-                          orderId: _activeOrderId!,
-                          shortId: _activeOrderShortId ?? '',
-                          total: 0,
+              // ── Active orders banners (one per active order) ─────────
+              if (_activeOrders.isNotEmpty)
+                ...List.generate(_activeOrders.length, (i) {
+                  final order = _activeOrders[i];
+                  final orderId = order['order_id'] ?? '';
+                  final shortId = order['short_id'] ?? '';
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(16, i == 0 ? 12 : 6, 16, 0),
+                    child: GestureDetector(
+                      onTap: () async {
+                        await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => OrderStatusScreen(
+                            orderId: orderId,
+                            shortId: shortId,
+                            total: 0,
+                          ),
+                        ));
+                        _loadActiveOrders();
+                        _loadRecentOrder();
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: _amber, width: 1.5),
                         ),
-                      ));
-                      _loadActiveOrder();
-                      _loadRecentOrder();
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: _amber, width: 1.5),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      child: Row(children: [
-                        const Icon(Icons.delivery_dining,
-                            color: _amber, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Order in Progress',
-                                  style: TextStyle(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        child: Row(children: [
+                          const Icon(Icons.delivery_dining,
+                              color: _amber, size: 28),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _activeOrders.length > 1
+                                      ? 'Order ${i + 1} in Progress'
+                                      : 'Order in Progress',
+                                  style: const TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF92400E))),
-                              Text(
-                                  'Tap to track  #${_activeOrderShortId ?? ''}',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFFB45309))),
-                            ],
+                                Text(
+                                    'Tap to track  #$shortId',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFFB45309))),
+                              ],
+                            ),
                           ),
-                        ),
-                        const Icon(Icons.chevron_right, color: _amber),
-                      ]),
+                          const Icon(Icons.chevron_right, color: _amber),
+                        ]),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
 
               // ── Food search card ─────────────────────────────────────
               Padding(
@@ -743,7 +773,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                 child: GestureDetector(
                   onTap: () async {
                     await Navigator.pushNamed(context, '/customer/orders');
-                    _loadActiveOrder();
+                    _loadActiveOrders();
                   },
                   child: Container(
                     width: double.infinity,

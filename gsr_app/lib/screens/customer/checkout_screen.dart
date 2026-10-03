@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -205,12 +206,15 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       CartService.clear();
       OfferService.clear();
 
-      // Persist active order so home screen can show "Track Order" banner
+      // Append to active orders list so home screen can track all active orders
       final orderId = result['order_id'] as String;
       final shortId = result['short_id'] as String;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('active_order_id', orderId);
-      await prefs.setString('active_order_short_id', shortId);
+      final existingRaw = prefs.getString('active_orders') ?? '[]';
+      List<dynamic> existingList;
+      try { existingList = jsonDecode(existingRaw) as List<dynamic>; } catch (_) { existingList = []; }
+      existingList.add({'order_id': orderId, 'short_id': shortId});
+      await prefs.setString('active_orders', jsonEncode(existingList));
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
