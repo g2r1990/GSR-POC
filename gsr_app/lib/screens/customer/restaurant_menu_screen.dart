@@ -25,11 +25,21 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
   bool _loading = true;
   String? _error;
   bool _offerItemAutoAdded = false;
+  final _scrollCtrl = ScrollController();
+  bool _showScrollHint = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final atBottom = _scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 16;
+    if (atBottom == _showScrollHint) setState(() => _showScrollHint = !atBottom);
   }
 
   Future<void> _load() async {
@@ -37,7 +47,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     try {
       final data = await ApiService.getRestaurantMenu(widget.restaurantId);
       if (mounted) {
-        setState(() { _data = data; _loading = false; });
+        setState(() { _data = data; _loading = false; _showScrollHint = true; });
         _autoAddOfferItem(data);
       }
     } on ApiException catch (e) {
@@ -106,6 +116,12 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     return '${OfferService.discountPct.toStringAsFixed(0)}% off on your order';
   }
 
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
   void _refreshCart() => setState(() {});
 
   @override
@@ -130,11 +146,35 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator(color: _amber))
-                : _error != null
-                    ? _errorState()
-                    : _body(cartCount),
+            child: Stack(
+              children: [
+                _loading
+                    ? const Center(child: CircularProgressIndicator(color: _amber))
+                    : _error != null
+                        ? _errorState()
+                        : _body(cartCount),
+                if (_showScrollHint)
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        height: 56,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0x00FFF7ED), Color(0xCCFFF7ED)],
+                          ),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.keyboard_arrow_down_rounded,
+                              color: Color(0xFFD97706), size: 28),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           if (cartCount > 0)
             SafeArea(
@@ -237,6 +277,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
       onRefresh: _load,
       color: _amber,
       child: CustomScrollView(
+        controller: _scrollCtrl,
         slivers: [
           if (offerApplied)
             SliverToBoxAdapter(
@@ -298,7 +339,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
               ),
             ),
           ],
-          SliverToBoxAdapter(child: SizedBox(height: 24)),
+          SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
