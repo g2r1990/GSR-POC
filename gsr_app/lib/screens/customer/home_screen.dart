@@ -9,7 +9,6 @@ import '../../services/cart_service.dart';
 import '../../services/offer_service.dart';
 import '../../services/route_observer.dart';
 import 'cart_screen.dart';
-import 'order_status_screen.dart';
 import 'order_history_screen.dart';
 import 'profile_screen.dart';
 import 'restaurant_list_screen.dart';
@@ -450,65 +449,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                 ),
               ),
 
-              // ── Active orders banners (one per active order) ─────────
-              if (_activeOrders.isNotEmpty)
-                ...List.generate(_activeOrders.length, (i) {
-                  final order = _activeOrders[i];
-                  final orderId = order['order_id'] ?? '';
-                  final shortId = order['short_id'] ?? '';
-                  return Padding(
-                    padding: EdgeInsets.fromLTRB(16, i == 0 ? 12 : 6, 16, 0),
-                    child: GestureDetector(
-                      onTap: () async {
-                        await Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => OrderStatusScreen(
-                            orderId: orderId,
-                            shortId: shortId,
-                            total: 0,
-                          ),
-                        ));
-                        _loadActiveOrders();
-                        _loadRecentOrder();
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: _amber, width: 1.5),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        child: Row(children: [
-                          const Icon(Icons.delivery_dining,
-                              color: _amber, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _activeOrders.length > 1
-                                      ? 'Order ${i + 1} in Progress'
-                                      : 'Order in Progress',
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF92400E))),
-                                Text(
-                                    'Tap to track  #$shortId',
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFFB45309))),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: _amber),
-                        ]),
-                      ),
-                    ),
-                  );
-                }),
-
               // ── Food search card ─────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -829,29 +769,60 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                       ],
                     ),
                     child: Row(children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.receipt_long_outlined,
-                            color: _amber, size: 22),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.receipt_long_outlined,
+                                color: _amber, size: 22),
+                          ),
+                          if (_activeOrders.isNotEmpty)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDC2626),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_activeOrders.length}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('My Orders',
+                            const Text('My Orders',
                                 style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF1C1917))),
-                            Text('Track active & view order history',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF78716C))),
+                            Text(
+                              _activeOrders.isNotEmpty
+                                  ? '${_activeOrders.length} active order${_activeOrders.length == 1 ? '' : 's'} — tap to track'
+                                  : 'Track active & view order history',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: _activeOrders.isNotEmpty
+                                      ? const Color(0xFFD97706)
+                                      : const Color(0xFF78716C)),
+                            ),
                           ],
                         ),
                       ),

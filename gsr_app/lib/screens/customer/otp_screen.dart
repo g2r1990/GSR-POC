@@ -115,8 +115,8 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
       if (savedEmail.isNotEmpty) {
         await prefs.setString('customer_email', savedEmail);
       }
-      // For login (existing user), skip overwriting location prefs with empty form values
-      if (!widget.isLogin) {
+      // Always save location prefs when auto-detected data is available
+      {
         if (widget.pincode.isNotEmpty) {
           await prefs.setString('customer_pincode', widget.pincode);
         }

@@ -296,7 +296,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
             ),
           ],
           const SliverToBoxAdapter(
-            child: SizedBox(height: 24),
+            child: SizedBox(height: 80),
           ),
         ],
       ),
