@@ -127,8 +127,17 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      bottomNavigationBar: cartCount > 0
-          ? SafeArea(
+      body: Column(
+        children: [
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _amber))
+                : _error != null
+                    ? _errorState()
+                    : _body(cartCount),
+          ),
+          if (cartCount > 0)
+            SafeArea(
               top: false,
               child: GestureDetector(
                 onTap: () async {
@@ -177,14 +186,9 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
                   ]),
                 ),
               ),
-            )
-          : null,
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: _amber))
-          : _error != null
-              ? _errorState()
-              : _body(cartCount),
+            ),
+        ],
+      ),
     );
   }
 
@@ -294,9 +298,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
               ),
             ),
           ],
-          SliverToBoxAdapter(
-            child: SizedBox(height: cartCount > 0 ? 200 : 80),
-          ),
+          SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
