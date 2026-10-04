@@ -96,7 +96,7 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
     setState(() { _verifying = true; _error = null; });
     try {
       final deviceId = await ApiService.getOrCreateDeviceId();
-      await ApiService.customerVerifyOtp(widget.mobile, otp, deviceId);
+      await ApiService.customerVerifyOtp(widget.mobile, otp, deviceId, email: widget.email);
       // Verified — save profile to device
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('customer_name', widget.name);

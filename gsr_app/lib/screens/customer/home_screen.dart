@@ -53,6 +53,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   late TextEditingController _foodQueryCtrl;
   final ScrollController _scrollCtrl = ScrollController();
   Timer? _offersTimer;
+  Timer? _activeOrdersTimer;
 
   @override
   void initState() {
@@ -63,6 +64,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _loadAll();
     _offersTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       if (mounted) _loadOffers();
+    });
+    _activeOrdersTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _pollActiveOrders();
     });
   }
 
@@ -83,7 +87,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
 
   @override
   void didPopNext() {
-    // Triggered whenever a route on top of home is popped (e.g. restaurant menu)
+    if (mounted) _loadActiveOrders();
     if (mounted) setState(() {});
   }
 
@@ -91,6 +95,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   void dispose() {
     appRouteObserver.unsubscribe(this);
     _offersTimer?.cancel();
+    _activeOrdersTimer?.cancel();
     _pincodeCtrl.dispose();
     _foodQueryCtrl.dispose();
     _scrollCtrl.dispose();
@@ -154,6 +159,41 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
           .map((e) => Map<String, String>.from(e as Map))
           .toList();
     });
+  }
+
+  Future<void> _pollActiveOrders() async {
+    if (!mounted || _activeOrders.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('active_orders') ?? '[]';
+    List<dynamic> list;
+    try { list = jsonDecode(raw) as List<dynamic>; } catch (_) { return; }
+
+    bool changed = false;
+    final remaining = <Map<String, dynamic>>[];
+    for (final entry in list) {
+      final orderId = (entry as Map)['order_id'] as String? ?? '';
+      if (orderId.isEmpty) continue;
+      try {
+        final data = await ApiService.getOrderStatus(orderId);
+        final status = data['status'] as String? ?? '';
+        if (status == 'delivered' || status == 'cancelled') {
+          changed = true;
+        } else {
+          remaining.add(Map<String, dynamic>.from(entry));
+        }
+      } catch (_) {
+        remaining.add(Map<String, dynamic>.from(entry));
+      }
+    }
+
+    if (changed && mounted) {
+      await prefs.setString('active_orders', jsonEncode(remaining));
+      setState(() {
+        _activeOrders = remaining
+            .map((e) => Map<String, String>.from(e))
+            .toList();
+      });
+    }
   }
 
   Future<void> _loadRestaurantCount() async {

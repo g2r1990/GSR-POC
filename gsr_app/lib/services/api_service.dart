@@ -331,11 +331,17 @@ class ApiService {
   }
 
   static Future<void> customerVerifyOtp(
-      String mobile, String otp, String deviceId) async {
-    final res = await http
-        .post(Uri.parse(
-            '$_base/customer/verify-otp?mobile=$mobile&otp=$otp&device_id=$deviceId'))
-        .timeout(const Duration(seconds: 15));
+      String mobile, String otp, String deviceId, {String email = ''}) async {
+    final uri = Uri.parse(_base).replace(
+      path: '/customer/verify-otp',
+      queryParameters: {
+        'mobile': mobile,
+        'otp': otp,
+        'device_id': deviceId,
+        if (email.isNotEmpty) 'email': email,
+      },
+    );
+    final res = await http.post(uri).timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) return;
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     throw ApiException(body['detail']?.toString() ?? 'Invalid OTP');

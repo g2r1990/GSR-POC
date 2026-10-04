@@ -225,6 +225,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             total: (result['total'] as num).toDouble(),
             deliveryFee: _deliveryFee,
             gst: gstAmount,
+            createdAt: result['created_at'] as String?,
           ),
         ),
         (r) => r.isFirst,

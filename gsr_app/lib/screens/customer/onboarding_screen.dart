@@ -194,7 +194,14 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                   keyboardType: TextInputType.phone,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   maxLength: 10,
-                  decoration: _inputDec('10-digit number').copyWith(counterText: ''),
+                  decoration: _inputDec('10-digit number').copyWith(
+                    counterText: '',
+                    prefixText: _country == 'India' ? '+91 ' : null,
+                    prefixStyle: const TextStyle(
+                        color: Color(0xFF374151),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500),
+                  ),
                   validator: Validators.mobile,
                 ),
 

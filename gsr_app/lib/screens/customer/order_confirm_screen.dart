@@ -9,6 +9,7 @@ class OrderConfirmScreen extends StatefulWidget {
   final double total;
   final double deliveryFee;
   final double gst;
+  final String? createdAt;
 
   const OrderConfirmScreen({
     super.key,
@@ -17,6 +18,7 @@ class OrderConfirmScreen extends StatefulWidget {
     required this.total,
     this.deliveryFee = 20.0,
     this.gst = 0.0,
+    this.createdAt,
   });
 
   @override
@@ -36,13 +38,27 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    _cancelTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) { t.cancel(); return; }
-      setState(() {
-        _cancelSecondsLeft--;
-        if (_cancelSecondsLeft <= 0) { _cancelSecondsLeft = 0; t.cancel(); }
+    // Compute remaining seconds from server's created_at so timer matches owner screen
+    if (widget.createdAt != null) {
+      try {
+        final raw = widget.createdAt!;
+        final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
+        final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
+        final remaining = 60 - elapsed;
+        _cancelSecondsLeft = remaining > 0 ? remaining : 0;
+      } catch (_) {
+        _cancelSecondsLeft = 60;
+      }
+    }
+    if (_cancelSecondsLeft > 0) {
+      _cancelTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) { t.cancel(); return; }
+        setState(() {
+          _cancelSecondsLeft--;
+          if (_cancelSecondsLeft <= 0) { _cancelSecondsLeft = 0; t.cancel(); }
+        });
       });
-    });
+    }
   }
 
   @override
@@ -104,9 +120,12 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1C1917))),
               const SizedBox(height: 8),
-              const Text('Your order has been sent to the restaurant.',
+              Text(
+                  _cancelSecondsLeft > 0
+                      ? 'Order is in queue — waiting for restaurant to confirm'
+                      : 'Your order has been placed',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Color(0xFF78716C))),
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF78716C))),
               const SizedBox(height: 28),
               Container(
                 padding: const EdgeInsets.all(20),
