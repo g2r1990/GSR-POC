@@ -28,7 +28,7 @@ class _CustomerOrderHistoryScreenState
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _loadSilent();
     });
   }

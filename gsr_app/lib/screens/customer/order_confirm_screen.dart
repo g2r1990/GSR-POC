@@ -28,7 +28,7 @@ class OrderConfirmScreen extends StatefulWidget {
 class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
   static const _amber = Color(0xFFD97706);
 
-  int _cancelSecondsLeft = 60;
+  int _cancelSecondsLeft = 30;
   Timer? _cancelTimer;
   bool _cancelling = false;
   bool _cancelled = false;
@@ -44,7 +44,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
         final raw = widget.createdAt!;
         final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
         final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
-        final remaining = 60 - elapsed;
+        final remaining = 30 - elapsed;
         _cancelSecondsLeft = remaining > 0 ? remaining : 0;
       } catch (_) {
         _cancelSecondsLeft = 60;
@@ -107,15 +107,25 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDCFCE7),
+                  color: _cancelSecondsLeft > 0
+                      ? const Color(0xFFFEF3C7)
+                      : const Color(0xFFDCFCE7),
                   borderRadius: BorderRadius.circular(40),
                 ),
-                child: const Icon(Icons.check_circle_outline,
-                    size: 48, color: Color(0xFF166534)),
+                child: Icon(
+                  _cancelSecondsLeft > 0
+                      ? Icons.hourglass_top_rounded
+                      : Icons.check_circle_outline,
+                  size: 48,
+                  color: _cancelSecondsLeft > 0
+                      ? const Color(0xFFD97706)
+                      : const Color(0xFF166534),
+                ),
               ),
               const SizedBox(height: 24),
-              const Text('Order Placed!',
-                  style: TextStyle(
+              Text(
+                  _cancelSecondsLeft > 0 ? 'Order in Queue' : 'Order Placed!',
+                  style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1C1917))),
@@ -123,7 +133,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
               Text(
                   _cancelSecondsLeft > 0
                       ? 'Order is in queue — waiting for restaurant to confirm'
-                      : 'Your order has been placed',
+                      : 'Your order has been confirmed',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 14, color: Color(0xFF78716C))),
               const SizedBox(height: 28),

@@ -184,7 +184,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
               child: CircularProgressIndicator(color: _amber))
           : _error != null
               ? _errorState()
-              : _body(),
+              : _body(cartCount),
     );
   }
 
@@ -218,7 +218,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     );
   }
 
-  Widget _body() {
+  Widget _body(int cartCount) {
     final restaurant = _data!['restaurant'] as Map<String, dynamic>;
     final menuRaw = _data!['menu'] as Map<String, dynamic>;
 
@@ -229,8 +229,6 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     final categories = menuRaw.keys.toList()..sort();
     final offerApplied = OfferService.hasOffer &&
         OfferService.restaurantId == widget.restaurantId;
-    final cartCount = CartService.itemCount;
-
     return RefreshIndicator(
       onRefresh: _load,
       color: _amber,
@@ -297,7 +295,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
             ),
           ],
           SliverToBoxAdapter(
-            child: SizedBox(height: cartCount > 0 ? 160 : 80),
+            child: SizedBox(height: cartCount > 0 ? 200 : 80),
           ),
         ],
       ),

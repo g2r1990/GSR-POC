@@ -404,15 +404,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
           ),
         ],
       ),
-      bottomNavigationBar: CartService.itemCount > 0
-          ? SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: _cartBar(),
-              ),
-            )
-          : null,
       body: RefreshIndicator(
         color: _amber,
         onRefresh: _loadAll,
