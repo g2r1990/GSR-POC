@@ -435,6 +435,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
           return Padding(
             padding: const EdgeInsets.only(top: 12),
             child: _OrderCard(
+              key: ValueKey(orders[i - 1]['id']),
               order: orders[i - 1],
               onStatusChanged: _load,
             ),
@@ -478,7 +479,7 @@ class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final VoidCallback onStatusChanged;
 
-  const _OrderCard({required this.order, required this.onStatusChanged});
+  const _OrderCard({super.key, required this.order, required this.onStatusChanged});
 
   @override
   State<_OrderCard> createState() => _OrderCardState();

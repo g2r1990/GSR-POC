@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
+import 'services/cart_service.dart';
 import 'services/route_observer.dart';
 import 'screens/splash_screen.dart';
 import 'screens/role_selector.dart';
@@ -14,7 +15,9 @@ import 'screens/customer/onboarding_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/customer/order_history_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await CartService.load();
   runApp(const BossBiteApp());
 }
 

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
 class CartItem {
   final String itemId;
   final String name;
@@ -12,10 +15,28 @@ class CartItem {
     required this.price,
     this.qty = 1,
   });
+
+  Map<String, dynamic> toJson() => {
+    'itemId': itemId,
+    'name': name,
+    'category': category,
+    'price': price,
+    'qty': qty,
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> j) => CartItem(
+    itemId: j['itemId'] as String,
+    name: j['name'] as String,
+    category: j['category'] as String,
+    price: (j['price'] as num).toDouble(),
+    qty: j['qty'] as int,
+  );
 }
 
 class CartService {
   CartService._();
+
+  static const _kKey = 'cart_data';
 
   static String? _restaurantId;
   static String? _restaurantName;
@@ -29,6 +50,36 @@ class CartService {
 
   static int qtyFor(String itemId) =>
       _items.where((i) => i.itemId == itemId).fold(0, (s, i) => s + i.qty);
+
+  static Future<void> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kKey);
+      if (raw == null) return;
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      _restaurantId = json['restaurantId'] as String?;
+      _restaurantName = json['restaurantName'] as String?;
+      _items.clear();
+      for (final item in (json['items'] as List<dynamic>? ?? [])) {
+        _items.add(CartItem.fromJson(item as Map<String, dynamic>));
+      }
+    } catch (_) {}
+  }
+
+  static Future<void> _save() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_items.isEmpty) {
+        await prefs.remove(_kKey);
+        return;
+      }
+      await prefs.setString(_kKey, jsonEncode({
+        'restaurantId': _restaurantId,
+        'restaurantName': _restaurantName,
+        'items': _items.map((i) => i.toJson()).toList(),
+      }));
+    } catch (_) {}
+  }
 
   static void add(
     String restaurantId,
@@ -55,6 +106,7 @@ class CartService {
         price: price,
       ));
     }
+    _save();
   }
 
   static void remove(String itemId) {
@@ -66,12 +118,14 @@ class CartService {
       _items.removeAt(idx);
     }
     if (_items.isEmpty) _restaurantId = null;
+    _save();
   }
 
   static void clear() {
     _items.clear();
     _restaurantId = null;
     _restaurantName = null;
+    _save();
   }
 
   static List<Map<String, dynamic>> toOrderItems() => _items
