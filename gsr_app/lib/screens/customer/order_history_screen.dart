@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
@@ -20,18 +21,33 @@ class _CustomerOrderHistoryScreenState
   bool _loading = true;
   String? _error;
   String _mobile = '';
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _load();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _loadSilent();
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSilent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final mobile = prefs.getString('customer_phone') ?? '';
+    if (mobile.isEmpty) return;
+    try {
+      final orders = await ApiService.customerOrderHistory(mobile);
+      if (mounted) setState(() { _orders = orders; });
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -152,7 +168,7 @@ class _CustomerOrderHistoryScreenState
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(16),
-        children: filtered.map((o) => _OrderCard(order: o, mobile: _mobile)).toList(),
+        children: filtered.map((o) => _OrderCard(order: o, mobile: _mobile, onRefresh: _load)).toList(),
       ),
     );
   }
@@ -161,7 +177,8 @@ class _CustomerOrderHistoryScreenState
 class _OrderCard extends StatefulWidget {
   final Map<String, dynamic> order;
   final String mobile;
-  const _OrderCard({required this.order, required this.mobile});
+  final VoidCallback? onRefresh;
+  const _OrderCard({required this.order, required this.mobile, this.onRefresh});
 
   @override
   State<_OrderCard> createState() => _OrderCardState();
@@ -245,13 +262,16 @@ class _OrderCardState extends State<_OrderCard> {
           children: [
             // Header row: order id + status badge
             GestureDetector(
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => OrderStatusScreen(
-                  orderId: order['order_id'] as String,
-                  shortId: shortId,
-                  total: total,
-                ),
-              )),
+              onTap: () async {
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => OrderStatusScreen(
+                    orderId: order['order_id'] as String,
+                    shortId: shortId,
+                    total: total,
+                  ),
+                ));
+                widget.onRefresh?.call();
+              },
               child: Row(children: [
                 Text('#$shortId',
                     style: const TextStyle(
@@ -359,13 +379,16 @@ class _OrderCardState extends State<_OrderCard> {
                 width: double.infinity,
                 height: 36,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => OrderStatusScreen(
-                      orderId: order['order_id'] as String,
-                      shortId: shortId,
-                      total: total,
-                    ),
-                  )),
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => OrderStatusScreen(
+                        orderId: order['order_id'] as String,
+                        shortId: shortId,
+                        total: total,
+                      ),
+                    ));
+                    widget.onRefresh?.call();
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _amber,
                     foregroundColor: Colors.white,

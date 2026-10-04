@@ -229,6 +229,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
     final categories = menuRaw.keys.toList()..sort();
     final offerApplied = OfferService.hasOffer &&
         OfferService.restaurantId == widget.restaurantId;
+    final cartCount = CartService.itemCount;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -295,8 +296,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
               ),
             ),
           ],
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 80),
+          SliverToBoxAdapter(
+            child: SizedBox(height: cartCount > 0 ? 160 : 80),
           ),
         ],
       ),

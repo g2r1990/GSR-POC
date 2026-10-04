@@ -18,6 +18,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   String? _error;
   String _statusFilter = '';
   String _dateFilter = 'today';
+  Timer? _refreshTimer;
   DateTime? _customStart;
   DateTime? _customEnd;
 
@@ -105,6 +106,16 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   void initState() {
     super.initState();
     _load();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _loadSilent();
+    });
+  }
+
+  Future<void> _loadSilent() async {
+    try {
+      final data = await ApiService.getOwnerOrders();
+      if (mounted) setState(() { _allOrders = data; });
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -119,6 +130,12 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
         setState(() { _error = 'Could not load orders.'; _loading = false; });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   @override
