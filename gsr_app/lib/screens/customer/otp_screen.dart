@@ -14,6 +14,7 @@ class CustomerOtpScreen extends StatefulWidget {
   final String? country;
   final String? area;
   final String? devOtp;
+  final bool isLogin;
 
   const CustomerOtpScreen({
     super.key,
@@ -26,6 +27,7 @@ class CustomerOtpScreen extends StatefulWidget {
     this.country,
     this.area,
     this.devOtp,
+    this.isLogin = false,
   });
 
   @override
@@ -96,28 +98,40 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
     setState(() { _verifying = true; _error = null; });
     try {
       final deviceId = await ApiService.getOrCreateDeviceId();
-      await ApiService.customerVerifyOtp(widget.mobile, otp, deviceId, email: widget.email);
-      // Verified — save profile to device
+      final result = await ApiService.customerVerifyOtp(
+        widget.mobile, otp, deviceId,
+        email: widget.email,
+        name: widget.name,
+      );
+      // Server returns name/email — prefer server values (existing user may have stored data)
+      final serverName = (result['name'] as String? ?? '').trim();
+      final serverEmail = (result['email'] as String? ?? '').trim();
+      final savedName = serverName.isNotEmpty ? serverName : widget.name;
+      final savedEmail = serverEmail.isNotEmpty ? serverEmail : widget.email;
+
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('customer_name', widget.name);
+      await prefs.setString('customer_name', savedName);
       await prefs.setString('customer_phone', widget.mobile);
-      if (widget.email.isNotEmpty) {
-        await prefs.setString('customer_email', widget.email);
+      if (savedEmail.isNotEmpty) {
+        await prefs.setString('customer_email', savedEmail);
       }
-      if (widget.pincode.isNotEmpty) {
-        await prefs.setString('customer_pincode', widget.pincode);
-      }
-      if (widget.district != null) {
-        await prefs.setString('customer_district', widget.district!);
-      }
-      if (widget.state != null) {
-        await prefs.setString('customer_state', widget.state!);
-      }
-      if (widget.country != null) {
-        await prefs.setString('customer_country', widget.country!);
-      }
-      if (widget.area != null) {
-        await prefs.setString('customer_area', widget.area!);
+      // For login (existing user), skip overwriting location prefs with empty form values
+      if (!widget.isLogin) {
+        if (widget.pincode.isNotEmpty) {
+          await prefs.setString('customer_pincode', widget.pincode);
+        }
+        if (widget.district != null) {
+          await prefs.setString('customer_district', widget.district!);
+        }
+        if (widget.state != null) {
+          await prefs.setString('customer_state', widget.state!);
+        }
+        if (widget.country != null) {
+          await prefs.setString('customer_country', widget.country!);
+        }
+        if (widget.area != null) {
+          await prefs.setString('customer_area', widget.area!);
+        }
       }
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/customer/home');

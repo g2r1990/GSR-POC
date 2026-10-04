@@ -94,6 +94,16 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
     try {
       final result = await ApiService.customerSendOtp(_phoneCtr.text.trim());
       if (!mounted) return;
+      final isExisting = result['status'] == 'existing_user';
+      if (isExisting) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Phone already registered — enter the OTP to sign in.'),
+            backgroundColor: Color(0xFF1D4ED8),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => CustomerOtpScreen(
           mobile: _phoneCtr.text.trim(),
@@ -105,6 +115,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
           country: _country,
           area: _area,
           devOtp: result['dev_otp'] as String?,
+          isLogin: isExisting,
         ),
       ));
     } on ApiException catch (e) {

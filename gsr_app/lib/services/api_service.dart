@@ -330,8 +330,8 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
   }
 
-  static Future<void> customerVerifyOtp(
-      String mobile, String otp, String deviceId, {String email = ''}) async {
+  static Future<Map<String, dynamic>> customerVerifyOtp(
+      String mobile, String otp, String deviceId, {String email = '', String name = ''}) async {
     final uri = Uri.parse(_base).replace(
       path: '/customer/verify-otp',
       queryParameters: {
@@ -339,11 +339,12 @@ class ApiService {
         'otp': otp,
         'device_id': deviceId,
         if (email.isNotEmpty) 'email': email,
+        if (name.isNotEmpty) 'name': name,
       },
     );
     final res = await http.post(uri).timeout(const Duration(seconds: 15));
-    if (res.statusCode == 200) return;
     final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode == 200) return body;
     throw ApiException(body['detail']?.toString() ?? 'Invalid OTP');
   }
 
