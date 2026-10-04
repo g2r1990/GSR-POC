@@ -90,7 +90,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     try {
       final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
       final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
-      final remaining = 60 - elapsed;
+      final remaining = 30 - elapsed;
       if (remaining <= 0) return;
       if (mounted) setState(() => _cancelSecondsLeft = remaining);
       _cancelTimer?.cancel();

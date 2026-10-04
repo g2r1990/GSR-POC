@@ -106,7 +106,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
   void initState() {
     super.initState();
     _load();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) _loadSilent();
     });
   }
