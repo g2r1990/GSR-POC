@@ -70,7 +70,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _foodQueryCtrl = TextEditingController();
     _foodQueryCtrl.addListener(() { if (mounted) setState(() {}); });
     _loadAll();
-    _offersTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+    _offersTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) _loadOffers();
     });
     _activeOrdersTimer = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -99,6 +99,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   void didPopNext() {
     if (mounted) _loadActiveOrders();
     if (mounted) _loadRecentOrder();
+    if (mounted) _loadOffers();
     if (mounted) setState(() {});
   }
 
@@ -1084,7 +1085,28 @@ class _OfferCard extends StatelessWidget {
 
     final bool isDisabled = isApplied || isUsed;
     return GestureDetector(
-      onTap: isDisabled ? null : () {
+      onTap: isDisabled ? null : () async {
+        // Immediate check: read SharedPreferences in case the 5s timer hasn't fired yet
+        if (offerCode.isNotEmpty) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final usedRaw = prefs.getString('used_offer_codes') ?? '[]';
+            final usedSet = (jsonDecode(usedRaw) as List<dynamic>)
+                .map((e) => e.toString())
+                .toSet();
+            if (usedSet.contains(offerCode)) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('You have already used this offer.'),
+                  backgroundColor: Color(0xFF6B7280),
+                  duration: Duration(seconds: 3),
+                ));
+              }
+              return;
+            }
+          } catch (_) {}
+        }
+
         if (restaurantId.isEmpty) return;
 
         // One offer at a time — block if any offer is already applied
