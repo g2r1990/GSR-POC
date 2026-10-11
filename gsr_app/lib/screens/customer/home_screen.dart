@@ -75,7 +75,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _activeOrdersTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _pollActiveOrders();
     });
-    _restaurantsTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _restaurantsTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) _loadRestaurantCount();
     });
     _notifTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -1231,7 +1231,14 @@ class _NearbyRestaurantTileState extends State<_NearbyRestaurantTile> {
       await ApiService.notifyMeWhenOpen(restaurantId, widget.customerPhone);
       if (mounted) setState(() { _notifyRequested = true; _notifyLoading = false; });
     } catch (_) {
-      if (mounted) setState(() => _notifyLoading = false);
+      if (mounted) {
+        setState(() => _notifyLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not register. Please try again.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ));
+      }
     }
   }
 

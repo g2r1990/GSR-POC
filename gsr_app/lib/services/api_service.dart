@@ -628,13 +628,15 @@ class ApiService {
   }
 
   static Future<void> notifyMeWhenOpen(String restaurantId, String mobile) async {
-    try {
-      await http.post(
-        Uri.parse('$_base/customer/restaurants/$restaurantId/notify-me'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'mobile': mobile}),
-      ).timeout(const Duration(seconds: 10));
-    } catch (_) {}
+    final res = await http.post(
+      Uri.parse('$_base/customer/restaurants/$restaurantId/notify-me'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'mobile': mobile}),
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(body['detail']?.toString() ?? 'Failed to register notification');
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getCustomerNotifications(String mobile) async {

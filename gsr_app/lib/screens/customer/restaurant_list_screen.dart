@@ -145,7 +145,14 @@ class _RestaurantCardState extends State<_RestaurantCard> {
       await ApiService.notifyMeWhenOpen(restaurantId, widget.customerPhone);
       if (mounted) setState(() { _notifyRequested = true; _notifyLoading = false; });
     } catch (_) {
-      if (mounted) setState(() => _notifyLoading = false);
+      if (mounted) {
+        setState(() => _notifyLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not register. Please try again.'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ));
+      }
     }
   }
 
