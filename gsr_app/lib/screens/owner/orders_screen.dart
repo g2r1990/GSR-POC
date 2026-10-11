@@ -615,10 +615,12 @@ class _OrderCardState extends State<_OrderCard> {
     for (final item in items) {
       itemSubtotal += (item['subtotal'] as num?)?.toDouble() ?? 0;
     }
+    final discountAmount = (order['discount_amount'] as num?)?.toDouble() ?? 0.0;
+    final discountedItemTotal = itemSubtotal - discountAmount;
     const deliveryFee = 20.0;
-    final gst = double.parse((itemSubtotal * 0.05).toStringAsFixed(2));
-    final bbCut = double.parse((itemSubtotal * 0.15).toStringAsFixed(2));
-    final ownerNet = double.parse((itemSubtotal * 0.85).toStringAsFixed(2));
+    final gst = double.parse((discountedItemTotal * 0.05).toStringAsFixed(2));
+    final bbCut = double.parse((discountedItemTotal * 0.15).toStringAsFixed(2));
+    final ownerNet = double.parse((discountedItemTotal * 0.85).toStringAsFixed(2));
 
     return Container(
       decoration: BoxDecoration(
@@ -777,6 +779,11 @@ class _OrderCardState extends State<_OrderCard> {
               ),
               child: Column(children: [
                 _BillRow('Item Subtotal', '₹${itemSubtotal.toStringAsFixed(0)}'),
+                if (discountAmount > 0) ...[
+                  const SizedBox(height: 4),
+                  _BillRow('Offer Discount', '-₹${discountAmount.toStringAsFixed(0)}',
+                      valueColor: const Color(0xFF166534)),
+                ],
                 const SizedBox(height: 4),
                 _BillRow('Delivery Fee', '₹${deliveryFee.toStringAsFixed(0)}'),
                 const SizedBox(height: 4),

@@ -219,6 +219,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         'offer_code': _offerApplied && OfferService.offerCode.isNotEmpty
             ? OfferService.offerCode
             : null,
+        'discount_amount': _discountAmount,
         'items': CartService.toOrderItems(),
       });
 
