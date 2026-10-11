@@ -22,10 +22,15 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   bool _loading = true;
   Timer? _refreshTimer;
 
+  bool _isAccepting = true;
+  DateTime? _backOnlineAt;
+  bool _availLoading = false;
+
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _loadAvailability();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) _loadStats();
     });
@@ -35,6 +40,55 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadAvailability() async {
+    try {
+      final data = await ApiService.getRestaurantAvailability();
+      if (mounted) {
+        setState(() {
+          _isAccepting = data['is_accepting_orders'] as bool? ?? true;
+          final raw = data['back_online_at'] as String?;
+          _backOnlineAt = raw != null ? DateTime.tryParse(raw)?.toLocal() : null;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleAvailability(bool value) async {
+    if (_availLoading) return;
+    if (!value) {
+      // Ask for a "back online by" time
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        helpText: 'Back online by (today)',
+      );
+      final now = DateTime.now();
+      DateTime? backAt;
+      if (picked != null) {
+        backAt = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
+        if (backAt.isBefore(now)) backAt = backAt.add(const Duration(days: 1));
+      }
+      setState(() { _availLoading = true; });
+      try {
+        await ApiService.setRestaurantAvailability(
+          isAccepting: false,
+          backOnlineAt: backAt?.toUtc().toIso8601String(),
+        );
+        if (mounted) setState(() { _isAccepting = false; _backOnlineAt = backAt; });
+      } catch (_) {} finally {
+        if (mounted) setState(() { _availLoading = false; });
+      }
+    } else {
+      setState(() { _availLoading = true; });
+      try {
+        await ApiService.setRestaurantAvailability(isAccepting: true);
+        if (mounted) setState(() { _isAccepting = true; _backOnlineAt = null; });
+      } catch (_) {} finally {
+        if (mounted) setState(() { _availLoading = false; });
+      }
+    }
   }
 
   Future<void> _loadStats() async {
@@ -108,7 +162,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   const Text('Manage your restaurant from here.',
                       style: TextStyle(
                           fontSize: 14, color: Color(0xFF64748B))),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 16),
+
+                  // ── Availability toggle card ──────────────────────────────
+                  _AvailabilityCard(
+                    isAccepting: _isAccepting,
+                    backOnlineAt: _backOnlineAt,
+                    loading: _availLoading,
+                    onToggle: _toggleAvailability,
+                  ),
+                  const SizedBox(height: 20),
 
                   // Stat cards
                   Row(children: [
@@ -226,6 +289,98 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _AvailabilityCard extends StatelessWidget {
+  final bool isAccepting;
+  final DateTime? backOnlineAt;
+  final bool loading;
+  final ValueChanged<bool> onToggle;
+
+  const _AvailabilityCard({
+    required this.isAccepting,
+    required this.backOnlineAt,
+    required this.loading,
+    required this.onToggle,
+  });
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final ampm = dt.hour < 12 ? 'AM' : 'PM';
+    return '$h:$m $ampm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isGreen = const Color(0xFF166534);
+    final isRed = const Color(0xFFDC2626);
+    final color = isAccepting ? isGreen : isRed;
+    final bgColor = isAccepting
+        ? const Color(0xFFDCFCE7)
+        : const Color(0xFFFEE2E2);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Icon(
+          isAccepting ? Icons.storefront : Icons.store_mall_directory_outlined,
+          color: color,
+          size: 26,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isAccepting ? 'Accepting Orders' : 'Not Accepting Orders',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: color),
+              ),
+              if (!isAccepting && backOnlineAt != null)
+                Text(
+                  'Back online by ${_formatTime(backOnlineAt!)}',
+                  style: TextStyle(
+                      fontSize: 12, color: color.withOpacity(0.8)),
+                )
+              else if (isAccepting)
+                Text(
+                  'Customers can place orders now',
+                  style: TextStyle(
+                      fontSize: 12, color: color.withOpacity(0.8)),
+                )
+              else
+                Text(
+                  'Tap toggle to go live again',
+                  style: TextStyle(
+                      fontSize: 12, color: color.withOpacity(0.8)),
+                ),
+            ],
+          ),
+        ),
+        loading
+            ? SizedBox(
+                width: 24, height: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: color))
+            : Switch(
+                value: isAccepting,
+                onChanged: onToggle,
+                activeColor: isGreen,
+                inactiveThumbColor: isRed,
+                inactiveTrackColor: const Color(0xFFFCA5A5),
+              ),
+      ]),
     );
   }
 }

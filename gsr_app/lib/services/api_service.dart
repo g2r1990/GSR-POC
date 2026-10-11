@@ -435,6 +435,44 @@ class ApiService {
     return loc['pincode'];
   }
 
+  // ── Owner availability ────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getRestaurantAvailability() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/restaurant/availability'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load availability');
+  }
+
+  static Future<Map<String, dynamic>> setRestaurantAvailability({
+    required bool isAccepting,
+    String? backOnlineAt,
+  }) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/owner/restaurant/availability'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'is_accepting_orders': isAccepting,
+        'back_online_at': backOnlineAt,
+      }),
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to update availability');
+  }
+
   static Future<Map<String, String?>> getLocationFromCoords(
       double lat, double lon) async {
     try {

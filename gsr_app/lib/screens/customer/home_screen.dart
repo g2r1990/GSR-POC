@@ -1087,58 +1087,114 @@ class _NearbyRestaurantTile extends StatelessWidget {
   const _NearbyRestaurantTile(
       {required this.restaurant, required this.onTap});
 
+  String? _fmtBackOnline(String? raw) {
+    if (raw == null) return null;
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final m = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour < 12 ? 'AM' : 'PM';
+      return '$h:$m $ampm';
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isAccepting = restaurant['is_accepting_orders'] as bool? ?? true;
+    final backOnlineRaw = restaurant['back_online_at'] as String?;
+    final backOnlineLabel = _fmtBackOnline(backOnlineRaw);
+
     final foodType = restaurant['food_type'] as String? ?? 'both';
     final foodLabel = foodType == 'veg'
         ? 'Pure Veg'
         : foodType == 'nonveg'
             ? 'Non-Veg'
             : 'Veg & Non-Veg';
+
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withAlpha(10),
-                blurRadius: 6,
-                offset: const Offset(0, 2))
-          ],
+      onTap: isAccepting ? onTap : null,
+      child: Opacity(
+        opacity: isAccepting ? 1.0 : 0.55,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isAccepting ? Colors.white : const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isAccepting
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withAlpha(10),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2))
+                  ]
+                : null,
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: isAccepting
+                          ? const Color(0xFFFEF3C7)
+                          : const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isAccepting ? Icons.storefront : Icons.store_mall_directory_outlined,
+                      color: isAccepting
+                          ? const Color(0xFFD97706)
+                          : const Color(0xFF9CA3AF),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(restaurant['name'] as String? ?? '',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: isAccepting
+                                    ? const Color(0xFF1C1917)
+                                    : const Color(0xFF6B7280))),
+                        Text(
+                            '${restaurant['area'] ?? ''}  •  $foodLabel',
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF78716C)),
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Color(0xFFD6D3D1)),
+                ]),
+              ),
+              if (!isAccepting)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                  ),
+                  child: Text(
+                    backOnlineLabel != null
+                        ? 'Currently unavailable · Back by $backOnlineLabel'
+                        : 'Currently not accepting orders',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFDC2626),
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+            ],
+          ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.storefront,
-                color: Color(0xFFD97706), size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(restaurant['name'] as String? ?? '',
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1C1917))),
-                Text(
-                    '${restaurant['area'] ?? ''}  •  $foodLabel',
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF78716C)),
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(0xFFD6D3D1)),
-        ]),
       ),
     );
   }
