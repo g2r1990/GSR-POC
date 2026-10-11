@@ -19,10 +19,21 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
   String _state = '';
   String _area = '';
 
+  bool _editing = false;
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -37,7 +48,40 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         _state = prefs.getString('customer_state') ?? '';
         _area = prefs.getString('customer_area') ?? '';
       });
+      _nameCtrl.text = _name;
+      _emailCtrl.text = _email;
     }
+  }
+
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name cannot be empty.')),
+      );
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('customer_name', name);
+    if (email.isNotEmpty) {
+      await prefs.setString('customer_email', email);
+    } else {
+      await prefs.remove('customer_email');
+    }
+    if (mounted) {
+      setState(() {
+        _name = name;
+        _email = email;
+        _editing = false;
+      });
+    }
+  }
+
+  void _cancelEdit() {
+    _nameCtrl.text = _name;
+    _emailCtrl.text = _email;
+    setState(() => _editing = false);
   }
 
   @override
@@ -52,6 +96,27 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
         title: const Text('My Profile'),
         centerTitle: true,
         elevation: 0,
+        actions: _editing
+            ? [
+                TextButton(
+                  onPressed: _cancelEdit,
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white70)),
+                ),
+                TextButton(
+                  onPressed: _save,
+                  child: const Text('Save',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => setState(() => _editing = true),
+                  tooltip: 'Edit profile',
+                ),
+              ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -101,23 +166,56 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   _SectionLabel('Account Details'),
                   const SizedBox(height: 10),
                   _Card(children: [
-                    _Row(
-                        icon: Icons.person_outline,
-                        label: 'Name',
-                        value: _name.isNotEmpty ? _name : '—'),
-                    const _Divider(),
-                    _Row(
-                        icon: Icons.phone_outlined,
-                        label: 'Mobile',
-                        value:
-                            _phone.isNotEmpty ? '+91 $_phone' : '—'),
-                    if (_email.isNotEmpty) ...[
+                    if (_editing) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: TextField(
+                          controller: _nameCtrl,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Name',
+                            labelStyle: TextStyle(color: _amber, fontSize: 13),
+                            prefixIcon: Icon(Icons.person_outline, color: _amber, size: 20),
+                            focusedBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: _amber)),
+                            enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: Color(0xFFFDE68A))),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: TextField(
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Email (optional)',
+                            labelStyle: TextStyle(color: _amber, fontSize: 13),
+                            prefixIcon: Icon(Icons.email_outlined, color: _amber, size: 20),
+                            focusedBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: _amber)),
+                            enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: Color(0xFFFDE68A))),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      _Row(
+                          icon: Icons.person_outline,
+                          label: 'Name',
+                          value: _name.isNotEmpty ? _name : '—'),
                       const _Divider(),
                       _Row(
                           icon: Icons.email_outlined,
                           label: 'Email',
-                          value: _email),
+                          value: _email.isNotEmpty ? _email : '—'),
                     ],
+                    const _Divider(),
+                    _Row(
+                        icon: Icons.phone_outlined,
+                        label: 'Mobile',
+                        value: _phone.isNotEmpty ? '+91 $_phone' : '—'),
                   ]),
 
                   const SizedBox(height: 20),
