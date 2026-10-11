@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
 
@@ -10,6 +11,9 @@ class RestaurantResponse(BaseModel):
     pincode: str
     food_type: str
     photo_url: Optional[str] = None
+    is_accepting_orders: bool = True
+    back_online_at: Optional[datetime] = None
+
     model_config = {"from_attributes": True}
 
 

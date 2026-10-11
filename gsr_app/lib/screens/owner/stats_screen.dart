@@ -127,6 +127,16 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     return map;
   }
 
+  Map<String, int> get _areaMap {
+    final map = <String, int>{};
+    for (final order in _filtered) {
+      final area = (order['customer_area'] as String?)?.trim();
+      final key = (area == null || area.isEmpty) ? 'Unknown' : area;
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }
+
   Map<int, int> get _hourlyMap {
     final map = <int, int>{};
     for (final order in _filtered) {
@@ -314,6 +324,14 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
           ..._buildTopItems(),
           const SizedBox(height: 20),
 
+          // ── Least Selling Items ─────────────────────────────────────────────
+          ..._buildBottomItems(),
+          const SizedBox(height: 20),
+
+          // ── Orders by Area ──────────────────────────────────────────────────
+          ..._buildAreaChart(),
+          const SizedBox(height: 20),
+
           // ── Hourly Order Volume ─────────────────────────────────────────────
           ..._buildHourlyChart(),
         ],
@@ -351,6 +369,111 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     ];
   }
 
+  List<Widget> _buildBottomItems() {
+    final itemMap = _itemQtyMap;
+    if (itemMap.length < 2) return [];
+    final sorted = itemMap.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    final bottomItems = sorted.take(10).toList();
+    final maxQty = bottomItems.last.value;
+
+    return [
+      const _SectionTitle('📉 Least Selling Items'),
+      const SizedBox(height: 10),
+      ...bottomItems.asMap().entries.map((e) {
+        final rank = e.key + 1;
+        final name = e.value.key;
+        final qty = e.value.value;
+        final pct = maxQty == 0 ? 0.0 : qty / maxQty;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _ItemBar(
+            rank: rank,
+            name: name,
+            qty: qty,
+            pct: pct,
+            isTop: false,
+            barColor: const Color(0xFF64748B),
+          ),
+        );
+      }),
+    ];
+  }
+
+  List<Widget> _buildAreaChart() {
+    final areaMap = _areaMap;
+    if (areaMap.isEmpty) return [];
+    final sorted = areaMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final maxOrders = sorted.first.value;
+
+    return [
+      const _SectionTitle('📍 Orders by Area'),
+      const SizedBox(height: 10),
+      ...sorted.map((e) {
+        final pct = maxOrders == 0 ? 0.0 : e.value / maxOrders;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE0F2FE)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.location_on_outlined,
+                  size: 18, color: Color(0xFF0891B2)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(e.key,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0F172A))),
+                    ),
+                    Text('${e.value} order${e.value == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0891B2))),
+                  ]),
+                  const SizedBox(height: 6),
+                  LayoutBuilder(builder: (ctx, constraints) {
+                    return Stack(children: [
+                      Container(
+                        height: 5,
+                        width: constraints.maxWidth,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      Container(
+                        height: 5,
+                        width: constraints.maxWidth * pct,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0891B2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ]);
+                  }),
+                ]),
+              ),
+            ]),
+          ),
+        );
+      }),
+    ];
+  }
+
   List<Widget> _buildHourlyChart() {
     final hourlyMap = _hourlyMap;
     final hours = List.generate(18, (i) => i + 6); // 6 AM to 11 PM
@@ -381,6 +504,7 @@ class _ItemBar extends StatelessWidget {
   final int qty;
   final double pct;
   final bool isTop;
+  final Color? barColor;
 
   const _ItemBar({
     required this.rank,
@@ -388,20 +512,22 @@ class _ItemBar extends StatelessWidget {
     required this.qty,
     required this.pct,
     required this.isTop,
+    this.barColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = isTop ? _amber : const Color(0xFF7C3AED).withOpacity(0.7);
+    final color = barColor ??
+        (isTop ? _amber : const Color(0xFF7C3AED).withOpacity(0.7));
+    final borderColor = barColor != null
+        ? const Color(0xFFE2E8F0)
+        : (isTop ? const Color(0xFFFDE68A) : const Color(0xFFEDE9FE));
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: isTop
-                ? const Color(0xFFFDE68A)
-                : const Color(0xFFEDE9FE)),
+        border: Border.all(color: borderColor),
       ),
       child: Row(children: [
         SizedBox(

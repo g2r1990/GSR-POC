@@ -45,6 +45,7 @@ def _order_to_response(order: Order) -> OrderResponse:
         restaurant_id=order.restaurant_id,
         customer_name=order.customer_name or "",
         customer_phone=order.customer_mobile or "",
+        customer_area=order.customer_area,
         delivery_address=order.delivery_address or "",
         items=items,
         total=float(order.total),
@@ -109,6 +110,7 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
         restaurant_id=body.restaurant_id,
         customer_name=body.customer_name,
         customer_mobile=body.customer_phone,
+        customer_area=body.customer_area,
         delivery_address=body.delivery_address,
         notes=body.notes,
         items_snapshot={"items": snapshot_items},
@@ -129,6 +131,7 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
         "short_id": order.id[:8].upper(),
         "total": float(order.total),
         "status": order.status,
+        "created_at": order.created_at.isoformat(),
         "message": "Order placed successfully!",
     }
 
@@ -188,7 +191,7 @@ def owner_update_status(
 
     if order.status == "placed" and body.status == "accepted":
         elapsed = (datetime.utcnow() - order.created_at).total_seconds()
-        remaining = int(60 - elapsed)
+        remaining = int(30 - elapsed)
         if remaining > 0:
             raise HTTPException(
                 status_code=400,
@@ -211,10 +214,10 @@ def customer_cancel_order(order_id: str, db: Session = Depends(get_db)):
     if order.status != "placed":
         raise HTTPException(status_code=400, detail="Order cannot be cancelled at this stage.")
     elapsed = (datetime.utcnow() - order.created_at).total_seconds()
-    if elapsed > 60:
+    if elapsed > 30:
         raise HTTPException(
             status_code=400,
-            detail="Cancellation window has expired. Orders can only be cancelled within 60 seconds of placing.",
+            detail="Cancellation window has expired. Orders can only be cancelled within 30 seconds of placing.",
         )
     order.status = "cancelled"
     db.commit()

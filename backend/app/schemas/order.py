@@ -16,6 +16,7 @@ class PlaceOrderRequest(BaseModel):
     items: List[OrderItemIn]
     notes: Optional[str] = None
     customer_area: Optional[str] = None   # stored for Food Stat by Area
+    offer_code: Optional[str] = None      # offer code applied at checkout
 
 
 class OrderStatusUpdate(BaseModel):
@@ -37,6 +38,7 @@ class OrderResponse(BaseModel):
     restaurant_id: str
     customer_name: str
     customer_phone: str
+    customer_area: Optional[str] = None
     delivery_address: str
     items: List[OrderItemSnapshot]
     total: float

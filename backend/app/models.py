@@ -53,7 +53,9 @@ class Restaurant(Base):
     restaurant_code = Column(String(20), unique=True, nullable=True)
     food_type       = Column(String(10), default="both")    # veg | nonveg | both
     status          = Column(String(20), default="pending") # pending | active | suspended
-    photo_url   = Column(String(500), nullable=True)
+    photo_url           = Column(String(500), nullable=True)
+    is_accepting_orders = Column(Boolean, default=True)
+    back_online_at      = Column(DateTime, nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)
     owner       = relationship("Owner", back_populates="restaurants")
     menu_items  = relationship("MenuItem", back_populates="restaurant")
@@ -82,6 +84,7 @@ class Customer(Base):
     id           = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
     name         = Column(String(100), nullable=True)
     mobile       = Column(String(15), unique=True, nullable=False)
+    email        = Column(String(150), nullable=True)
     firebase_uid = Column(String(128), unique=True, nullable=True)
     device_id    = Column(String(128), nullable=True)
     created_at   = Column(DateTime, default=datetime.utcnow)
@@ -98,6 +101,7 @@ class Order(Base):
     status          = Column(String(20), default="placed")  # placed|accepted|ready|out_for_delivery|delivered|cancelled
     items_snapshot  = Column(JSONB, nullable=False)         # price snapshot at order time
     total           = Column(Numeric(10, 2), nullable=False)
+    customer_area   = Column(String(100), nullable=True)
     delivery_address= Column(Text, nullable=True)
     notes           = Column(Text, nullable=True)
     created_at      = Column(DateTime, default=datetime.utcnow)
@@ -113,6 +117,7 @@ class Offer(Base):
     title          = Column(String(200), nullable=False)
     description    = Column(Text, nullable=True)
     offer_type     = Column(String(20), nullable=False, default='order')  # order | item | bogo
+    offer_code     = Column(String(10), nullable=True)
     discount_pct   = Column(Numeric(5, 2), nullable=True)
     menu_item_id   = Column(String(36), nullable=True)   # FK to menu_item.id (soft ref)
     menu_item_name = Column(String(150), nullable=True)

@@ -26,6 +26,24 @@ app.include_router(customer.router)
 app.include_router(orders.router)
 
 
+@app.on_event("startup")
+def _auto_migrate():
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE restaurant ADD COLUMN IF NOT EXISTS "
+            "is_accepting_orders BOOLEAN DEFAULT TRUE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE restaurant ADD COLUMN IF NOT EXISTS "
+            "back_online_at TIMESTAMP WITHOUT TIME ZONE"
+        ))
+        conn.execute(text(
+            'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS '
+            "customer_area VARCHAR(100)"
+        ))
+        conn.commit()
+
+
 @app.get("/health")
 def health_check():
     db_status = "disconnected"
