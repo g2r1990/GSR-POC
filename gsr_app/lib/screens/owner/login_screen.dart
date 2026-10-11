@@ -109,7 +109,11 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
                   controller: _mobileCtr,
                   keyboardType: TextInputType.phone,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: _inputDecoration('10-digit mobile number'),
+                  decoration: _inputDecoration('10-digit mobile number').copyWith(
+                    prefixText: '+91 ',
+                    prefixStyle: const TextStyle(
+                        color: Color(0xFF374151), fontSize: 14),
+                  ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Required';
                     if (v.trim().length < 10) return 'Enter 10 digits';

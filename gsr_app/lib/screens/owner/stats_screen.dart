@@ -347,25 +347,32 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     final topItems = sorted.take(10).toList();
     final maxQty = topItems.first.value;
 
+    final items = topItems.asMap().entries.map((e) {
+      final rank = e.key + 1;
+      final name = e.value.key;
+      final qty = e.value.value;
+      final pct = maxQty == 0 ? 0.0 : qty / maxQty;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _ItemBar(rank: rank, name: name, qty: qty, pct: pct, isTop: rank == 1),
+      );
+    }).toList();
+
     return [
       const _SectionTitle('🏆 Top Selling Items'),
       const SizedBox(height: 10),
-      ...topItems.asMap().entries.map((e) {
-        final rank = e.key + 1;
-        final name = e.value.key;
-        final qty = e.value.value;
-        final pct = maxQty == 0 ? 0.0 : qty / maxQty;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _ItemBar(
-            rank: rank,
-            name: name,
-            qty: qty,
-            pct: pct,
-            isTop: rank == 1,
-          ),
-        );
-      }),
+      Container(
+        constraints: const BoxConstraints(maxHeight: 280),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFDE68A)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: Column(children: items),
+        ),
+      ),
     ];
   }
 
@@ -377,26 +384,33 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     final bottomItems = sorted.take(10).toList();
     final maxQty = bottomItems.last.value;
 
+    final items = bottomItems.asMap().entries.map((e) {
+      final rank = e.key + 1;
+      final name = e.value.key;
+      final qty = e.value.value;
+      final pct = maxQty == 0 ? 0.0 : qty / maxQty;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _ItemBar(rank: rank, name: name, qty: qty, pct: pct, isTop: false,
+            barColor: const Color(0xFF64748B)),
+      );
+    }).toList();
+
     return [
       const _SectionTitle('📉 Least Selling Items'),
       const SizedBox(height: 10),
-      ...bottomItems.asMap().entries.map((e) {
-        final rank = e.key + 1;
-        final name = e.value.key;
-        final qty = e.value.value;
-        final pct = maxQty == 0 ? 0.0 : qty / maxQty;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _ItemBar(
-            rank: rank,
-            name: name,
-            qty: qty,
-            pct: pct,
-            isTop: false,
-            barColor: const Color(0xFF64748B),
-          ),
-        );
-      }),
+      Container(
+        constraints: const BoxConstraints(maxHeight: 280),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: Column(children: items),
+        ),
+      ),
     ];
   }
 
@@ -407,70 +421,66 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
       ..sort((a, b) => b.value.compareTo(a.value));
     final maxOrders = sorted.first.value;
 
+    final items = sorted.map((e) {
+      final pct = maxOrders == 0 ? 0.0 : e.value / maxOrders;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE0F2FE)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF0891B2)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text(e.key,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F172A))),
+                  ),
+                  Text('${e.value} order${e.value == 1 ? '' : 's'}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                          color: Color(0xFF0891B2))),
+                ]),
+                const SizedBox(height: 6),
+                LayoutBuilder(builder: (ctx, constraints) {
+                  return Stack(children: [
+                    Container(height: 5, width: constraints.maxWidth,
+                        decoration: BoxDecoration(color: const Color(0xFFE0F2FE),
+                            borderRadius: BorderRadius.circular(4))),
+                    Container(height: 5, width: constraints.maxWidth * pct,
+                        decoration: BoxDecoration(color: const Color(0xFF0891B2),
+                            borderRadius: BorderRadius.circular(4))),
+                  ]);
+                }),
+              ]),
+            ),
+          ]),
+        ),
+      );
+    }).toList();
+
     return [
       const _SectionTitle('📍 Orders by Area'),
       const SizedBox(height: 10),
-      ...sorted.map((e) {
-        final pct = maxOrders == 0 ? 0.0 : e.value / maxOrders;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE0F2FE)),
-            ),
-            child: Row(children: [
-              const Icon(Icons.location_on_outlined,
-                  size: 18, color: Color(0xFF0891B2)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Row(children: [
-                    Expanded(
-                      child: Text(e.key,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF0F172A))),
-                    ),
-                    Text('${e.value} order${e.value == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0891B2))),
-                  ]),
-                  const SizedBox(height: 6),
-                  LayoutBuilder(builder: (ctx, constraints) {
-                    return Stack(children: [
-                      Container(
-                        height: 5,
-                        width: constraints.maxWidth,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      Container(
-                        height: 5,
-                        width: constraints.maxWidth * pct,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0891B2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ]);
-                  }),
-                ]),
-              ),
-            ]),
-          ),
-        );
-      }),
+      Container(
+        constraints: const BoxConstraints(maxHeight: 260),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F9FF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFBAE6FD)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: Column(children: items),
+        ),
+      ),
     ];
   }
 

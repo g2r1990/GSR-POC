@@ -53,6 +53,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   final ScrollController _scrollCtrl = ScrollController();
   Timer? _offersTimer;
   Timer? _activeOrdersTimer;
+  Timer? _restaurantsTimer;
 
   @override
   void initState() {
@@ -66,6 +67,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     });
     _activeOrdersTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _pollActiveOrders();
+    });
+    _restaurantsTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _loadRestaurantCount();
     });
   }
 
@@ -95,6 +99,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     appRouteObserver.unsubscribe(this);
     _offersTimer?.cancel();
     _activeOrdersTimer?.cancel();
+    _restaurantsTimer?.cancel();
     _pincodeCtrl.dispose();
     _foodQueryCtrl.dispose();
     _scrollCtrl.dispose();
@@ -238,6 +243,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             pincode: _pincode,
             restaurants: matchedByName,
             searchLabel: 'Restaurants for "$query"',
+            customerPhone: _phone,
           ),
         ),
       );
@@ -256,6 +262,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             pincode: _pincode,
             restaurants: results,
             searchLabel: 'Results for "$query"',
+            customerPhone: _phone,
           ),
         ),
       );
@@ -322,8 +329,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              RestaurantListScreen(pincode: pincode, restaurants: restaurants),
+          builder: (_) => RestaurantListScreen(
+                pincode: pincode, restaurants: restaurants, customerPhone: _phone),
         ),
       );
     } on ApiException catch (e) {
@@ -692,6 +699,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                             builder: (_) => RestaurantListScreen(
                               pincode: _pincode,
                               restaurants: _nearbyRestaurants,
+                              customerPhone: _phone,
                             ),
                           ),
                         ),
@@ -725,12 +733,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                     child: _NearbyRestaurantTile(
                       restaurant: r,
+                      customerPhone: _phone,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => RestaurantListScreen(
                             pincode: _pincode,
                             restaurants: _nearbyRestaurants,
+                            customerPhone: _phone,
                           ),
                         ),
                       ),
@@ -1081,42 +1091,47 @@ class _OfferCard extends StatelessWidget {
   }
 }
 
-class _NearbyRestaurantTile extends StatelessWidget {
+class _NearbyRestaurantTile extends StatefulWidget {
   final Map<String, dynamic> restaurant;
+  final String customerPhone;
   final VoidCallback onTap;
-  const _NearbyRestaurantTile(
-      {required this.restaurant, required this.onTap});
+  const _NearbyRestaurantTile({
+    required this.restaurant,
+    required this.customerPhone,
+    required this.onTap,
+  });
 
-  String? _fmtBackOnline(String? raw) {
-    if (raw == null) return null;
+  @override
+  State<_NearbyRestaurantTile> createState() => _NearbyRestaurantTileState();
+}
+
+class _NearbyRestaurantTileState extends State<_NearbyRestaurantTile> {
+  bool _notifyRequested = false;
+  bool _notifyLoading = false;
+
+  Future<void> _requestNotify() async {
+    if (_notifyLoading || _notifyRequested) return;
+    final restaurantId = widget.restaurant['id'] as String? ?? '';
+    if (restaurantId.isEmpty || widget.customerPhone.isEmpty) return;
+    setState(() => _notifyLoading = true);
     try {
-      // API returns naive UTC string (no Z suffix) — force UTC before converting to local
-      final utcStr = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
-      final dt = DateTime.parse(utcStr).toLocal();
-      final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final m = dt.minute.toString().padLeft(2, '0');
-      final ampm = dt.hour < 12 ? 'AM' : 'PM';
-      return '$h:$m $ampm';
+      await ApiService.notifyMeWhenOpen(restaurantId, widget.customerPhone);
+      if (mounted) setState(() { _notifyRequested = true; _notifyLoading = false; });
     } catch (_) {
-      return null;
+      if (mounted) setState(() => _notifyLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isAccepting = restaurant['is_accepting_orders'] as bool? ?? true;
-    final backOnlineRaw = restaurant['back_online_at'] as String?;
-    final backOnlineLabel = _fmtBackOnline(backOnlineRaw);
-
-    final foodType = restaurant['food_type'] as String? ?? 'both';
+    final isAccepting = widget.restaurant['is_accepting_orders'] as bool? ?? true;
+    final foodType = widget.restaurant['food_type'] as String? ?? 'both';
     final foodLabel = foodType == 'veg'
         ? 'Pure Veg'
-        : foodType == 'nonveg'
-            ? 'Non-Veg'
-            : 'Veg & Non-Veg';
+        : foodType == 'nonveg' ? 'Non-Veg' : 'Veg & Non-Veg';
 
     return GestureDetector(
-      onTap: isAccepting ? onTap : null,
+      onTap: isAccepting ? widget.onTap : null,
       child: Opacity(
         opacity: isAccepting ? 1.0 : 0.55,
         child: Container(
@@ -1124,12 +1139,8 @@ class _NearbyRestaurantTile extends StatelessWidget {
             color: isAccepting ? Colors.white : const Color(0xFFF3F4F6),
             borderRadius: BorderRadius.circular(12),
             boxShadow: isAccepting
-                ? [
-                    BoxShadow(
-                        color: Colors.black.withAlpha(10),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2))
-                  ]
+                ? [BoxShadow(color: Colors.black.withAlpha(10),
+                      blurRadius: 6, offset: const Offset(0, 2))]
                 : null,
           ),
           child: Column(
@@ -1140,38 +1151,25 @@ class _NearbyRestaurantTile extends StatelessWidget {
                   Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
-                      color: isAccepting
-                          ? const Color(0xFFFEF3C7)
-                          : const Color(0xFFE5E7EB),
+                      color: isAccepting ? const Color(0xFFFEF3C7) : const Color(0xFFE5E7EB),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       isAccepting ? Icons.storefront : Icons.store_mall_directory_outlined,
-                      color: isAccepting
-                          ? const Color(0xFFD97706)
-                          : const Color(0xFF9CA3AF),
+                      color: isAccepting ? const Color(0xFFD97706) : const Color(0xFF9CA3AF),
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(restaurant['name'] as String? ?? '',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: isAccepting
-                                    ? const Color(0xFF1C1917)
-                                    : const Color(0xFF6B7280))),
-                        Text(
-                            '${restaurant['area'] ?? ''}  •  $foodLabel',
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF78716C)),
-                            overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(widget.restaurant['name'] as String? ?? '',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold,
+                              color: isAccepting ? const Color(0xFF1C1917) : const Color(0xFF6B7280))),
+                      Text('${widget.restaurant['area'] ?? ''}  •  $foodLabel',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF78716C)),
+                          overflow: TextOverflow.ellipsis),
+                    ]),
                   ),
                   const Icon(Icons.chevron_right, color: Color(0xFFD6D3D1)),
                 ]),
@@ -1184,15 +1182,29 @@ class _NearbyRestaurantTile extends StatelessWidget {
                     color: Color(0xFFFEE2E2),
                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
                   ),
-                  child: Text(
-                    backOnlineLabel != null
-                        ? 'Currently unavailable · Back by $backOnlineLabel'
-                        : 'Currently not accepting orders',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFDC2626),
-                        fontWeight: FontWeight.w500),
-                  ),
+                  child: Row(children: [
+                    const Expanded(
+                      child: Text('Currently not accepting orders',
+                          style: TextStyle(fontSize: 11, color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w500)),
+                    ),
+                    if (widget.customerPhone.isNotEmpty)
+                      _notifyRequested
+                          ? const Text('✓ Notified',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF166534),
+                                  fontWeight: FontWeight.w700))
+                          : GestureDetector(
+                              onTap: _notifyLoading ? null : _requestNotify,
+                              child: _notifyLoading
+                                  ? const SizedBox(width: 14, height: 14,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 1.5, color: Color(0xFFDC2626)))
+                                  : const Text('Notify me',
+                                      style: TextStyle(fontSize: 11, color: Color(0xFFDC2626),
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline)),
+                            ),
+                  ]),
                 ),
             ],
           ),

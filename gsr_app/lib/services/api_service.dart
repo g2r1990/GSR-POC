@@ -626,6 +626,16 @@ class ApiService {
           body['detail']?.toString() ?? 'Failed to cancel update');
     }
   }
+
+  static Future<void> notifyMeWhenOpen(String restaurantId, String mobile) async {
+    try {
+      await http.post(
+        Uri.parse('$_base/customer/restaurants/$restaurantId/notify-me'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobile': mobile}),
+      ).timeout(const Duration(seconds: 10));
+    } catch (_) {}
+  }
 }
 
 class ApiException implements Exception {

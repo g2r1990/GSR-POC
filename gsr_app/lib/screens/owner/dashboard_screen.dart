@@ -63,17 +63,60 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Future<void> _toggleAvailability(bool value) async {
     if (_availLoading) return;
     if (!value) {
-      // Ask for a "back online by" time
-      final picked = await showTimePicker(
+      // Step 1: Today or Custom date
+      final choice = await showDialog<String>(
         context: context,
-        initialTime: TimeOfDay.now(),
-        helpText: 'Back online by (today)',
+        builder: (ctx) => AlertDialog(
+          title: const Text('When will you be back?'),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            ListTile(
+              leading: const Icon(Icons.today, color: Color(0xFFD97706)),
+              title: const Text('Later today'),
+              subtitle: const Text('Pick a time today'),
+              onTap: () => Navigator.pop(ctx, 'today'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month, color: Color(0xFF7C3AED)),
+              title: const Text('Custom date & time'),
+              subtitle: const Text('Pick a future date and time'),
+              onTap: () => Navigator.pop(ctx, 'custom'),
+            ),
+          ]),
+        ),
       );
-      final now = DateTime.now();
+      if (choice == null || !mounted) return;
+
       DateTime? backAt;
-      if (picked != null) {
-        backAt = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
-        if (backAt.isBefore(now)) backAt = backAt.add(const Duration(days: 1));
+      if (choice == 'today') {
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay.now(),
+          helpText: 'Back online by (today)',
+        );
+        if (picked != null) {
+          final now = DateTime.now();
+          backAt = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
+          if (backAt.isBefore(now)) backAt = backAt.add(const Duration(days: 1));
+        }
+      } else {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime.now(),
+          lastDate: DateTime.now().add(const Duration(days: 30)),
+          helpText: 'Select date',
+        );
+        if (date == null || !mounted) return;
+        final time = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay.now(),
+          helpText: 'Select time',
+        );
+        if (time != null) {
+          backAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+          if (backAt.isBefore(DateTime.now())) backAt = null;
+        }
       }
       setState(() { _availLoading = true; });
       try {
@@ -352,24 +395,12 @@ class _AvailabilityCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: color),
               ),
-              if (!isAccepting && backOnlineAt != null)
-                Text(
-                  'Back online by ${_formatTime(backOnlineAt!)}',
-                  style: TextStyle(
-                      fontSize: 12, color: color.withOpacity(0.8)),
-                )
-              else if (isAccepting)
-                Text(
-                  'Customers can place orders now',
-                  style: TextStyle(
-                      fontSize: 12, color: color.withOpacity(0.8)),
-                )
-              else
-                Text(
-                  'Tap toggle to go live again',
-                  style: TextStyle(
-                      fontSize: 12, color: color.withOpacity(0.8)),
-                ),
+              Text(
+                isAccepting
+                    ? 'Customers can place orders now'
+                    : 'Tap toggle to go live again',
+                style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
+              ),
             ],
           ),
         ),

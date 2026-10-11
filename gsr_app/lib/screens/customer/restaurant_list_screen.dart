@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'restaurant_menu_screen.dart';
+import '../../services/api_service.dart';
 
 class RestaurantListScreen extends StatelessWidget {
   final String pincode;
   final List<Map<String, dynamic>> restaurants;
   final String? searchLabel;
+  final String customerPhone;
 
   const RestaurantListScreen({
     super.key,
     required this.pincode,
     required this.restaurants,
     this.searchLabel,
+    this.customerPhone = '',
   });
 
   static const _amber = Color(0xFFD97706);
@@ -33,6 +36,7 @@ class RestaurantListScreen extends StatelessWidget {
               itemCount: restaurants.length,
               itemBuilder: (ctx, i) => _RestaurantCard(
                 data: restaurants[i],
+                customerPhone: customerPhone,
                 onTap: () => Navigator.push(
                   ctx,
                   MaterialPageRoute(
@@ -83,31 +87,38 @@ class RestaurantListScreen extends StatelessWidget {
   }
 }
 
-class _RestaurantCard extends StatelessWidget {
+class _RestaurantCard extends StatefulWidget {
   final Map<String, dynamic> data;
+  final String customerPhone;
   final VoidCallback onTap;
 
-  const _RestaurantCard({required this.data, required this.onTap});
+  const _RestaurantCard({required this.data, required this.customerPhone, required this.onTap});
 
-  String? _fmtBackOnline(String? raw) {
-    if (raw == null) return null;
+  @override
+  State<_RestaurantCard> createState() => _RestaurantCardState();
+}
+
+class _RestaurantCardState extends State<_RestaurantCard> {
+  bool _notifyRequested = false;
+  bool _notifyLoading = false;
+
+  Future<void> _requestNotify() async {
+    if (_notifyLoading || _notifyRequested) return;
+    final restaurantId = widget.data['id'] as String? ?? '';
+    if (restaurantId.isEmpty || widget.customerPhone.isEmpty) return;
+    setState(() => _notifyLoading = true);
     try {
-      final utcStr = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
-      final dt = DateTime.parse(utcStr).toLocal();
-      final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final m = dt.minute.toString().padLeft(2, '0');
-      final ampm = dt.hour < 12 ? 'AM' : 'PM';
-      return '$h:$m $ampm';
+      await ApiService.notifyMeWhenOpen(restaurantId, widget.customerPhone);
+      if (mounted) setState(() { _notifyRequested = true; _notifyLoading = false; });
     } catch (_) {
-      return null;
+      if (mounted) setState(() => _notifyLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isAccepting = data['is_accepting_orders'] as bool? ?? true;
-    final backOnlineLabel = _fmtBackOnline(data['back_online_at'] as String?);
-    final foodType = data['food_type'] as String? ?? 'both';
+    final isAccepting = widget.data['is_accepting_orders'] as bool? ?? true;
+    final foodType = widget.data['food_type'] as String? ?? 'both';
 
     return Opacity(
       opacity: isAccepting ? 1.0 : 0.55,
@@ -117,82 +128,58 @@ class _RestaurantCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-              color: isAccepting
-                  ? const Color(0xFFFDE68A)
-                  : const Color(0xFFFCA5A5)),
+              color: isAccepting ? const Color(0xFFFDE68A) : const Color(0xFFFCA5A5)),
         ),
         color: Colors.white,
         child: InkWell(
-          onTap: isAccepting ? onTap : null,
+          onTap: isAccepting ? widget.onTap : null,
           borderRadius: BorderRadius.circular(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: isAccepting
-                            ? const Color(0xFFFFF7ED)
-                            : const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: isAccepting
-                                ? const Color(0xFFFDE68A)
-                                : const Color(0xFFD1D5DB)),
-                      ),
-                      child: Icon(Icons.storefront,
-                          color: isAccepting
-                              ? const Color(0xFFD97706)
-                              : const Color(0xFF9CA3AF),
-                          size: 28),
+                child: Row(children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      color: isAccepting ? const Color(0xFFFFF7ED) : const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: isAccepting ? const Color(0xFFFDE68A) : const Color(0xFFD1D5DB)),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            data['name'] as String? ?? '',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1C1917),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            data['area'] as String? ?? '',
-                            style: const TextStyle(
-                                fontSize: 13, color: Color(0xFF78716C)),
-                          ),
-                          const SizedBox(height: 6),
-                          _FoodTypeBadge(foodType: foodType),
-                          Builder(builder: (_) {
-                            final matching = (data['matching_items'] as List<dynamic>?)?.cast<String>();
-                            if (matching == null || matching.isEmpty) return const SizedBox.shrink();
-                            final preview = matching.take(3).join(', ');
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text('Serves: $preview',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
-                                  overflow: TextOverflow.ellipsis),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right,
-                        color: isAccepting
-                            ? const Color(0xFFD97706)
-                            : const Color(0xFF9CA3AF),
-                        size: 24),
-                  ],
-                ),
+                    child: Icon(Icons.storefront,
+                        color: isAccepting ? const Color(0xFFD97706) : const Color(0xFF9CA3AF),
+                        size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(widget.data['name'] as String? ?? '',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold,
+                              color: Color(0xFF1C1917))),
+                      const SizedBox(height: 4),
+                      Text(widget.data['area'] as String? ?? '',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF78716C))),
+                      const SizedBox(height: 6),
+                      _FoodTypeBadge(foodType: foodType),
+                      Builder(builder: (_) {
+                        final matching = (widget.data['matching_items'] as List<dynamic>?)?.cast<String>();
+                        if (matching == null || matching.isEmpty) return const SizedBox.shrink();
+                        final preview = matching.take(3).join(', ');
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('Serves: $preview',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                              overflow: TextOverflow.ellipsis),
+                        );
+                      }),
+                    ]),
+                  ),
+                  Icon(Icons.chevron_right,
+                      color: isAccepting ? const Color(0xFFD97706) : const Color(0xFF9CA3AF),
+                      size: 24),
+                ]),
               ),
               if (!isAccepting)
                 Container(
@@ -202,15 +189,29 @@ class _RestaurantCard extends StatelessWidget {
                     color: Color(0xFFFEE2E2),
                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
                   ),
-                  child: Text(
-                    backOnlineLabel != null
-                        ? 'Currently unavailable · Back by $backOnlineLabel'
-                        : 'Currently unavailable',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFDC2626),
-                        fontWeight: FontWeight.w500),
-                  ),
+                  child: Row(children: [
+                    const Expanded(
+                      child: Text('Currently not accepting orders',
+                          style: TextStyle(fontSize: 11, color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w500)),
+                    ),
+                    if (widget.customerPhone.isNotEmpty)
+                      _notifyRequested
+                          ? const Text('✓ Notified',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF166534),
+                                  fontWeight: FontWeight.w700))
+                          : GestureDetector(
+                              onTap: _notifyLoading ? null : _requestNotify,
+                              child: _notifyLoading
+                                  ? const SizedBox(width: 14, height: 14,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 1.5, color: Color(0xFFDC2626)))
+                                  : const Text('Notify me',
+                                      style: TextStyle(fontSize: 11, color: Color(0xFFDC2626),
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline)),
+                            ),
+                  ]),
                 ),
             ],
           ),
