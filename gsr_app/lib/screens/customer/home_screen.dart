@@ -48,6 +48,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   // Offers + nearby restaurants
   List<Map<String, dynamic>> _offers = [];
   List<Map<String, dynamic>> _nearbyRestaurants = [];
+  Set<String> _usedOfferCodes = {};
 
   // Controllers
   late TextEditingController _pincodeCtrl;
@@ -227,7 +228,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     if (_pincode.isEmpty) return;
     try {
       final offers = await ApiService.getCustomerOffers(_pincode);
-      if (mounted) setState(() => _offers = offers);
+      final prefs = await SharedPreferences.getInstance();
+      final usedRaw = prefs.getString('used_offer_codes') ?? '[]';
+      Set<String> usedCodes = {};
+      try {
+        usedCodes = (jsonDecode(usedRaw) as List<dynamic>)
+            .map((e) => e.toString())
+            .toSet();
+      } catch (_) {}
+      if (mounted) setState(() { _offers = offers; _usedOfferCodes = usedCodes; });
     } catch (_) {}
   }
 
@@ -762,7 +771,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                         final isApplied = OfferService.hasOffer &&
                             code.isNotEmpty &&
                             OfferService.offerCode == code;
-                        return _OfferCard(offer: _offers[i], isApplied: isApplied);
+                        final isUsed = code.isNotEmpty && _usedOfferCodes.contains(code);
+                        return _OfferCard(
+                          offer: _offers[i],
+                          isApplied: isApplied,
+                          isUsed: isUsed,
+                        );
                       },
                     ),
                   ),
@@ -1041,7 +1055,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
 class _OfferCard extends StatelessWidget {
   final Map<String, dynamic> offer;
   final bool isApplied;
-  const _OfferCard({required this.offer, this.isApplied = false});
+  final bool isUsed;
+  const _OfferCard({required this.offer, this.isApplied = false, this.isUsed = false});
 
   String? _formatValidity(String? raw) {
     if (raw == null) return null;
@@ -1067,8 +1082,9 @@ class _OfferCard extends StatelessWidget {
     final offerCode = offer['offer_code'] as String? ?? '';
     final validUntil = _formatValidity(offer['valid_until'] as String?);
 
+    final bool isDisabled = isApplied || isUsed;
     return GestureDetector(
-      onTap: isApplied ? null : () {
+      onTap: isDisabled ? null : () {
         if (restaurantId.isEmpty) return;
 
         // One offer at a time — block if any offer is already applied
@@ -1105,14 +1121,14 @@ class _OfferCard extends StatelessWidget {
         ));
       },
       child: Opacity(
-        opacity: isApplied ? 0.55 : 1.0,
+        opacity: isDisabled ? 0.55 : 1.0,
         child: Container(
         width: 160,
         margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: isApplied
+            colors: isDisabled
                 ? [const Color(0xFF6B7280), const Color(0xFF9CA3AF)]
                 : [const Color(0xFF7C3AED), const Color(0xFF9333EA)],
             begin: Alignment.topLeft,
@@ -1199,7 +1215,7 @@ class _OfferCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                    isApplied ? 'Applied ✓' : 'Order →',
+                    isUsed ? 'Used' : (isApplied ? 'Applied ✓' : 'Order →'),
                     style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,

@@ -240,6 +240,17 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       existingList.add({'order_id': orderId, 'short_id': shortId});
       await prefs.setString('active_orders', jsonEncode(existingList));
 
+      // Mark offer code as used so home screen grays it out permanently
+      if (capturedOfferCode.isNotEmpty) {
+        final usedRaw = prefs.getString('used_offer_codes') ?? '[]';
+        List<dynamic> usedList;
+        try { usedList = jsonDecode(usedRaw) as List<dynamic>; } catch (_) { usedList = []; }
+        if (!usedList.contains(capturedOfferCode)) {
+          usedList.add(capturedOfferCode);
+          await prefs.setString('used_offer_codes', jsonEncode(usedList));
+        }
+      }
+
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
