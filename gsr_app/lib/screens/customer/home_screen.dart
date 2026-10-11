@@ -239,7 +239,39 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     if (_phone.isEmpty) return;
     try {
       final notifs = await ApiService.getCustomerNotifications(_phone);
-      if (mounted) setState(() => _notifications = notifs);
+      if (!mounted) return;
+      final prevUnread = _unreadCount;
+      setState(() => _notifications = notifs);
+      final newUnread = _unreadCount;
+      if (newUnread > prevUnread) {
+        final newest = _notifications.firstWhere(
+          (n) => n['is_read'] == false,
+          orElse: () => {},
+        );
+        if (newest.isNotEmpty && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newest['message'] as String? ??
+                  'A restaurant is now accepting orders!'),
+              backgroundColor: const Color(0xFF166534),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'View',
+                textColor: Colors.white,
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => CustomerNotificationsScreen(
+                      mobile: _phone,
+                      initialNotifications: _notifications,
+                    ),
+                  ));
+                  _loadNotifications();
+                },
+              ),
+            ),
+          );
+        }
+      }
     } catch (_) {}
   }
 
@@ -1178,6 +1210,17 @@ class _NearbyRestaurantTile extends StatefulWidget {
 class _NearbyRestaurantTileState extends State<_NearbyRestaurantTile> {
   bool _notifyRequested = false;
   bool _notifyLoading = false;
+
+  @override
+  void didUpdateWidget(_NearbyRestaurantTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasOff = !(oldWidget.restaurant['is_accepting_orders'] as bool? ?? true);
+    final isNowOn = widget.restaurant['is_accepting_orders'] as bool? ?? true;
+    // Restaurant came back online — clear stale "✓ Notified" state
+    if (wasOff && isNowOn && _notifyRequested) {
+      setState(() => _notifyRequested = false);
+    }
+  }
 
   Future<void> _requestNotify() async {
     if (_notifyLoading || _notifyRequested) return;
