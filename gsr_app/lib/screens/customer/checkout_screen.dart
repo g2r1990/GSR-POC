@@ -206,8 +206,12 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         }
       }
 
-      // Capture totals before clearing cart/offer (getters read CartService)
+      // Capture totals + offer before clearing (getters read CartService/OfferService)
       final gstAmount = _gst;
+      final capturedDiscount = _discountAmount;
+      final capturedOfferCode = _offerApplied && OfferService.offerCode.isNotEmpty
+          ? OfferService.offerCode
+          : '';
 
       final result = await ApiService.placeOrder({
         'restaurant_id': CartService.restaurantId,
@@ -246,6 +250,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             deliveryFee: _deliveryFee,
             gst: gstAmount,
             createdAt: result['created_at'] as String?,
+            offerCode: capturedOfferCode,
+            discountAmount: capturedDiscount,
           ),
         ),
         (r) => r.isFirst,

@@ -245,25 +245,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
           orElse: () => {},
         );
         if (newest.isNotEmpty && mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(newest['message'] as String? ??
                   'A restaurant is now accepting orders!'),
               backgroundColor: const Color(0xFF166534),
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'View',
-                textColor: Colors.white,
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => CustomerNotificationsScreen(
-                      mobile: _phone,
-                      initialNotifications: _notifications,
-                    ),
-                  ));
-                  _loadNotifications();
-                },
-              ),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -769,7 +757,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: _offers.length,
-                      itemBuilder: (ctx, i) => _OfferCard(offer: _offers[i]),
+                      itemBuilder: (ctx, i) {
+                        final code = _offers[i]['offer_code'] as String? ?? '';
+                        final isApplied = OfferService.hasOffer &&
+                            code.isNotEmpty &&
+                            OfferService.offerCode == code;
+                        return _OfferCard(offer: _offers[i], isApplied: isApplied);
+                      },
                     ),
                   ),
               ],
@@ -1046,7 +1040,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
 
 class _OfferCard extends StatelessWidget {
   final Map<String, dynamic> offer;
-  const _OfferCard({required this.offer});
+  final bool isApplied;
+  const _OfferCard({required this.offer, this.isApplied = false});
+
+  String? _formatValidity(String? raw) {
+    if (raw == null) return null;
+    try {
+      final dt = DateTime.parse(raw).toLocal();
+      if (dt.isBefore(DateTime.now())) return null;
+      const months = ['Jan','Feb','Mar','Apr','May','Jun',
+                      'Jul','Aug','Sep','Oct','Nov','Dec'];
+      final h = dt.hour, m = dt.minute;
+      final ampm = h >= 12 ? 'PM' : 'AM';
+      final h12 = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+      return 'Valid till ${dt.day} ${months[dt.month-1]}, $h12:${m.toString().padLeft(2,'0')} $ampm';
+    } catch (_) { return null; }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1056,8 +1065,10 @@ class _OfferCard extends StatelessWidget {
     final area = offer['restaurant_area'] as String? ?? '';
     final title = offer['title'] as String? ?? '';
     final offerCode = offer['offer_code'] as String? ?? '';
+    final validUntil = _formatValidity(offer['valid_until'] as String?);
+
     return GestureDetector(
-      onTap: () {
+      onTap: isApplied ? null : () {
         if (restaurantId.isEmpty) return;
 
         // One offer at a time — block if any offer is already applied
@@ -1093,13 +1104,17 @@ class _OfferCard extends StatelessWidget {
           ),
         ));
       },
-      child: Container(
+      child: Opacity(
+        opacity: isApplied ? 0.55 : 1.0,
+        child: Container(
         width: 160,
         margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+          gradient: LinearGradient(
+            colors: isApplied
+                ? [const Color(0xFF6B7280), const Color(0xFF9CA3AF)]
+                : [const Color(0xFF7C3AED), const Color(0xFF9333EA)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -1132,6 +1147,14 @@ class _OfferCard extends StatelessWidget {
                     color: Colors.white),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
+            const Spacer(),
+            if (validUntil != null) ...[
+              Text(validUntil,
+                  style: const TextStyle(fontSize: 8, color: Colors.white70),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+            ],
             const Spacer(),
             if (offerCode.isNotEmpty) ...[
               Container(
@@ -1175,8 +1198,9 @@ class _OfferCard extends StatelessWidget {
                   color: Colors.white.withAlpha(38),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text('Order →',
-                    style: TextStyle(
+                child: Text(
+                    isApplied ? 'Applied ✓' : 'Order →',
+                    style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.white)),
@@ -1185,6 +1209,7 @@ class _OfferCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

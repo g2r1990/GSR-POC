@@ -608,7 +608,7 @@ class _OrderCardState extends State<_OrderCard> {
     final notes = order['notes'] as String?;
 
     final nextSt = _nextStatus[status];
-    final canCancel = status == 'placed' || status == 'accepted';
+    final canCancel = status == 'placed';
 
     // Bill breakdown
     double itemSubtotal = 0;
@@ -616,6 +616,7 @@ class _OrderCardState extends State<_OrderCard> {
       itemSubtotal += (item['subtotal'] as num?)?.toDouble() ?? 0;
     }
     final discountAmount = (order['discount_amount'] as num?)?.toDouble() ?? 0.0;
+    final offerCode = (order['offer_code'] as String?) ?? '';
     final discountedItemTotal = itemSubtotal - discountAmount;
     const deliveryFee = 20.0;
     final gst = double.parse((discountedItemTotal * 0.05).toStringAsFixed(2));
@@ -781,7 +782,11 @@ class _OrderCardState extends State<_OrderCard> {
                 _BillRow('Item Subtotal', '₹${itemSubtotal.toStringAsFixed(0)}'),
                 if (discountAmount > 0) ...[
                   const SizedBox(height: 4),
-                  _BillRow('Offer Discount', '-₹${discountAmount.toStringAsFixed(0)}',
+                  _BillRow(
+                      offerCode.isNotEmpty
+                          ? 'Offer Discount ($offerCode)'
+                          : 'Offer Discount',
+                      '-₹${discountAmount.toStringAsFixed(0)}',
                       valueColor: const Color(0xFF166534)),
                 ],
                 const SizedBox(height: 4),

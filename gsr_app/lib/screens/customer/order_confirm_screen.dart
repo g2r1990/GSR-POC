@@ -10,6 +10,8 @@ class OrderConfirmScreen extends StatefulWidget {
   final double deliveryFee;
   final double gst;
   final String? createdAt;
+  final String offerCode;
+  final double discountAmount;
 
   const OrderConfirmScreen({
     super.key,
@@ -19,6 +21,8 @@ class OrderConfirmScreen extends StatefulWidget {
     this.deliveryFee = 20.0,
     this.gst = 0.0,
     this.createdAt,
+    this.offerCode = '',
+    this.discountAmount = 0.0,
   });
 
   @override
@@ -156,6 +160,27 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                           letterSpacing: 2)),
                   const Divider(height: 24),
                   _BillRow('Items subtotal', '₹${widget.total.toStringAsFixed(0)}'),
+                  if (widget.offerCode.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.check_circle,
+                              size: 12, color: Color(0xFF166534)),
+                          const SizedBox(width: 4),
+                          Text('Coupon: ${widget.offerCode}',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF166534),
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                        Text('-₹${widget.discountAmount.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF166534),
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   _BillRow('Delivery fee', '₹${widget.deliveryFee.toStringAsFixed(0)}'),
                   const SizedBox(height: 6),
