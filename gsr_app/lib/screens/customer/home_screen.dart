@@ -78,7 +78,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _restaurantsTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _loadRestaurantCount();
     });
-    _notifTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _notifTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) _loadNotifications();
     });
   }
