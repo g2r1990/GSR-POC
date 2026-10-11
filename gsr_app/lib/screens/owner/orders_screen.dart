@@ -573,16 +573,16 @@ class _OrderCardState extends State<_OrderCard> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Order'),
-        content:
-            const Text('Are you sure you want to cancel this order?'),
+        title: const Text('Decline Order'),
+        content: const Text(
+            'The customer will be notified. Are you sure you want to decline this order?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('No')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yes, Cancel',
+            child: const Text('Yes, Decline',
                 style: TextStyle(color: Color(0xFFDC2626))),
           ),
         ],
@@ -852,7 +852,7 @@ class _OrderCardState extends State<_OrderCard> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Cancel Order'),
+                    child: const Text('Decline Order'),
                   ),
                 ),
               ),
