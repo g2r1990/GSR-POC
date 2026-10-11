@@ -31,7 +31,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     super.initState();
     _loadStats();
     _loadAvailability();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) _loadStats();
     });
   }
