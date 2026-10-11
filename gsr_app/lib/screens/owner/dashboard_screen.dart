@@ -49,7 +49,12 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
         setState(() {
           _isAccepting = data['is_accepting_orders'] as bool? ?? true;
           final raw = data['back_online_at'] as String?;
-          _backOnlineAt = raw != null ? DateTime.tryParse(raw)?.toLocal() : null;
+          if (raw != null) {
+            final utcStr = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
+            _backOnlineAt = DateTime.tryParse(utcStr)?.toLocal();
+          } else {
+            _backOnlineAt = null;
+          }
         });
       }
     } catch (_) {}

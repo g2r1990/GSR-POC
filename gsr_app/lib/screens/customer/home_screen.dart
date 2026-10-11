@@ -1090,7 +1090,9 @@ class _NearbyRestaurantTile extends StatelessWidget {
   String? _fmtBackOnline(String? raw) {
     if (raw == null) return null;
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      // API returns naive UTC string (no Z suffix) — force UTC before converting to local
+      final utcStr = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
+      final dt = DateTime.parse(utcStr).toLocal();
       final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
       final m = dt.minute.toString().padLeft(2, '0');
       final ampm = dt.hour < 12 ? 'AM' : 'PM';

@@ -67,6 +67,12 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found.")
 
+    if not getattr(restaurant, 'is_accepting_orders', True):
+        raise HTTPException(
+            status_code=400,
+            detail="This restaurant is not currently accepting orders. Please try again later."
+        )
+
     if not body.items:
         raise HTTPException(status_code=400, detail="Order must have at least one item.")
 

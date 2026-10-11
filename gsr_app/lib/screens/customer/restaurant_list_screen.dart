@@ -89,72 +89,129 @@ class _RestaurantCard extends StatelessWidget {
 
   const _RestaurantCard({required this.data, required this.onTap});
 
+  String? _fmtBackOnline(String? raw) {
+    if (raw == null) return null;
+    try {
+      final utcStr = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
+      final dt = DateTime.parse(utcStr).toLocal();
+      final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final m = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour < 12 ? 'AM' : 'PM';
+      return '$h:$m $ampm';
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isAccepting = data['is_accepting_orders'] as bool? ?? true;
+    final backOnlineLabel = _fmtBackOnline(data['back_online_at'] as String?);
     final foodType = data['food_type'] as String? ?? 'both';
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFFDE68A)),
-      ),
-      color: Colors.white,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
+
+    return Opacity(
+      opacity: isAccepting ? 1.0 : 0.55,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+              color: isAccepting
+                  ? const Color(0xFFFDE68A)
+                  : const Color(0xFFFCA5A5)),
+        ),
+        color: Colors.white,
+        child: InkWell(
+          onTap: isAccepting ? onTap : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
-                ),
-                child: const Icon(Icons.storefront,
-                    color: Color(0xFFD97706), size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   children: [
-                    Text(
-                      data['name'] as String? ?? '',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1C1917),
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: isAccepting
+                            ? const Color(0xFFFFF7ED)
+                            : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: isAccepting
+                                ? const Color(0xFFFDE68A)
+                                : const Color(0xFFD1D5DB)),
+                      ),
+                      child: Icon(Icons.storefront,
+                          color: isAccepting
+                              ? const Color(0xFFD97706)
+                              : const Color(0xFF9CA3AF),
+                          size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            data['name'] as String? ?? '',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1C1917),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            data['area'] as String? ?? '',
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF78716C)),
+                          ),
+                          const SizedBox(height: 6),
+                          _FoodTypeBadge(foodType: foodType),
+                          Builder(builder: (_) {
+                            final matching = (data['matching_items'] as List<dynamic>?)?.cast<String>();
+                            if (matching == null || matching.isEmpty) return const SizedBox.shrink();
+                            final preview = matching.take(3).join(', ');
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text('Serves: $preview',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                                  overflow: TextOverflow.ellipsis),
+                            );
+                          }),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      data['area'] as String? ?? '',
-                      style: const TextStyle(
-                          fontSize: 13, color: Color(0xFF78716C)),
-                    ),
-                    const SizedBox(height: 6),
-                    _FoodTypeBadge(foodType: foodType),
-                    Builder(builder: (_) {
-                      final matching = (data['matching_items'] as List<dynamic>?)?.cast<String>();
-                      if (matching == null || matching.isEmpty) return const SizedBox.shrink();
-                      final preview = matching.take(3).join(', ');
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text('Serves: $preview',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
-                            overflow: TextOverflow.ellipsis),
-                      );
-                    }),
+                    Icon(Icons.chevron_right,
+                        color: isAccepting
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFF9CA3AF),
+                        size: 24),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right,
-                  color: Color(0xFFD97706), size: 24),
+              if (!isAccepting)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+                  ),
+                  child: Text(
+                    backOnlineLabel != null
+                        ? 'Currently unavailable · Back by $backOnlineLabel'
+                        : 'Currently unavailable',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFDC2626),
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
             ],
           ),
         ),
