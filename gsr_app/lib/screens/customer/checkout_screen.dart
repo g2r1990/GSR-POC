@@ -187,6 +187,25 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     setState(() { _placing = true; _error = null; });
 
     try {
+      // Check if restaurant is still accepting orders before submitting
+      final restaurantId = CartService.restaurantId ?? '';
+      if (restaurantId.isNotEmpty) {
+        try {
+          final menuData = await ApiService.getRestaurantMenu(restaurantId);
+          final info = menuData['restaurant'] as Map<String, dynamic>? ?? {};
+          final isAccepting = info['is_accepting_orders'] as bool? ?? true;
+          if (!isAccepting) {
+            if (mounted) setState(() {
+              _placing = false;
+              _error = 'This restaurant is currently not accepting orders. Please try again later.';
+            });
+            return;
+          }
+        } catch (_) {
+          // Network error on check — proceed; backend will reject if truly closed
+        }
+      }
+
       // Capture totals before clearing cart/offer (getters read CartService)
       final gstAmount = _gst;
 

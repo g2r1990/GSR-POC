@@ -5,7 +5,8 @@ import '../../services/api_service.dart';
 import 'order_status_screen.dart';
 
 class CustomerOrderHistoryScreen extends StatefulWidget {
-  const CustomerOrderHistoryScreen({super.key});
+  final List<Map<String, dynamic>>? initialOrders;
+  const CustomerOrderHistoryScreen({super.key, this.initialOrders});
 
   @override
   State<CustomerOrderHistoryScreen> createState() =>
@@ -27,7 +28,13 @@ class _CustomerOrderHistoryScreenState
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
-    _load();
+    if (widget.initialOrders != null && widget.initialOrders!.isNotEmpty) {
+      _orders = List.from(widget.initialOrders!);
+      _loading = false;
+      _loadSilent(); // refresh in background without showing spinner
+    } else {
+      _load();
+    }
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _loadSilent();
     });

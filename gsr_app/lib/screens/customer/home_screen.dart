@@ -34,8 +34,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   // Active orders (list — one banner per order)
   List<Map<String, String>> _activeOrders = [];
 
-  // Recent order
+  // Recent order + cached full list for instant orders screen
   Map<String, dynamic>? _recentOrder;
+  List<Map<String, dynamic>> _cachedOrders = [];
 
   // Search state
   bool _searching = false;
@@ -146,8 +147,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     if (_phone.isEmpty) return;
     try {
       final orders = await ApiService.customerOrderHistory(_phone);
-      if (mounted && orders.isNotEmpty) {
-        setState(() => _recentOrder = orders.first);
+      if (mounted) {
+        setState(() {
+          _cachedOrders = orders;
+          if (orders.isNotEmpty) _recentOrder = orders.first;
+        });
       }
     } catch (_) {}
   }
@@ -384,7 +388,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'My Orders',
             onPressed: () async {
-              await Navigator.pushNamed(context, '/customer/orders');
+              await Navigator.push(context, MaterialPageRoute(
+                builder: (_) => CustomerOrderHistoryScreen(initialOrders: _cachedOrders),
+              ));
               _loadActiveOrders();
               _loadRecentOrder();
             },
@@ -753,8 +759,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: GestureDetector(
                   onTap: () async {
-                    await Navigator.pushNamed(context, '/customer/orders');
+                    await Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => CustomerOrderHistoryScreen(initialOrders: _cachedOrders),
+                    ));
                     _loadActiveOrders();
+                    _loadRecentOrder();
                   },
                   child: Container(
                     width: double.infinity,

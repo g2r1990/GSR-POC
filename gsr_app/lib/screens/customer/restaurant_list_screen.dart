@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'restaurant_menu_screen.dart';
 import '../../services/api_service.dart';
 
-class RestaurantListScreen extends StatelessWidget {
+class RestaurantListScreen extends StatefulWidget {
   final String pincode;
   final List<Map<String, dynamic>> restaurants;
   final String? searchLabel;
@@ -16,7 +17,40 @@ class RestaurantListScreen extends StatelessWidget {
     this.customerPhone = '',
   });
 
+  @override
+  State<RestaurantListScreen> createState() => _RestaurantListScreenState();
+}
+
+class _RestaurantListScreenState extends State<RestaurantListScreen> {
   static const _amber = Color(0xFFD97706);
+
+  late List<Map<String, dynamic>> _restaurants;
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restaurants = List.from(widget.restaurants);
+    // Only auto-refresh pincode-based lists (not search results)
+    if (widget.searchLabel == null) {
+      _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (mounted) _refresh();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final list = await ApiService.searchRestaurants(widget.pincode);
+      if (mounted) setState(() => _restaurants = list);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,24 +59,24 @@ class RestaurantListScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: _amber,
         foregroundColor: Colors.white,
-        title: Text(searchLabel ?? 'Restaurants — $pincode'),
+        title: Text(widget.searchLabel ?? 'Restaurants — ${widget.pincode}'),
         centerTitle: true,
         elevation: 0,
       ),
-      body: restaurants.isEmpty
+      body: _restaurants.isEmpty
           ? _emptyState(context)
           : ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: restaurants.length,
+              itemCount: _restaurants.length,
               itemBuilder: (ctx, i) => _RestaurantCard(
-                data: restaurants[i],
-                customerPhone: customerPhone,
+                data: _restaurants[i],
+                customerPhone: widget.customerPhone,
                 onTap: () => Navigator.push(
                   ctx,
                   MaterialPageRoute(
                     builder: (_) => RestaurantMenuScreen(
-                      restaurantId: restaurants[i]['id'] as String,
-                      restaurantName: restaurants[i]['name'] as String,
+                      restaurantId: _restaurants[i]['id'] as String,
+                      restaurantName: _restaurants[i]['name'] as String,
                     ),
                   ),
                 ),
@@ -61,7 +95,7 @@ class RestaurantListScreen extends StatelessWidget {
             const Icon(Icons.storefront_outlined, size: 64, color: Color(0xFFD6D3D1)),
             const SizedBox(height: 16),
             Text(
-              'No restaurants found for $pincode',
+              'No restaurants found for ${widget.pincode}',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 16,

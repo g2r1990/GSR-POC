@@ -134,7 +134,7 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
         }
       }
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/customer/home');
+      Navigator.of(context).pushNamedAndRemoveUntil('/customer/home', (_) => false);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
