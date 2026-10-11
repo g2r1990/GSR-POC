@@ -78,18 +78,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _restaurantsTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) _loadRestaurantCount();
     });
-    _notifTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _notifTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) _loadNotifications();
     });
   }
 
-  List<Map<String, dynamic>> get _filteredRestaurants {
-    final q = _foodQueryCtrl.text.trim().toLowerCase();
-    if (q.isEmpty) return _nearbyRestaurants;
-    return _nearbyRestaurants
-        .where((r) => (r['name'] as String? ?? '').toLowerCase().contains(q))
-        .toList();
-  }
+  int get _openCount => _nearbyRestaurants
+      .where((r) => r['is_accepting_orders'] as bool? ?? true)
+      .length;
 
   @override
   void didChangeDependencies() {
@@ -699,7 +695,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                                     color: Color(0xFF1C1917))),
                             Text(
                               _restaurantCount != null
-                                  ? '$_restaurantCount restaurants accepting orders near you'
+                                  ? '$_openCount of $_restaurantCount restaurants near you are open'
                                   : 'See all restaurants near your location',
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF78716C)),
@@ -715,7 +711,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                             color: const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text('$_restaurantCount open',
+                          child: Text('$_openCount open',
                               style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -817,7 +813,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        '${_nearbyRestaurants.length} open',
+                        '$_openCount open',
                         style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -827,7 +823,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                   ]),
                 ),
                 const SizedBox(height: 10),
-                for (final r in _filteredRestaurants.take(5))
+                for (final r in _nearbyRestaurants.take(5))
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                     child: _NearbyRestaurantTile(
