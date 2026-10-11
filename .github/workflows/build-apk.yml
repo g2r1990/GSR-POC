@@ -49,7 +49,7 @@ jobs:
         with:
           name: BossBite-Admin-${{ github.run_number }}
           path: gsr_app/build/app/outputs/flutter-apk/BossBite-Admin.apk
-          retention-days: 30
+          retention-days: 3
 
       # ── Restaurant Owner APK (share to restaurant owners) ────────────────────────
       - name: Build Restaurant Owner APK
@@ -64,7 +64,7 @@ jobs:
         with:
           name: BossBite-Restaurant-Owner-${{ github.run_number }}
           path: gsr_app/build/app/outputs/flutter-apk/BossBite-Restaurant-Owner.apk
-          retention-days: 30
+          retention-days: 3
 
       # ── Application Users APK (app-store ready for end users) ──────────────────
       - name: Build Application Users APK
@@ -79,4 +79,4 @@ jobs:
         with:
           name: BossBite-ApplicationUsers-${{ github.run_number }}
           path: gsr_app/build/app/outputs/flutter-apk/BossBite-ApplicationUsers.apk
-          retention-days: 30
+          retention-days: 3
