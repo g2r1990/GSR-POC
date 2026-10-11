@@ -636,6 +636,26 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
     } catch (_) {}
   }
+
+  static Future<List<Map<String, dynamic>>> getCustomerNotifications(String mobile) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/customer/notifications?mobile=$mobile'),
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<void> markNotificationsRead(String mobile) async {
+    try {
+      await http.patch(
+        Uri.parse('$_base/customer/notifications/mark-read?mobile=$mobile'),
+      ).timeout(const Duration(seconds: 10));
+    } catch (_) {}
+  }
 }
 
 class ApiException implements Exception {

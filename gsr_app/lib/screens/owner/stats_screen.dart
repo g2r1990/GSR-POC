@@ -12,8 +12,14 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
   static const _amber = Color(0xFFD97706);
 
   List<Map<String, dynamic>> _orders = [];
+  List<Map<String, dynamic>> _menuItems = [];
   bool _loading = true;
   String? _error;
+
+  // Collapse/expand state for sections
+  bool _topExpanded = true;
+  bool _bottomExpanded = true;
+  bool _unsoldExpanded = true;
 
   String _dateFilter = 'week';
   DateTime? _customStart;
@@ -41,7 +47,17 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final orders = await ApiService.getOwnerOrders();
-      if (mounted) setState(() { _orders = orders; _loading = false; });
+      List<Map<String, dynamic>> menuItems = [];
+      try {
+        menuItems = (await ApiService.getMenu())
+            .where((e) => e['is_deleted'] != true)
+            .toList();
+      } catch (_) {}
+      if (mounted) setState(() {
+        _orders = orders;
+        _menuItems = menuItems;
+        _loading = false;
+      });
     } on ApiException catch (e) {
       if (mounted) setState(() { _error = e.message; _loading = false; });
     } catch (_) {
@@ -328,6 +344,10 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
           ..._buildBottomItems(),
           const SizedBox(height: 20),
 
+          // ── Unsold Items ────────────────────────────────────────────────────
+          ..._buildUnsoldItems(),
+          const SizedBox(height: 20),
+
           // ── Orders by Area ──────────────────────────────────────────────────
           ..._buildAreaChart(),
           const SizedBox(height: 20),
@@ -336,6 +356,33 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
           ..._buildHourlyChart(),
         ],
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title, bool expanded, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF7ED),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFFDE68A)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(title,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF374151))),
+            ),
+            Icon(
+              expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              color: _amber,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -359,20 +406,23 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     }).toList();
 
     return [
-      const _SectionTitle('🏆 Top Selling Items'),
-      const SizedBox(height: 10),
-      Container(
-        constraints: const BoxConstraints(maxHeight: 280),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFDE68A)),
+      _buildSectionHeader('🏆 Top Selling Items', _topExpanded,
+          () => setState(() => _topExpanded = !_topExpanded)),
+      if (_topExpanded) ...[
+        const SizedBox(height: 10),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 280),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFDE68A)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: Column(children: items),
+          ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(8),
-          child: Column(children: items),
-        ),
-      ),
+      ],
     ];
   }
 
@@ -397,20 +447,78 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
     }).toList();
 
     return [
-      const _SectionTitle('📉 Least Selling Items'),
-      const SizedBox(height: 10),
-      Container(
-        constraints: const BoxConstraints(maxHeight: 280),
+      _buildSectionHeader('📉 Least Selling Items', _bottomExpanded,
+          () => setState(() => _bottomExpanded = !_bottomExpanded)),
+      if (_bottomExpanded) ...[
+        const SizedBox(height: 10),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 280),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: Column(children: items),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _buildUnsoldItems() {
+    if (_menuItems.isEmpty) return [];
+    final soldNames = _itemQtyMap.keys.map((n) => n.toLowerCase()).toSet();
+    final unsold = _menuItems
+        .where((m) =>
+            m['is_available'] == true &&
+            !(soldNames.contains((m['name'] as String? ?? '').toLowerCase())))
+        .map((m) => m['name'] as String? ?? '')
+        .where((n) => n.isNotEmpty)
+        .toList();
+    if (unsold.isEmpty) return [];
+
+    final tiles = unsold.map((name) => Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(8),
-          child: Column(children: items),
-        ),
+        child: Row(children: [
+          const Icon(Icons.remove_circle_outline, size: 16, color: Color(0xFF9CA3AF)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(name,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
+          ),
+          const Text('0 sold',
+              style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        ]),
       ),
+    )).toList();
+
+    return [
+      _buildSectionHeader('🚫 Unsold Items (${unsold.length})', _unsoldExpanded,
+          () => setState(() => _unsoldExpanded = !_unsoldExpanded)),
+      if (_unsoldExpanded) ...[
+        const SizedBox(height: 10),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 280),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(8),
+            child: Column(children: tiles),
+          ),
+        ),
+      ],
     ];
   }
 

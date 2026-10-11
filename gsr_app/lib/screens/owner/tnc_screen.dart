@@ -27,9 +27,12 @@ class _TncScreenState extends State<TncScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('tnc_accepted_${widget.ownerId}', true);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (_) => OwnerDashboardScreen(ownerName: widget.ownerName),
-      ));
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => OwnerDashboardScreen(ownerName: widget.ownerName),
+        ),
+        (_) => false,
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

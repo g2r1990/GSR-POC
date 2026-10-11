@@ -33,7 +33,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> {
     _restaurants = List.from(widget.restaurants);
     // Only auto-refresh pincode-based lists (not search results)
     if (widget.searchLabel == null) {
-      _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
         if (mounted) _refresh();
       });
     }

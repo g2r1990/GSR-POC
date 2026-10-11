@@ -12,6 +12,7 @@ import 'cart_screen.dart';
 import 'order_history_screen.dart';
 import 'profile_screen.dart';
 import 'restaurant_list_screen.dart';
+import 'notifications_screen.dart';
 import 'restaurant_menu_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -55,6 +56,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   Timer? _offersTimer;
   Timer? _activeOrdersTimer;
   Timer? _restaurantsTimer;
+  Timer? _notifTimer;
+
+  // In-app notifications
+  List<Map<String, dynamic>> _notifications = [];
+  int get _unreadCount => _notifications.where((n) => n['is_read'] == false).length;
 
   @override
   void initState() {
@@ -69,8 +75,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _activeOrdersTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _pollActiveOrders();
     });
-    _restaurantsTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _restaurantsTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _loadRestaurantCount();
+    });
+    _notifTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _loadNotifications();
     });
   }
 
@@ -92,6 +101,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
   @override
   void didPopNext() {
     if (mounted) _loadActiveOrders();
+    if (mounted) _loadRecentOrder();
     if (mounted) setState(() {});
   }
 
@@ -101,6 +111,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _offersTimer?.cancel();
     _activeOrdersTimer?.cancel();
     _restaurantsTimer?.cancel();
+    _notifTimer?.cancel();
     _pincodeCtrl.dispose();
     _foodQueryCtrl.dispose();
     _scrollCtrl.dispose();
@@ -141,6 +152,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     _loadRecentOrder();
     _loadRestaurantCount();
     _loadOffers();
+    _loadNotifications();
   }
 
   Future<void> _loadRecentOrder() async {
@@ -220,6 +232,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
     try {
       final offers = await ApiService.getCustomerOffers(_pincode);
       if (mounted) setState(() => _offers = offers);
+    } catch (_) {}
+  }
+
+  Future<void> _loadNotifications() async {
+    if (_phone.isEmpty) return;
+    try {
+      final notifs = await ApiService.getCustomerNotifications(_phone);
+      if (mounted) setState(() => _notifications = notifs);
     } catch (_) {}
   }
 
@@ -384,6 +404,47 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
           ],
         ),
         actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => CustomerNotificationsScreen(
+                      mobile: _phone,
+                      initialNotifications: _notifications,
+                    ),
+                  ));
+                  _loadNotifications();
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _unreadCount > 9 ? '9+' : '$_unreadCount',
+                        style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'My Orders',

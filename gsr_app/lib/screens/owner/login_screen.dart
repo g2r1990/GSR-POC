@@ -36,18 +36,24 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
       final prefs = await SharedPreferences.getInstance();
       final tncDone = prefs.getBool('tnc_accepted_$ownerId') ?? false;
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (_) => tncDone
-            ? OwnerDashboardScreen(ownerName: ownerName)
-            : TncScreen(ownerName: ownerName, ownerId: ownerId),
-      ));
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => tncDone
+              ? OwnerDashboardScreen(ownerName: ownerName)
+              : TncScreen(ownerName: ownerName, ownerId: ownerId),
+        ),
+        (_) => false,
+      );
     } on ApiException catch (e) {
       final msg = e.message.toLowerCase();
       if (msg.contains('pending') || msg.contains('rejected')) {
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(MaterialPageRoute(
-          builder: (_) => OwnerPendingScreen(mobile: _mobileCtr.text.trim()),
-        ));
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => OwnerPendingScreen(mobile: _mobileCtr.text.trim()),
+          ),
+          (_) => false,
+        );
         return;
       }
       setState(() => _error = e.message);
