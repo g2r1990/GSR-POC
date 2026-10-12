@@ -247,15 +247,17 @@ class _OrderCardState extends State<_OrderCard> {
     final status = order['status'] as String? ?? 'placed';
     final shortId = order['short_id'] as String? ?? '';
     final restaurant = order['restaurant_name'] as String? ?? '';
-    final total = (order['total'] as num?)?.toDouble() ?? 0.0;
     final itemsCount = (order['items_count'] as int?) ?? 0;
     final createdAt = order['created_at'] as String?;
     final isDone = status == 'delivered' || status == 'cancelled';
     final items = (order['items'] as List<dynamic>?) ?? [];
     final deliveryFee = (order['delivery_fee'] as num?)?.toDouble() ?? 20.0;
-    final gst = (order['gst'] as num?)?.toDouble() ?? 0.0;
     final discountAmt = (order['discount_amount'] as num?)?.toDouble() ?? 0.0;
     final offerCode = order['offer_code'] as String? ?? '';
+    final itemTotal = items.fold(0.0, (sum, item) =>
+        sum + ((item['price'] as num).toDouble() * (item['qty'] as num).toDouble()));
+    final computedGst = double.parse(((itemTotal - discountAmt) * 0.05).toStringAsFixed(2));
+    final grandTotal = (itemTotal - discountAmt) + deliveryFee + computedGst;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -315,7 +317,7 @@ class _OrderCardState extends State<_OrderCard> {
             Row(children: [
               const Icon(Icons.fastfood_outlined, size: 14, color: Color(0xFF78716C)),
               const SizedBox(width: 5),
-              Text('$itemsCount item${itemsCount == 1 ? '' : 's'}  •  ₹${total.toStringAsFixed(0)}',
+              Text('$itemsCount item${itemsCount == 1 ? '' : 's'}  •  ₹${grandTotal.toStringAsFixed(0)}',
                   style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
             ]),
             if (createdAt != null) ...[
@@ -382,9 +384,9 @@ class _OrderCardState extends State<_OrderCard> {
                   ],
                   _BillLine('Delivery fee', '₹${deliveryFee.toStringAsFixed(0)}'),
                   const SizedBox(height: 2),
-                  _BillLine('GST (5%)', '₹${gst.toStringAsFixed(2)}'),
+                  _BillLine('GST (5%)', '₹${computedGst.toStringAsFixed(2)}'),
                   const Divider(height: 10),
-                  _BillLine('Total', '₹${total.toStringAsFixed(0)}', bold: true),
+                  _BillLine('Total', '₹${grandTotal.toStringAsFixed(0)}', bold: true),
                 ]),
               ),
             ],
@@ -401,7 +403,7 @@ class _OrderCardState extends State<_OrderCard> {
                       builder: (_) => OrderStatusScreen(
                         orderId: order['order_id'] as String,
                         shortId: shortId,
-                        total: total,
+                        total: grandTotal,
                       ),
                     ));
                     widget.onRefresh?.call();
