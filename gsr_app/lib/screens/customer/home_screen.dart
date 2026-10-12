@@ -769,6 +769,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                       itemCount: _offers.length,
                       itemBuilder: (ctx, i) {
                         final code = _offers[i]['offer_code'] as String? ?? '';
+                        final rid = _offers[i]['restaurant_id'] as String? ?? '';
                         final isApplied = OfferService.hasOffer &&
                             code.isNotEmpty &&
                             OfferService.offerCode == code;
@@ -779,6 +780,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                           isUsed: isUsed,
                           onBack: () {
                             OfferService.clear();
+                            if (rid.isNotEmpty) CartService.clearRestaurant(rid);
                             if (mounted) setState(() {});
                             _loadOffers();
                           },

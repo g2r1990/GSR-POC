@@ -199,14 +199,17 @@ def customer_order_history(mobile: str, db: Session = Depends(get_db)):
         items_data = snapshot.get("items", [])
         item_total = sum(float(i.get("price", 0)) * int(i.get("qty", 1)) for i in items_data)
         delivery_fee = 20.0
-        gst = round(item_total * 0.05, 2)
-        discount_amount = float(snapshot.get("discount_amount", 0) or 0)
+        # o.total stores the discounted item total reliably (set at order creation)
+        discounted_item_total = float(o.total)
+        discount_amount = round(max(0.0, item_total - discounted_item_total), 2)
+        gst = round(discounted_item_total * 0.05, 2)
+        grand_total = round(discounted_item_total + delivery_fee + gst, 2)
         offer_code = snapshot.get("offer_code", "") or ""
         result.append({
             "order_id": o.id,
             "short_id": o.id[:8].upper(),
             "status": o.status,
-            "total": float(o.total),
+            "total": grand_total,
             "restaurant_name": o.restaurant.name if o.restaurant else "",
             "items_count": len(items_data),
             "created_at": o.created_at.isoformat() if o.created_at else None,
