@@ -254,7 +254,7 @@ class _OrderCardState extends State<_OrderCard> {
     final deliveryFee = (order['delivery_fee'] as num?)?.toDouble() ?? 20.0;
     final discountAmt = (order['discount_amount'] as num?)?.toDouble() ?? 0.0;
     final offerCode = order['offer_code'] as String? ?? '';
-    final itemTotal = items.fold(0.0, (sum, item) =>
+    final itemTotal = items.fold<double>(0.0, (sum, item) =>
         sum + ((item['price'] as num).toDouble() * (item['qty'] as num).toDouble()));
     final computedGst = double.parse(((itemTotal - discountAmt) * 0.05).toStringAsFixed(2));
     final grandTotal = (itemTotal - discountAmt) + deliveryFee + computedGst;
@@ -278,7 +278,7 @@ class _OrderCardState extends State<_OrderCard> {
                   builder: (_) => OrderStatusScreen(
                     orderId: order['order_id'] as String,
                     shortId: shortId,
-                    total: total,
+                    total: grandTotal,
                   ),
                 ));
                 widget.onRefresh?.call();
