@@ -229,10 +229,11 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     final isCancelled = _status == 'cancelled';
     final currentIdx = _steps.indexOf(_status);
 
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scrollbar(
       thumbVisibility: true,
       child: SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
