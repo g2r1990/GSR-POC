@@ -944,7 +944,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Builder(builder: (_) {
-                  final cartCount = CartService.itemCount;
+                  final cartCount = CartService.totalItemCount;
                   final hasCart = cartCount > 0;
                   return GestureDetector(
                     onTap: hasCart
@@ -1020,8 +1020,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                                           : const Color(0xFF9CA3AF))),
                               Text(
                                 hasCart
-                                    ? '$cartCount item${cartCount == 1 ? '' : 's'} · ₹${CartService.total.toStringAsFixed(0)}'
-                                        '${CartService.restaurantName != null ? ' — ${CartService.restaurantName}' : ''}'
+                                    ? () {
+                                        final ids = CartService.restaurantIds;
+                                        if (ids.length == 1) {
+                                          final name = CartService.nameForRestaurant(ids.first) ?? '';
+                                          return '$cartCount item${cartCount == 1 ? '' : 's'} · ₹${CartService.totalForRestaurant(ids.first).toStringAsFixed(0)} — $name';
+                                        }
+                                        return '$cartCount items across ${ids.length} restaurants';
+                                      }()
                                     : 'No items in cart',
                                 style: TextStyle(
                                     fontSize: 12,
@@ -1120,18 +1126,6 @@ class _OfferCard extends StatelessWidget {
             backgroundColor: const Color(0xFF7C3AED),
             duration: const Duration(seconds: 3),
           ));
-          return;
-        }
-
-        // Cart has items from a different restaurant with no offer → block
-        if (CartService.itemCount > 0 && CartService.restaurantId != restaurantId) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Clear your current cart to use this offer.'),
-              backgroundColor: Color(0xFFDC2626),
-              duration: Duration(seconds: 2),
-            ),
-          );
           return;
         }
 

@@ -31,6 +31,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
   @override
   void initState() {
     super.initState();
+    CartService.setActive(widget.restaurantId);
     _load();
     _scrollCtrl.addListener(_onScroll);
   }
@@ -126,12 +127,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = CartService.restaurantId == widget.restaurantId
-        ? CartService.itemCount
-        : 0;
-    final cartTotal = CartService.restaurantId == widget.restaurantId
-        ? CartService.total
-        : 0.0;
+    final cartCount = CartService.countForRestaurant(widget.restaurantId);
+    final cartTotal = CartService.totalForRestaurant(widget.restaurantId);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7ED),
@@ -499,9 +496,7 @@ class _MenuItemTile extends StatefulWidget {
 }
 
 class _MenuItemTileState extends State<_MenuItemTile> {
-  int get _qty => CartService.restaurantId == widget.restaurantId
-      ? CartService.qtyFor(widget.item['id'] as String)
-      : 0;
+  int get _qty => CartService.qtyFor(widget.item['id'] as String);
 
   void _add() {
     final item = widget.item;
