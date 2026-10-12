@@ -3,7 +3,10 @@ import '../../services/cart_service.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
+  /// When set, skips the restaurant landing and opens that restaurant's items directly.
+  /// Used by the menu screen's "View Cart" button.
+  final String? initialRestaurantId;
+  const CartScreen({super.key, this.initialRestaurantId});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -14,6 +17,16 @@ class _CartScreenState extends State<CartScreen> {
 
   // null = landing (restaurant list), set = detail (items for that restaurant)
   String? _selectedId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialRestaurantId != null &&
+        CartService.itemsForRestaurant(widget.initialRestaurantId!).isNotEmpty) {
+      _selectedId = widget.initialRestaurantId;
+      CartService.setActive(widget.initialRestaurantId!);
+    }
+  }
 
   void _refresh() => setState(() {});
 

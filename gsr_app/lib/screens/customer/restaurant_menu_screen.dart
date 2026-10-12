@@ -178,8 +178,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
               top: false,
               child: GestureDetector(
                 onTap: () async {
-                  await Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (_) => const CartScreen()));
+                  await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => CartScreen(initialRestaurantId: widget.restaurantId)));
                   _refreshCart();
                 },
                 child: Container(

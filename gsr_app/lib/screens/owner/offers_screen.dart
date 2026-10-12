@@ -609,8 +609,12 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     if (!mounted) return;
     final pickedTime = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 23, minute: 59),
-      helpText: 'Select expiry time (IST)',
+      initialTime: TimeOfDay.now(),
+      helpText: 'Select expiry time in 24h (IST)',
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
     );
     setState(() {
       _validUntil = pickedDate;

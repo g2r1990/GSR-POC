@@ -9,7 +9,7 @@ from typing import List
 
 from app.database import get_db
 from datetime import datetime as _dt
-from app.models import Restaurant, MenuItem, Customer, Offer
+from app.models import Restaurant, MenuItem, Customer, Offer, NotificationRequest, CustomerNotification
 from app.schemas.customer import RestaurantResponse, CustomerMenuItemResponse
 
 router = APIRouter(prefix="/customer", tags=["Customer"])
@@ -43,6 +43,7 @@ def get_customer_offers(pincode: str, db: Session = Depends(get_db)):
             "menu_item_name": o.menu_item_name,
             "buy_qty": o.buy_qty,
             "free_qty": o.free_qty,
+            "offer_code": o.offer_code,
             "valid_until": o.valid_until.isoformat() if o.valid_until else None,
             "restaurant_name": o.restaurant.name,
             "restaurant_area": o.restaurant.area,
@@ -120,6 +121,7 @@ def search_food(q: str, pincode: str, db: Session = Depends(get_db)):
                 "area": r.area or "",
                 "pincode": r.pincode,
                 "food_type": r.food_type or "both",
+                "is_accepting_orders": r.is_accepting_orders,
                 "matching_items": [],
             }
         if item.name not in restaurant_map[rid]["matching_items"]:
@@ -193,10 +195,13 @@ def customer_order_history(mobile: str, db: Session = Depends(get_db)):
     )
     result = []
     for o in orders:
-        items_data = (o.items_snapshot or {}).get("items", [])
+        snapshot = o.items_snapshot or {}
+        items_data = snapshot.get("items", [])
         item_total = sum(float(i.get("price", 0)) * int(i.get("qty", 1)) for i in items_data)
         delivery_fee = 20.0
         gst = round(item_total * 0.05, 2)
+        discount_amount = float(snapshot.get("discount_amount", 0) or 0)
+        offer_code = snapshot.get("offer_code", "") or ""
         result.append({
             "order_id": o.id,
             "short_id": o.id[:8].upper(),
@@ -212,6 +217,8 @@ def customer_order_history(mobile: str, db: Session = Depends(get_db)):
             ],
             "delivery_fee": delivery_fee,
             "gst": gst,
+            "discount_amount": discount_amount,
+            "offer_code": offer_code,
         })
     return result
 
@@ -278,3 +285,62 @@ def check_device(mobile: str, device_id: str, db: Session = Depends(get_db)):
     if customer.device_id != device_id:
         raise HTTPException(status_code=403, detail="Device mismatch. Please verify OTP on this device.")
     return {"verified": True}
+
+
+@router.post("/restaurants/{restaurant_id}/notify-me", status_code=200)
+def notify_me_when_open(restaurant_id: str, body: dict, db: Session = Depends(get_db)):
+    """Customer requests to be notified when a restaurant comes back online."""
+    restaurant = db.query(Restaurant).filter(
+        Restaurant.id == restaurant_id,
+        Restaurant.status == "active",
+    ).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+
+    mobile = (body.get("mobile") or "").strip()
+    if not mobile:
+        raise HTTPException(status_code=422, detail="mobile is required.")
+
+    existing = db.query(NotificationRequest).filter(
+        NotificationRequest.restaurant_id == restaurant_id,
+        NotificationRequest.customer_mobile == mobile,
+    ).first()
+    if not existing:
+        db.add(NotificationRequest(restaurant_id=restaurant_id, customer_mobile=mobile))
+        db.commit()
+
+    return {"message": "You'll be notified when the restaurant is back online."}
+
+
+@router.get("/notifications")
+def get_customer_notifications(mobile: str, db: Session = Depends(get_db)):
+    """Return all unread in-app notifications for the customer, newest first."""
+    rows = (
+        db.query(CustomerNotification)
+        .filter(CustomerNotification.customer_mobile == mobile)
+        .order_by(CustomerNotification.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "restaurant_id": r.restaurant_id,
+            "restaurant_name": r.restaurant_name,
+            "message": r.message,
+            "is_read": r.is_read,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@router.patch("/notifications/mark-read")
+def mark_notifications_read(mobile: str, db: Session = Depends(get_db)):
+    """Mark all notifications for the customer as read."""
+    db.query(CustomerNotification).filter(
+        CustomerNotification.customer_mobile == mobile,
+        CustomerNotification.is_read == False,
+    ).update({"is_read": True})
+    db.commit()
+    return {"message": "Notifications marked as read."}

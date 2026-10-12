@@ -136,7 +136,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     try {
       await ApiService.cancelOrder(widget.orderId);
       _cancelTimer?.cancel();
-      _restoreOfferCode();
+      await _restoreOfferCode();
       if (mounted) setState(() { _status = 'cancelled'; _cancelSecondsLeft = 0; });
       _removeFromActiveOrders();
     } on ApiException catch (e) {
