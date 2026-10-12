@@ -777,6 +777,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                           offer: _offers[i],
                           isApplied: isApplied,
                           isUsed: isUsed,
+                          onBack: () {
+                            OfferService.clear();
+                            if (mounted) setState(() {});
+                            _loadOffers();
+                          },
                         );
                       },
                     ),
@@ -1063,7 +1068,8 @@ class _OfferCard extends StatelessWidget {
   final Map<String, dynamic> offer;
   final bool isApplied;
   final bool isUsed;
-  const _OfferCard({required this.offer, this.isApplied = false, this.isUsed = false});
+  final VoidCallback? onBack;
+  const _OfferCard({required this.offer, this.isApplied = false, this.isUsed = false, this.onBack});
 
   String? _formatValidity(String? raw) {
     if (raw == null) return null;
@@ -1130,13 +1136,14 @@ class _OfferCard extends StatelessWidget {
         }
 
         OfferService.apply(offer);
-        Navigator.of(context).push(MaterialPageRoute(
+        await Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => RestaurantMenuScreen(
             restaurantId: restaurantId,
             restaurantName: restaurant,
             freshStart: true,
           ),
         ));
+        onBack?.call();
       },
       child: Opacity(
         opacity: isDisabled ? 0.55 : 1.0,
