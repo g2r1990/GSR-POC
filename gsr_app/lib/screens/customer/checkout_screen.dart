@@ -90,14 +90,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   }
 
   String _offerDiscountLabel() {
-    final type = OfferService.offerType;
-    if (type == 'bogo') {
-      return 'BOGO discount';
-    }
-    if (type == 'item') {
-      return 'Offer discount on ${OfferService.menuItemName}';
-    }
-    return 'Offer discount (${OfferService.discountPct.toStringAsFixed(0)}%)';
+    final code = OfferService.offerCode;
+    return code.isNotEmpty ? 'Offer Discount ($code)' : 'Offer Discount';
   }
 
   @override

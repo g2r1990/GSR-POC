@@ -762,7 +762,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                   )
                 else
                   SizedBox(
-                    height: 115,
+                    height: 132,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),

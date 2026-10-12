@@ -19,6 +19,28 @@ class TncScreen extends StatefulWidget {
 class _TncScreenState extends State<TncScreen> {
   bool _agreed = false;
   bool _saving = false;
+  bool _scrolledToBottom = false;
+  final ScrollController _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrolledToBottom) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 48) {
+      setState(() => _scrolledToBottom = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _accept() async {
     if (!_agreed) return;
@@ -52,6 +74,7 @@ class _TncScreenState extends State<TncScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              controller: _scrollCtrl,
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,12 +157,30 @@ class _TncScreenState extends State<TncScreen> {
             ),
             child: Column(
               children: [
+                if (!_scrolledToBottom)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(children: [
+                      const Icon(Icons.arrow_downward,
+                          size: 14, color: Color(0xFF94A3B8)),
+                      const SizedBox(width: 6),
+                      const Text('Scroll to the end to enable',
+                          style: TextStyle(
+                              fontSize: 12, color: Color(0xFF94A3B8))),
+                    ]),
+                  ),
                 CheckboxListTile(
                   value: _agreed,
-                  onChanged: (v) => setState(() => _agreed = v ?? false),
-                  title: const Text(
+                  onChanged: _scrolledToBottom
+                      ? (v) => setState(() => _agreed = v ?? false)
+                      : null,
+                  title: Text(
                     'I have read and agree to the Terms & Conditions',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF374151)),
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: _scrolledToBottom
+                            ? const Color(0xFF374151)
+                            : const Color(0xFF94A3B8)),
                   ),
                   activeColor: const Color(0xFF166534),
                   contentPadding: EdgeInsets.zero,
