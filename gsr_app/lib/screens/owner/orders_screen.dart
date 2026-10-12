@@ -683,7 +683,7 @@ class _OrderCardState extends State<_OrderCard> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text('₹${total.toStringAsFixed(0)}',
+                  Text('₹${(discountedItemTotal + deliveryFee + gst).toStringAsFixed(0)}',
                       style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
