@@ -159,7 +159,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                           color: Color(0xFFD97706),
                           letterSpacing: 2)),
                   const Divider(height: 24),
-                  _BillRow('Items subtotal', '₹${widget.total.toStringAsFixed(0)}'),
+                  _BillRow('Items subtotal', '₹${(widget.total + widget.discountAmount).toStringAsFixed(0)}'),
                   if (widget.offerCode.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Row(

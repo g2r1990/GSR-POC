@@ -7,11 +7,13 @@ import 'cart_screen.dart';
 class RestaurantMenuScreen extends StatefulWidget {
   final String restaurantId;
   final String restaurantName;
+  final bool freshStart;
 
   const RestaurantMenuScreen({
     super.key,
     required this.restaurantId,
     required this.restaurantName,
+    this.freshStart = false,
   });
 
   @override
@@ -31,6 +33,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.freshStart) CartService.clearRestaurant(widget.restaurantId);
     CartService.setActive(widget.restaurantId);
     _load();
     _scrollCtrl.addListener(_onScroll);

@@ -762,7 +762,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
                   )
                 else
                   SizedBox(
-                    height: 132,
+                    height: 148,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1134,6 +1134,7 @@ class _OfferCard extends StatelessWidget {
           builder: (_) => RestaurantMenuScreen(
             restaurantId: restaurantId,
             restaurantName: restaurant,
+            freshStart: true,
           ),
         ));
       },

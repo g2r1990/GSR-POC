@@ -77,6 +77,7 @@ class _RestaurantListScreenState extends State<RestaurantListScreen> {
                     builder: (_) => RestaurantMenuScreen(
                       restaurantId: _restaurants[i]['id'] as String,
                       restaurantName: _restaurants[i]['name'] as String,
+                      freshStart: true,
                     ),
                   ),
                 ),

@@ -452,9 +452,26 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                   final _items = (_order!['items'] as List<dynamic>? ?? []);
                   final _sub = _items.fold(0.0, (s, item) =>
                       s + ((item['subtotal'] as num?)?.toDouble() ?? 0.0));
-                  final _gst = double.parse((_sub * 0.05).toStringAsFixed(2));
-                  final _grand = _sub + 20.0 + _gst;
+                  final _discount = (_order!['discount_amount'] as num?)?.toDouble() ?? 0.0;
+                  final _offerCode = (_order!['offer_code'] as String?) ?? '';
+                  final _discountedSub = _sub - _discount;
+                  final _gst = double.parse((_discountedSub * 0.05).toStringAsFixed(2));
+                  final _grand = _discountedSub + 20.0 + _gst;
                   return Column(children: [
+                    if (_discount > 0) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _offerCode.isNotEmpty ? 'Discount ($_offerCode)' : 'Offer Discount',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A)),
+                          ),
+                          Text('-₹${_discount.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A))),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     _BillRow('Delivery Fee', '₹20'),
                     const SizedBox(height: 4),
                     _BillRow('GST (5%)', '₹${_gst.toStringAsFixed(2)}'),
