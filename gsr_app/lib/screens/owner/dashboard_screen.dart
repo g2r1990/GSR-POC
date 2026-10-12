@@ -32,7 +32,10 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
     _loadStats();
     _loadAvailability();
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (mounted) _loadStats();
+      if (mounted) {
+        _loadStats();
+        _loadAvailability();
+      }
     });
   }
 
@@ -198,7 +201,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _loadStats,
+              onRefresh: () async {
+                await Future.wait([_loadStats(), _loadAvailability()]);
+              },
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
@@ -272,8 +277,11 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                   _ActionTile(
                     icon: Icons.restaurant_menu,
                     title: 'Manage Menu',
-                    subtitle: 'Add, edit and toggle items',
+                    subtitle: _isAccepting
+                        ? 'Stop accepting orders to edit menu'
+                        : 'Add, edit and toggle items',
                     color: const Color(0xFF166534),
+                    enabled: !_isAccepting,
                     onTap: () async {
                       await Navigator.of(context).push(
                         MaterialPageRoute(
@@ -488,6 +496,7 @@ class _ActionTile extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final bool enabled;
 
   const _ActionTile({
     required this.icon,
@@ -495,42 +504,60 @@ class _ActionTile extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = enabled ? color : const Color(0xFFADB5BD);
     return InkWell(
-      onTap: onTap,
+      onTap: enabled
+          ? onTap
+          : () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Turn off "Accepting Orders" before editing the menu.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+      child: Opacity(
+        opacity: enabled ? 1.0 : 0.5,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                  color: effectiveColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: effectiveColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600,
+                        color: enabled ? const Color(0xFF0F172A) : const Color(0xFF94A3B8))),
+                Text(subtitle,
+                    style: const TextStyle(
+                        fontSize: 13, color: Color(0xFF64748B))),
+              ]),
+            ),
+            Icon(
+              enabled ? Icons.chevron_right : Icons.lock_outline,
+              color: const Color(0xFF94A3B8),
+              size: enabled ? 24 : 18,
+            ),
+          ]),
         ),
-        child: Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600,
-                      color: Color(0xFF0F172A))),
-              Text(subtitle,
-                  style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF64748B))),
-            ]),
-          ),
-          const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
-        ]),
       ),
     );
   }
