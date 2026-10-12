@@ -114,11 +114,29 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     } catch (_) {}
   }
 
+  Future<void> _restoreOfferCode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mapRaw = prefs.getString('order_offer_map') ?? '{}';
+      final offerMap = jsonDecode(mapRaw) as Map<String, dynamic>;
+      final code = offerMap[widget.orderId] as String?;
+      if (code == null || code.isEmpty) return;
+      final usedRaw = prefs.getString('used_offer_codes') ?? '[]';
+      final usedList = (jsonDecode(usedRaw) as List<dynamic>)
+          .where((e) => e.toString() != code)
+          .toList();
+      await prefs.setString('used_offer_codes', jsonEncode(usedList));
+      offerMap.remove(widget.orderId);
+      await prefs.setString('order_offer_map', jsonEncode(offerMap));
+    } catch (_) {}
+  }
+
   Future<void> _cancelOrder() async {
     setState(() => _cancelling = true);
     try {
       await ApiService.cancelOrder(widget.orderId);
       _cancelTimer?.cancel();
+      _restoreOfferCode();
       if (mounted) setState(() { _status = 'cancelled'; _cancelSecondsLeft = 0; });
       _removeFromActiveOrders();
     } on ApiException catch (e) {

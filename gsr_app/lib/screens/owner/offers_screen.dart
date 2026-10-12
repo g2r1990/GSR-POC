@@ -95,7 +95,8 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
   bool _isExpired(String? iso) {
     if (iso == null) return false;
     try {
-      final dt = DateTime.parse('${iso}Z');
+      final normalized = (iso.endsWith('Z') || iso.contains('+')) ? iso : '${iso}Z';
+      final dt = DateTime.parse(normalized);
       return dt.isBefore(DateTime.now().toUtc());
     } catch (_) {
       return false;
@@ -105,7 +106,8 @@ class _OwnerOffersScreenState extends State<OwnerOffersScreen>
   String _formatDatetime(String? iso) {
     if (iso == null) return '';
     try {
-      final dt = DateTime.parse('${iso}Z').toLocal();
+      final normalized = (iso.endsWith('Z') || iso.contains('+')) ? iso : '${iso}Z';
+      final dt = DateTime.parse(normalized).toLocal();
       const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       final h = dt.hour > 12
@@ -607,7 +609,7 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     if (!mounted) return;
     final pickedTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay(hour: now.hour, minute: now.minute),
+      initialTime: const TimeOfDay(hour: 23, minute: 59),
       helpText: 'Select expiry time (IST)',
     );
     setState(() {

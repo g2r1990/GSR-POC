@@ -243,6 +243,12 @@ class _CheckoutScreenState extends State<CheckoutScreen>
           usedList.add(capturedOfferCode);
           await prefs.setString('used_offer_codes', jsonEncode(usedList));
         }
+        // Save order → offer mapping so cancellation can restore the code
+        final mapRaw = prefs.getString('order_offer_map') ?? '{}';
+        Map<String, dynamic> offerMap;
+        try { offerMap = jsonDecode(mapRaw) as Map<String, dynamic>; } catch (_) { offerMap = {}; }
+        offerMap[orderId] = capturedOfferCode;
+        await prefs.setString('order_offer_map', jsonEncode(offerMap));
       }
 
       if (!mounted) return;

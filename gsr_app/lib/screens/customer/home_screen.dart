@@ -1062,7 +1062,8 @@ class _OfferCard extends StatelessWidget {
   String? _formatValidity(String? raw) {
     if (raw == null) return null;
     try {
-      final dt = DateTime.parse(raw).toLocal();
+      final normalized = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
+      final dt = DateTime.parse(normalized).toLocal();
       if (dt.isBefore(DateTime.now())) return null;
       const months = ['Jan','Feb','Mar','Apr','May','Jun',
                       'Jul','Aug','Sep','Oct','Nov','Dec'];

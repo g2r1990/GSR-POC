@@ -254,6 +254,8 @@ class _OrderCardState extends State<_OrderCard> {
     final items = (order['items'] as List<dynamic>?) ?? [];
     final deliveryFee = (order['delivery_fee'] as num?)?.toDouble() ?? 20.0;
     final gst = (order['gst'] as num?)?.toDouble() ?? 0.0;
+    final discountAmt = (order['discount_amount'] as num?)?.toDouble() ?? 0.0;
+    final offerCode = order['offer_code'] as String? ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -370,6 +372,14 @@ class _OrderCardState extends State<_OrderCard> {
                       ]),
                     ),
                   const Divider(height: 12),
+                  if (discountAmt > 0) ...[
+                    _BillLine(
+                      offerCode.isNotEmpty ? 'Offer Discount ($offerCode)' : 'Offer Discount',
+                      '- ₹${discountAmt.toStringAsFixed(0)}',
+                      color: const Color(0xFF16A34A),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   _BillLine('Delivery fee', '₹${deliveryFee.toStringAsFixed(0)}'),
                   const SizedBox(height: 2),
                   _BillLine('GST (5%)', '₹${gst.toStringAsFixed(2)}'),
@@ -418,22 +428,24 @@ class _BillLine extends StatelessWidget {
   final String label;
   final String value;
   final bool bold;
-  const _BillLine(this.label, this.value, {this.bold = false});
+  final Color? color;
+  const _BillLine(this.label, this.value, {this.bold = false, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final defaultColor = bold ? const Color(0xFFD97706) : const Color(0xFF374151);
     return Row(children: [
       Expanded(
           child: Text(label,
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                  color: const Color(0xFF374151)))),
+                  color: color ?? const Color(0xFF374151)))),
       Text(value,
           style: TextStyle(
               fontSize: 12,
               fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              color: bold ? const Color(0xFFD97706) : const Color(0xFF374151))),
+              color: color ?? defaultColor)),
     ]);
   }
 }
