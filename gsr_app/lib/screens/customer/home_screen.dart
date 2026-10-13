@@ -237,6 +237,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             .map((e) => e.toString())
             .toSet();
       } catch (_) {}
+      // Supplement from order history so used state survives reinstall
+      if (_phone.isNotEmpty) {
+        try {
+          final history = _cachedOrders.isNotEmpty
+              ? _cachedOrders
+              : await ApiService.customerOrderHistory(_phone);
+          for (final order in history) {
+            final code = (order['offer_code'] as String?) ?? '';
+            final status = (order['status'] as String?) ?? '';
+            if (code.isNotEmpty && status != 'cancelled') usedCodes.add(code);
+          }
+        } catch (_) {}
+      }
       if (mounted) setState(() { _offers = offers; _usedOfferCodes = usedCodes; });
     } catch (_) {}
   }

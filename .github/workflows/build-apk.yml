@@ -36,13 +36,22 @@ jobs:
         working-directory: gsr_app
         run: dart run flutter_launcher_icons
 
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/bossbite-release.jks
+
       # ── Admin APK (Gurpreet only — KYC & approvals) ───────────────────
       - name: Build Admin APK
         working-directory: gsr_app
-        run: flutter build apk --debug --dart-define=APP_FLAVOR=admin
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/bossbite-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build apk --release --flavor admin --dart-define=APP_FLAVOR=admin
 
       - name: Rename Admin APK
-        run: cp gsr_app/build/app/outputs/flutter-apk/app-debug.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Admin.apk
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-admin-release.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Admin.apk
 
       - name: Upload Admin APK
         uses: actions/upload-artifact@v4
@@ -54,10 +63,15 @@ jobs:
       # ── Restaurant Owner APK (share to restaurant owners) ────────────────────────
       - name: Build Restaurant Owner APK
         working-directory: gsr_app
-        run: flutter build apk --debug --dart-define=APP_FLAVOR=owner
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/bossbite-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build apk --release --flavor owner --dart-define=APP_FLAVOR=owner
 
       - name: Rename Restaurant Owner APK
-        run: cp gsr_app/build/app/outputs/flutter-apk/app-debug.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Restaurant-Owner.apk
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-owner-release.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Restaurant-Owner.apk
 
       - name: Upload Restaurant Owner APK
         uses: actions/upload-artifact@v4
@@ -69,10 +83,15 @@ jobs:
       # ── Application Users APK (app-store ready for end users) ──────────────────
       - name: Build Application Users APK
         working-directory: gsr_app
-        run: flutter build apk --debug --dart-define=APP_FLAVOR=customer
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/bossbite-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build apk --release --flavor customer --dart-define=APP_FLAVOR=customer
 
       - name: Rename Application Users APK
-        run: cp gsr_app/build/app/outputs/flutter-apk/app-debug.apk gsr_app/build/app/outputs/flutter-apk/BossBite-ApplicationUsers.apk
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-customer-release.apk gsr_app/build/app/outputs/flutter-apk/BossBite-ApplicationUsers.apk
 
       - name: Upload Application Users APK
         uses: actions/upload-artifact@v4
