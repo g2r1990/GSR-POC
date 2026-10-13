@@ -118,7 +118,8 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
                   decoration: _inputDecoration('10-digit mobile number').copyWith(
                     prefixText: '+91 ',
                     prefixStyle: const TextStyle(
-                        color: Color(0xFF374151), fontSize: 14),
+                        color: Color(0xFF374151), fontSize: 18,
+                        fontWeight: FontWeight.bold),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Required';
