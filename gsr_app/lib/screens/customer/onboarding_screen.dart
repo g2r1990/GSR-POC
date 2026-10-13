@@ -37,7 +37,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
 
   Future<void> _requestPhoneHint() async {
     try {
-      final hint = await PhoneNumberHint.requestHint();
+      final hint = await PhoneNumberHint().requestHint();
       if (hint != null && _phoneCtr.text.isEmpty) {
         // Strip country code (+91) and keep last 10 digits
         final digits = hint.replaceAll(RegExp(r'\D'), '');
