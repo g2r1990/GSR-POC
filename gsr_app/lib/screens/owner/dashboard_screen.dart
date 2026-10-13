@@ -175,7 +175,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                         onTap: () async {
                           await Navigator.of(context).push(
                             MaterialPageRoute(
-                                builder: (_) => const MenuListScreen()),
+                                builder: (_) => const MenuListScreen(readOnly: true)),
                           );
                           _loadStats();
                         },

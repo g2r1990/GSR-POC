@@ -3,7 +3,8 @@ import '../../services/api_service.dart';
 import 'add_edit_item_screen.dart';
 
 class MenuListScreen extends StatefulWidget {
-  const MenuListScreen({super.key});
+  final bool readOnly;
+  const MenuListScreen({super.key, this.readOnly = false});
 
   @override
   State<MenuListScreen> createState() => _MenuListScreenState();
@@ -90,10 +91,11 @@ class _MenuListScreenState extends State<MenuListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final readOnly = widget.readOnly;
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
-        title: const Text('Menu'),
+        title: Text(readOnly ? 'Menu (View Only)' : 'Menu'),
         backgroundColor: const Color(0xFF166534),
         foregroundColor: Colors.white,
         actions: [
@@ -103,13 +105,15 @@ class _MenuListScreenState extends State<MenuListScreen> {
               tooltip: 'Refresh'),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddEdit(),
-        backgroundColor: const Color(0xFF166534),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Item'),
-      ),
+      floatingActionButton: readOnly
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _openAddEdit(),
+              backgroundColor: const Color(0xFF166534),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Item'),
+            ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -146,32 +150,60 @@ class _MenuListScreenState extends State<MenuListScreen> {
                       onRefresh: _load,
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                        children: _grouped.entries.map((entry) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 10),
-                                child: Text(entry.key.toUpperCase(),
-                                    style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 1.2,
-                                        color: Color(0xFF64748B))),
+                        children: [
+                          if (readOnly)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: const Color(0xFFFDE68A)),
                               ),
-                              ...entry.value
-                                  .map((item) => _MenuItemCard(
-                                        item: item,
-                                        onToggle: () => _toggle(item),
-                                        onEdit: () =>
-                                            _openAddEdit(item: item),
-                                        onDelete: () => _delete(item),
-                                      ))
-                                  .toList(),
-                            ],
-                          );
-                        }).toList(),
+                              child: const Row(children: [
+                                Icon(Icons.lock_outline,
+                                    size: 15, color: Color(0xFF92400E)),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'View only — turn off Accepting Orders to edit menu',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF92400E)),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          ..._grouped.entries.map((entry) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                  child: Text(entry.key.toUpperCase(),
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.2,
+                                          color: Color(0xFF64748B))),
+                                ),
+                                ...entry.value
+                                    .map((item) => _MenuItemCard(
+                                          item: item,
+                                          readOnly: readOnly,
+                                          onToggle: () => _toggle(item),
+                                          onEdit: () =>
+                                              _openAddEdit(item: item),
+                                          onDelete: () => _delete(item),
+                                        ))
+                                    .toList(),
+                              ],
+                            );
+                          }),
+                        ],
                       ),
                     ),
     );
@@ -180,12 +212,14 @@ class _MenuListScreenState extends State<MenuListScreen> {
 
 class _MenuItemCard extends StatelessWidget {
   final Map<String, dynamic> item;
+  final bool readOnly;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _MenuItemCard({
     required this.item,
+    this.readOnly = false,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
@@ -231,38 +265,46 @@ class _MenuItemCard extends StatelessWidget {
                     color: Color(0xFF166534))),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Switch(
-              value: isAvailable,
-              onChanged: (_) => onToggle(),
-              activeColor: const Color(0xFF166534),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (v) {
-                if (v == 'edit') onEdit();
-                if (v == 'delete') onDelete();
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(children: [
-                      Icon(Icons.edit, size: 18),
-                      SizedBox(width: 8),
-                      Text('Edit'),
-                    ])),
-                const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(children: [
-                      Icon(Icons.delete, size: 18, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Remove', style: TextStyle(color: Colors.red)),
-                    ])),
-              ],
-            ),
-          ],
-        ),
+        trailing: readOnly
+            ? Icon(
+                isAvailable ? Icons.check_circle : Icons.cancel,
+                color: isAvailable
+                    ? const Color(0xFF166534)
+                    : const Color(0xFF94A3B8),
+                size: 22,
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: isAvailable,
+                    onChanged: (_) => onToggle(),
+                    activeColor: const Color(0xFF166534),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (v) {
+                      if (v == 'edit') onEdit();
+                      if (v == 'delete') onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [
+                            Icon(Icons.edit, size: 18),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ])),
+                      const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Remove', style: TextStyle(color: Colors.red)),
+                          ])),
+                    ],
+                  ),
+                ],
+              ),
       ),
     );
   }
