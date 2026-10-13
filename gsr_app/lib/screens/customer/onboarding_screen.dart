@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:phone_number_hint/phone_number_hint.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../utils/validators.dart';
@@ -32,18 +32,6 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
   void initState() {
     super.initState();
     _autoDetect();
-    _requestPhoneHint();
-  }
-
-  Future<void> _requestPhoneHint() async {
-    try {
-      final hint = await PhoneNumberHint().requestHint();
-      if (hint != null && _phoneCtr.text.isEmpty) {
-        // Strip country code (+91) and keep last 10 digits
-        final digits = hint.replaceAll(RegExp(r'\D'), '');
-        _phoneCtr.text = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
-      }
-    } catch (_) {}
   }
 
   @override
