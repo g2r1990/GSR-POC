@@ -1,5 +1,7 @@
 import os
 import uuid
+import random
+import string
 import json as _json
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -8,7 +10,7 @@ from jose import JWTError
 
 from app.database import get_db
 from datetime import datetime as _dt
-from app.models import Owner, Restaurant, Offer
+from app.models import Owner, Restaurant, Offer, NotificationRequest, CustomerNotification, Order
 from app.core.security import decode_token, hash_password, verify_password, create_access_token
 from app.schemas.owner import (
     OwnerRegisterRequest, OwnerRegisterResponse,
@@ -33,6 +35,15 @@ _STATE_CODES = {
     'Telangana': 'TS', 'Tripura': 'TR', 'Uttar Pradesh': 'UP',
     'Uttarakhand': 'UK', 'West Bengal': 'WB',
 }
+
+
+def _generate_offer_code(restaurant_name: str, db: Session) -> str:
+    prefix = ''.join(c.upper() for c in restaurant_name if c.isalpha())[:4].ljust(4, 'X')
+    for _ in range(10):
+        code = prefix + ''.join(random.choices(string.digits, k=4))
+        if not db.query(Offer).filter(Offer.offer_code == code).first():
+            return code
+    return prefix + ''.join(random.choices(string.digits, k=4))
 
 
 def _generate_restaurant_code(state: str, pincode: str, db: Session) -> str:
@@ -219,11 +230,13 @@ def create_offer(
     offer_type = body.get("offer_type", "order")
     if offer_type not in ("order", "item", "bogo"):
         offer_type = "order"
+    offer_code = _generate_offer_code(restaurant.name, db)
     offer = Offer(
         restaurant_id=restaurant.id,
         title=body["title"],
         description=body.get("description"),
         offer_type=offer_type,
+        offer_code=offer_code,
         discount_pct=body.get("discount_pct"),
         menu_item_id=body.get("menu_item_id"),
         menu_item_name=body.get("menu_item_name"),
@@ -235,7 +248,7 @@ def create_offer(
     db.add(offer)
     db.commit()
     db.refresh(offer)
-    return {"id": offer.id, "title": offer.title, "message": "Offer created."}
+    return {"id": offer.id, "title": offer.title, "offer_code": offer.offer_code, "message": "Offer created."}
 
 
 @router.get("/offers")
@@ -266,6 +279,7 @@ def get_owner_offers(
             "buy_qty": o.buy_qty,
             "free_qty": o.free_qty,
             "valid_until": o.valid_until.isoformat() if o.valid_until else None,
+            "offer_code": o.offer_code,
             "is_active": o.is_active,
             "created_at": o.created_at.isoformat(),
         }
@@ -383,3 +397,195 @@ def cancel_profile_update(
     owner.pending_update_submitted_at = None
     db.commit()
     return {"message": "Update request cancelled."}
+
+
+# ── Business Reports ──────────────────────────────────────────────────────────
+
+@router.get("/reports")
+def get_owner_report(
+    from_date: str,
+    to_date: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    """Daily business report for delivered orders within a date range."""
+    from collections import defaultdict
+
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+
+    try:
+        start = _dt.strptime(from_date, "%Y-%m-%d")
+        end = _dt.strptime(to_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    orders = (
+        db.query(Order)
+        .filter(
+            Order.restaurant_id == restaurant.id,
+            Order.status == "delivered",
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+        .order_by(Order.created_at)
+        .all()
+    )
+
+    day_groups: dict = defaultdict(list)
+    for order in orders:
+        day = order.created_at.date().isoformat()
+        day_groups[day].append(order)
+
+    rows = []
+    grand = {
+        "orders": 0, "item_subtotal": 0.0, "discount": 0.0,
+        "total_food_cost": 0.0, "gst": 0.0, "delivery": 0.0,
+        "customer_paid": 0.0, "bossbite_fee": 0.0, "restaurant_earnings": 0.0,
+    }
+
+    for day in sorted(day_groups.keys()):
+        day_orders = day_groups[day]
+        d: dict = {
+            "date": day, "orders": len(day_orders),
+            "item_subtotal": 0.0, "discount": 0.0, "total_food_cost": 0.0,
+            "gst": 0.0, "delivery": 0.0, "customer_paid": 0.0,
+            "bossbite_fee": 0.0, "restaurant_earnings": 0.0,
+        }
+        for order in day_orders:
+            snapshot = order.items_snapshot or {}
+            discount = float(snapshot.get("discount_amount", 0))
+            total_food_cost = float(order.total)
+            item_subtotal = total_food_cost + discount
+            gst = round(total_food_cost * 0.05, 2)
+            delivery = 20.0
+            customer_paid = round(total_food_cost + gst + delivery, 2)
+            bossbite_fee = round(total_food_cost * 0.15, 2)
+            restaurant_earnings = round(total_food_cost * 0.85 + delivery, 2)
+
+            d["item_subtotal"] += item_subtotal
+            d["discount"] += discount
+            d["total_food_cost"] += total_food_cost
+            d["gst"] += gst
+            d["delivery"] += delivery
+            d["customer_paid"] += customer_paid
+            d["bossbite_fee"] += bossbite_fee
+            d["restaurant_earnings"] += restaurant_earnings
+
+        for k, v in d.items():
+            if isinstance(v, float):
+                d[k] = round(v, 2)
+
+        rows.append(d)
+        grand["orders"] += d["orders"]
+        for k in ["item_subtotal", "discount", "total_food_cost", "gst", "delivery",
+                  "customer_paid", "bossbite_fee", "restaurant_earnings"]:
+            grand[k] = round(grand[k] + d[k], 2)
+
+    return {
+        "restaurant_name": restaurant.name,
+        "from_date": from_date,
+        "to_date": to_date,
+        "rows": rows,
+        "totals": grand,
+    }
+
+
+# ── Restaurant Availability Toggle ────────────────────────────────────────────
+
+def _fire_back_online_notifications(restaurant_id: str, db: Session):
+    """Send SMS + in-app notification to all customers who requested notification, then clear them."""
+    requests = db.query(NotificationRequest).filter(
+        NotificationRequest.restaurant_id == restaurant_id
+    ).all()
+    if not requests:
+        return
+    # Get restaurant name for notification message
+    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    restaurant_name = restaurant.name if restaurant else "The restaurant"
+    api_key = os.getenv("FAST2SMS_API_KEY", "")
+    for req in requests:
+        # In-app notification
+        db.add(CustomerNotification(
+            restaurant_id=restaurant_id,
+            restaurant_name=restaurant_name,
+            customer_mobile=req.customer_mobile,
+            message=f"{restaurant_name} is now accepting orders! Tap to order.",
+        ))
+        # SMS (optional, silently fails if not configured)
+        if api_key:
+            try:
+                import urllib.request as _urllib
+                import json as _json_mod
+                payload = _json_mod.dumps({
+                    "route": "dlt",
+                    "sender_id": "BOSSBT",
+                    "message": "Great news! The restaurant you were waiting for is now accepting orders on BossBite. Open the app and order now!",
+                    "variables_values": "",
+                    "numbers": req.customer_mobile,
+                }).encode()
+                r = _urllib.Request(
+                    "https://www.fast2sms.com/dev/bulkV2",
+                    data=payload,
+                    headers={"authorization": api_key, "Content-Type": "application/json"},
+                )
+                _urllib.urlopen(r, timeout=5)
+            except Exception:
+                pass
+    db.query(NotificationRequest).filter(
+        NotificationRequest.restaurant_id == restaurant_id
+    ).delete()
+    db.commit()
+
+
+@router.patch("/restaurant/availability")
+def set_restaurant_availability(
+    body: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    """Toggle restaurant open/closed. body: {is_accepting_orders: bool, back_online_at: str|null}"""
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    if restaurant.status != "active":
+        raise HTTPException(status_code=403, detail="Restaurant is not active.")
+
+    was_accepting = bool(restaurant.is_accepting_orders)
+    restaurant.is_accepting_orders = bool(body.get("is_accepting_orders", True))
+    raw_time = body.get("back_online_at")
+    if raw_time:
+        try:
+            restaurant.back_online_at = _dt.fromisoformat(raw_time.replace("Z", "+00:00")).replace(tzinfo=None)
+        except (ValueError, AttributeError):
+            restaurant.back_online_at = None
+    else:
+        restaurant.back_online_at = None
+    db.commit()
+
+    if not was_accepting and restaurant.is_accepting_orders:
+        _fire_back_online_notifications(restaurant.id, db)
+
+    return {
+        "is_accepting_orders": restaurant.is_accepting_orders,
+        "back_online_at": restaurant.back_online_at.isoformat() if restaurant.back_online_at else None,
+    }
+
+
+@router.get("/restaurant/availability")
+def get_restaurant_availability(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    """Return current availability status for the owner's restaurant."""
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    return {
+        "is_accepting_orders": restaurant.is_accepting_orders if restaurant.is_accepting_orders is not None else True,
+        "back_online_at": restaurant.back_online_at.isoformat() if restaurant.back_online_at else None,
+    }

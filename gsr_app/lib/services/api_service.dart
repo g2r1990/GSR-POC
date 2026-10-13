@@ -503,6 +503,24 @@ class ApiService {
     return {};
   }
 
+  // ── Owner Reports ─────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> getOwnerReport({
+    required String fromDate,
+    required String toDate,
+  }) async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/reports?from_date=$fromDate&to_date=$toDate'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 30));
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load report');
+  }
+
   // ── Offers ────────────────────────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> getCustomerOffers(

@@ -5,6 +5,7 @@ import 'menu_list_screen.dart';
 import 'orders_screen.dart';
 import 'offers_screen.dart';
 import 'billing_screen.dart';
+import 'reports_screen.dart';
 import 'stats_screen.dart';
 import 'owner_profile_screen.dart';
 
@@ -257,6 +258,16 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                     color: const Color(0xFF059669),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const OwnerBillingScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.summarize_outlined,
+                    title: 'Reports',
+                    subtitle: 'Daily, monthly & custom date reports — export PDF',
+                    color: const Color(0xFF0891B2),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const OwnerReportsScreen()),
                     ),
                   ),
                   const SizedBox(height: 10),
