@@ -159,8 +159,8 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                           color: Color(0xFFD97706),
                           letterSpacing: 2)),
                   const Divider(height: 24),
-                  _BillRow('Items subtotal', '₹${(widget.total + widget.discountAmount).toStringAsFixed(0)}'),
-                  if (widget.offerCode.isNotEmpty) ...[
+                  _BillRow('Item Subtotal', '₹${(widget.total + widget.discountAmount).toStringAsFixed(0)}'),
+                  if (widget.offerCode.isNotEmpty && widget.discountAmount > 0) ...[
                     const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -169,7 +169,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                           const Icon(Icons.check_circle,
                               size: 12, color: Color(0xFF166534)),
                           const SizedBox(width: 4),
-                          Text('Coupon: ${widget.offerCode}',
+                          Text('Offer Discount (${widget.offerCode})',
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF166534),
                                   fontWeight: FontWeight.w600)),
@@ -180,11 +180,16 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                                 fontWeight: FontWeight.w600)),
                       ],
                     ),
+                    const Divider(height: 14),
+                    _BillRow('Total Food Cost', '₹${widget.total.toStringAsFixed(0)}', bold: true),
                   ],
                   const SizedBox(height: 6),
                   _BillRow('Delivery fee', '₹${widget.deliveryFee.toStringAsFixed(0)}'),
                   const SizedBox(height: 6),
-                  _BillRow('GST (5%)', '₹${widget.gst.toStringAsFixed(2)}'),
+                  _BillRow(
+                    widget.discountAmount > 0 ? 'GST (5% of Total Food Cost)' : 'GST (5%)',
+                    '₹${widget.gst.toStringAsFixed(2)}',
+                  ),
                   const Divider(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -339,17 +344,19 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
 class _BillRow extends StatelessWidget {
   final String label;
   final String value;
-  const _BillRow(this.label, this.value);
+  final bool bold;
+  const _BillRow(this.label, this.value, {this.bold = false});
 
   @override
   Widget build(BuildContext context) {
+    final weight = bold ? FontWeight.w700 : FontWeight.normal;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
+            style: TextStyle(fontSize: 12, color: const Color(0xFF78716C), fontWeight: weight)),
         Text(value,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF374151))),
+            style: TextStyle(fontSize: 12, color: const Color(0xFF374151), fontWeight: weight)),
       ],
     );
   }

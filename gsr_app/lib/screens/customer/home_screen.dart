@@ -237,12 +237,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             .map((e) => e.toString())
             .toSet();
       } catch (_) {}
-      // Sync used codes with server order history (authoritative)
+      // Sync used codes with server order history (always fresh — authoritative for offer state)
       if (_phone.isNotEmpty) {
         try {
-          final history = _cachedOrders.isNotEmpty
-              ? _cachedOrders
-              : await ApiService.customerOrderHistory(_phone);
+          final history = await ApiService.customerOrderHistory(_phone);
           final Set<String> confirmedUsed = {};
           final Set<String> onlyCancelled = {};
           for (final order in history) {

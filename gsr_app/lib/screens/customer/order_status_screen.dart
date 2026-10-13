@@ -460,23 +460,30 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                   final _gst = double.parse((_discountedSub * 0.05).toStringAsFixed(2));
                   final _grand = _discountedSub + 20.0 + _gst;
                   return Column(children: [
+                    _BillRow('Item Subtotal', '₹${_sub.toStringAsFixed(0)}'),
                     if (_discount > 0) ...[
+                      const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _offerCode.isNotEmpty ? 'Discount ($_offerCode)' : 'Offer Discount',
+                            _offerCode.isNotEmpty ? 'Offer Discount ($_offerCode)' : 'Offer Discount',
                             style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A)),
                           ),
                           Text('-₹${_discount.toStringAsFixed(0)}',
                               style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A))),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const Divider(height: 12),
+                      _BillRow('Total Food Cost', '₹${_discountedSub.toStringAsFixed(0)}', bold: true),
                     ],
+                    const SizedBox(height: 4),
                     _BillRow('Delivery Fee', '₹20'),
                     const SizedBox(height: 4),
-                    _BillRow('GST (5%)', '₹${_gst.toStringAsFixed(2)}'),
+                    _BillRow(
+                      _discount > 0 ? 'GST (5% of Total Food Cost)' : 'GST (5%)',
+                      '₹${_gst.toStringAsFixed(2)}',
+                    ),
                     const Divider(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -524,16 +531,22 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
 class _BillRow extends StatelessWidget {
   final String label;
   final String value;
-  const _BillRow(this.label, this.value);
+  final bool bold;
+  const _BillRow(this.label, this.value, {this.bold = false});
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
-          Text(value,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 12,
+      color: const Color(0xFF78716C),
+      fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: style),
+        Text(value, style: style),
+      ],
+    );
+  }
 }

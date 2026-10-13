@@ -456,6 +456,12 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                       value: '-₹${_discountAmount.toStringAsFixed(0)}',
                       valueColor: const Color(0xFF166534),
                     ),
+                    const Divider(height: 16),
+                    _BillRow(
+                      label: 'Total Food Cost',
+                      value: '₹${(_itemTotal - _discountAmount).toStringAsFixed(0)}',
+                      bold: true,
+                    ),
                   ],
                   const SizedBox(height: 8),
                   _BillRow(
@@ -465,7 +471,9 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                   ),
                   const SizedBox(height: 8),
                   _BillRow(
-                    label: 'GST (5%)',
+                    label: (_offerApplied && _discountAmount > 0)
+                        ? 'GST (5% of Total Food Cost)'
+                        : 'GST (5%)',
                     value: '₹${_gst.toStringAsFixed(2)}',
                     sublabel: 'Govt. taxes on food',
                   ),
