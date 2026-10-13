@@ -173,6 +173,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           _timer?.cancel();
           _cancelTimer?.cancel();
           _removeFromActiveOrders();
+          if (_status == 'cancelled') _restoreOfferCode();
         }
       }
     } catch (_) {

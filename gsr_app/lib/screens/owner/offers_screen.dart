@@ -610,9 +610,9 @@ class _AddOfferSheetState extends State<_AddOfferSheet> {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      helpText: 'Select expiry time in 24h (IST)',
+      helpText: 'Select expiry time (IST)',
       builder: (ctx, child) => MediaQuery(
-        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: false),
         child: child!,
       ),
     );

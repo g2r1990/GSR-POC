@@ -237,17 +237,31 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen>
             .map((e) => e.toString())
             .toSet();
       } catch (_) {}
-      // Supplement from order history so used state survives reinstall
+      // Sync used codes with server order history (authoritative)
       if (_phone.isNotEmpty) {
         try {
           final history = _cachedOrders.isNotEmpty
               ? _cachedOrders
               : await ApiService.customerOrderHistory(_phone);
+          final Set<String> confirmedUsed = {};
+          final Set<String> onlyCancelled = {};
           for (final order in history) {
             final code = (order['offer_code'] as String?) ?? '';
             final status = (order['status'] as String?) ?? '';
-            if (code.isNotEmpty && status != 'cancelled') usedCodes.add(code);
+            if (code.isEmpty) continue;
+            if (status == 'cancelled') {
+              onlyCancelled.add(code);
+            } else {
+              confirmedUsed.add(code);
+            }
           }
+          usedCodes.addAll(confirmedUsed);
+          // Remove codes that appear ONLY in cancelled orders
+          for (final code in onlyCancelled) {
+            if (!confirmedUsed.contains(code)) usedCodes.remove(code);
+          }
+          // Keep SharedPreferences in sync so reinstall also reflects this
+          await prefs.setString('used_offer_codes', jsonEncode(usedCodes.toList()));
         } catch (_) {}
       }
       if (mounted) setState(() { _offers = offers; _usedOfferCodes = usedCodes; });
