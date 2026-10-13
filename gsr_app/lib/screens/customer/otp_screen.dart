@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sms_autofill/sms_autofill.dart';
 import '../../services/api_service.dart';
 
 class CustomerOtpScreen extends StatefulWidget {
@@ -45,6 +46,7 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
   String? _error;
   int _cooldown = 60;
   Timer? _timer;
+  StreamSubscription<String?>? _smsSub;
   String? _devOtp;
 
   @override
@@ -52,11 +54,25 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
     super.initState();
     _devOtp = widget.devOtp;
     _startTimer();
+    _startSmsListener();
+  }
+
+  void _startSmsListener() {
+    SmsAutoFill().listenForCode();
+    _smsSub = SmsAutoFill().code.listen((code) {
+      if (!mounted || code == null || code.length != 6) return;
+      for (int i = 0; i < 6; i++) {
+        _ctrs[i].text = code[i];
+      }
+      _verify();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _smsSub?.cancel();
+    SmsAutoFill().unregisterListener();
     for (final c in _ctrs) c.dispose();
     for (final f in _foci) f.dispose();
     super.dispose();

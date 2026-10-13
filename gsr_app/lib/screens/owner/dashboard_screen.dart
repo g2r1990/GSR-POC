@@ -65,80 +65,15 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
 
   Future<void> _toggleAvailability(bool value) async {
     if (_availLoading) return;
-    if (!value) {
-      // Step 1: Today or Custom date
-      final choice = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('When will you be back?'),
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            ListTile(
-              leading: const Icon(Icons.today, color: Color(0xFFD97706)),
-              title: const Text('Later today'),
-              subtitle: const Text('Pick a time today'),
-              onTap: () => Navigator.pop(ctx, 'today'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.calendar_month, color: Color(0xFF7C3AED)),
-              title: const Text('Custom date & time'),
-              subtitle: const Text('Pick a future date and time'),
-              onTap: () => Navigator.pop(ctx, 'custom'),
-            ),
-          ]),
-        ),
+    setState(() { _availLoading = true; });
+    try {
+      await ApiService.setRestaurantAvailability(
+        isAccepting: value,
+        backOnlineAt: null,
       );
-      if (choice == null || !mounted) return;
-
-      DateTime? backAt;
-      if (choice == 'today') {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay.now(),
-          helpText: 'Back online by (today)',
-        );
-        if (picked != null) {
-          final now = DateTime.now();
-          backAt = DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
-          if (backAt.isBefore(now)) backAt = backAt.add(const Duration(days: 1));
-        }
-      } else {
-        final date = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime.now(),
-          lastDate: DateTime.now().add(const Duration(days: 30)),
-          helpText: 'Select date',
-        );
-        if (date == null || !mounted) return;
-        final time = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay.now(),
-          helpText: 'Select time',
-        );
-        if (time != null) {
-          backAt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-          if (backAt.isBefore(DateTime.now())) backAt = null;
-        }
-      }
-      setState(() { _availLoading = true; });
-      try {
-        await ApiService.setRestaurantAvailability(
-          isAccepting: false,
-          backOnlineAt: backAt?.toUtc().toIso8601String(),
-        );
-        if (mounted) setState(() { _isAccepting = false; _backOnlineAt = backAt; });
-      } catch (_) {} finally {
-        if (mounted) setState(() { _availLoading = false; });
-      }
-    } else {
-      setState(() { _availLoading = true; });
-      try {
-        await ApiService.setRestaurantAvailability(isAccepting: true);
-        if (mounted) setState(() { _isAccepting = true; _backOnlineAt = null; });
-      } catch (_) {} finally {
-        if (mounted) setState(() { _availLoading = false; });
-      }
+      if (mounted) setState(() { _isAccepting = value; _backOnlineAt = null; });
+    } catch (_) {} finally {
+      if (mounted) setState(() { _availLoading = false; });
     }
   }
 
