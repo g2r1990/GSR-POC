@@ -227,7 +227,8 @@ class _OrderCardState extends State<_OrderCard> {
   String _formatDate(String? iso) {
     if (iso == null) return '';
     try {
-      final dt = DateTime.parse(iso).toLocal();
+      final isoZ = iso.endsWith('Z') ? iso : '${iso}Z';
+      final dt = DateTime.parse(isoZ).toLocal();
       final months = [
         '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
