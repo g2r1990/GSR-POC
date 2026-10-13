@@ -460,8 +460,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                   final _gst = double.parse((_discountedSub * 0.05).toStringAsFixed(2));
                   final _grand = _discountedSub + 20.0 + _gst;
                   return Column(children: [
-                    _BillRow('Item Subtotal', '₹${_sub.toStringAsFixed(0)}'),
                     if (_discount > 0) ...[
+                      _BillRow('Item Subtotal', '₹${_sub.toStringAsFixed(0)}'),
                       const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -475,13 +475,13 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                         ],
                       ),
                       const Divider(height: 12),
-                      _BillRow('Total Food Cost', '₹${_discountedSub.toStringAsFixed(0)}', bold: true),
                     ],
+                    _BillRow('Total Food Cost', '₹${_discountedSub.toStringAsFixed(0)}', bold: true),
                     const SizedBox(height: 4),
                     _BillRow('Delivery Fee', '₹20'),
                     const SizedBox(height: 4),
                     _BillRow(
-                      _discount > 0 ? 'GST (5% of Total Food Cost)' : 'GST (5%)',
+                      'GST (5% of Total Food Cost)',
                       '₹${_gst.toStringAsFixed(2)}',
                     ),
                     const Divider(height: 12),

@@ -445,11 +445,11 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Column(children: [
-                  _BillRow(
-                    label: 'Item total',
-                    value: '₹${_itemTotal.toStringAsFixed(0)}',
-                  ),
                   if (_offerApplied && _discountAmount > 0) ...[
+                    _BillRow(
+                      label: 'Item Subtotal',
+                      value: '₹${_itemTotal.toStringAsFixed(0)}',
+                    ),
                     const SizedBox(height: 8),
                     _BillRow(
                       label: _offerDiscountLabel(),
@@ -457,12 +457,12 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                       valueColor: const Color(0xFF166534),
                     ),
                     const Divider(height: 16),
-                    _BillRow(
-                      label: 'Total Food Cost',
-                      value: '₹${(_itemTotal - _discountAmount).toStringAsFixed(0)}',
-                      bold: true,
-                    ),
                   ],
+                  _BillRow(
+                    label: 'Total Food Cost',
+                    value: '₹${(_offerApplied && _discountAmount > 0 ? _itemTotal - _discountAmount : _itemTotal).toStringAsFixed(0)}',
+                    bold: true,
+                  ),
                   const SizedBox(height: 8),
                   _BillRow(
                     label: 'Delivery fee',
@@ -471,9 +471,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                   ),
                   const SizedBox(height: 8),
                   _BillRow(
-                    label: (_offerApplied && _discountAmount > 0)
-                        ? 'GST (5% of Total Food Cost)'
-                        : 'GST (5%)',
+                    label: 'GST (5% of Total Food Cost)',
                     value: '₹${_gst.toStringAsFixed(2)}',
                     sublabel: 'Govt. taxes on food',
                   ),

@@ -159,8 +159,8 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                           color: Color(0xFFD97706),
                           letterSpacing: 2)),
                   const Divider(height: 24),
-                  _BillRow('Item Subtotal', '₹${(widget.total + widget.discountAmount).toStringAsFixed(0)}'),
                   if (widget.offerCode.isNotEmpty && widget.discountAmount > 0) ...[
+                    _BillRow('Item Subtotal', '₹${(widget.total + widget.discountAmount).toStringAsFixed(0)}'),
                     const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -181,13 +181,13 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                       ],
                     ),
                     const Divider(height: 14),
-                    _BillRow('Total Food Cost', '₹${widget.total.toStringAsFixed(0)}', bold: true),
                   ],
+                  _BillRow('Total Food Cost', '₹${widget.total.toStringAsFixed(0)}', bold: true),
                   const SizedBox(height: 6),
                   _BillRow('Delivery fee', '₹${widget.deliveryFee.toStringAsFixed(0)}'),
                   const SizedBox(height: 6),
                   _BillRow(
-                    widget.discountAmount > 0 ? 'GST (5% of Total Food Cost)' : 'GST (5%)',
+                    'GST (5% of Total Food Cost)',
                     '₹${widget.gst.toStringAsFixed(2)}',
                   ),
                   const Divider(height: 16),
