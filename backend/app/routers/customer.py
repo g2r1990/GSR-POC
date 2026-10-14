@@ -199,9 +199,9 @@ def customer_order_history(mobile: str, db: Session = Depends(get_db)):
         items_data = snapshot.get("items", [])
         item_total = sum(float(i.get("price", 0)) * int(i.get("qty", 1)) for i in items_data)
         delivery_fee = 20.0
-        # o.total stores the discounted item total reliably (set at order creation)
-        discounted_item_total = float(o.total)
-        discount_amount = round(max(0.0, item_total - discounted_item_total), 2)
+        # Read discount from snapshot (same source as Track Order / _order_to_response)
+        discount_amount = round(float(snapshot.get("discount_amount", 0) or 0), 2)
+        discounted_item_total = float(o.total)  # DB stores discounted item total (set at order creation)
         gst = round(discounted_item_total * 0.05, 2)
         grand_total = round(discounted_item_total + delivery_fee + gst, 2)
         offer_code = snapshot.get("offer_code", "") or ""
@@ -222,6 +222,8 @@ def customer_order_history(mobile: str, db: Session = Depends(get_db)):
             "gst": gst,
             "discount_amount": discount_amount,
             "offer_code": offer_code,
+            "rating": o.rating,
+            "rating_comment": o.rating_comment,
         })
     return result
 

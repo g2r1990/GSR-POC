@@ -11,7 +11,7 @@ from app.routers import owner, admin, menu, customer, orders, rider
 app = FastAPI(
     title="BossBite API",
     description="Food ordering API — BossBite Phase 1, Chhatrapati Sambhajinagar POC",
-    version="0.7.0"
+    version="0.8.0"
 )
 
 app.add_middleware(
@@ -114,6 +114,12 @@ def _auto_migrate():
             "ALTER TABLE rider ADD COLUMN IF NOT EXISTS "
             "location_updated_at TIMESTAMP WITHOUT TIME ZONE"
         ))
+        conn.execute(text(
+            'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS rating INTEGER'
+        ))
+        conn.execute(text(
+            'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS rating_comment VARCHAR(300)'
+        ))
         conn.commit()
 
 
@@ -156,7 +162,7 @@ def health_check():
         db.close()
     except Exception as e:
         db_status = f"error: {str(e)}"
-    return {"status": "ok", "db": db_status, "version": "0.7.0"}
+    return {"status": "ok", "db": db_status, "version": "0.8.0"}
 
 
 @app.get("/")

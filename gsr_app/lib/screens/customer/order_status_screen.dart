@@ -72,6 +72,13 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   Timer? _cancelTimer;
   bool _cancelling = false;
 
+  // Rating
+  int _selectedRating = 0;
+  final TextEditingController _ratingCommentCtrl = TextEditingController();
+  bool _submittingRating = false;
+  bool _ratingSubmitted = false;
+  int? _existingRating;
+
   // Rider live location
   double? _riderLat;
   double? _riderLng;
@@ -92,6 +99,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   void dispose() {
     _timer?.cancel();
     _cancelTimer?.cancel();
+    _ratingCommentCtrl.dispose();
     super.dispose();
   }
 
@@ -178,6 +186,8 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           _status = data['status'] as String? ?? 'placed';
           _loading = false;
           _error = null;
+          final r = data['rating'];
+          if (r != null) _existingRating = (r as num).toInt();
         });
         // Start cancel countdown on first load when order is 'placed'
         if (!wasPlaced || _cancelTimer == null) _startCancelTimer();
@@ -237,6 +247,116 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           : _error != null && _order == null
               ? _errorBody()
               : _body(),
+    );
+  }
+
+  Future<void> _submitRating() async {
+    if (_selectedRating == 0) return;
+    setState(() => _submittingRating = true);
+    try {
+      await ApiService.rateOrder(
+        widget.orderId, _selectedRating,
+        comment: _ratingCommentCtrl.text.trim(),
+      );
+      if (mounted) setState(() { _ratingSubmitted = true; _existingRating = _selectedRating; });
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submittingRating = false);
+    }
+  }
+
+  Widget _buildRatingCard() {
+    final alreadyRated = _existingRating != null || _ratingSubmitted;
+    final displayRating = _existingRating ?? _selectedRating;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: alreadyRated
+          ? Column(children: [
+              const Icon(Icons.check_circle, color: Color(0xFF166534), size: 32),
+              const SizedBox(height: 8),
+              const Text('Thanks for your feedback!',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => Icon(
+                  i < displayRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: _amber, size: 28,
+                )),
+              ),
+            ])
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Rate your experience',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF92400E))),
+              const SizedBox(height: 4),
+              const Text('How was your order?',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF78716C))),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) {
+                  final star = i + 1;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedRating = star),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        _selectedRating >= star ? Icons.star_rounded : Icons.star_outline_rounded,
+                        color: _amber, size: 36,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _ratingCommentCtrl,
+                maxLines: 2,
+                maxLength: 280,
+                decoration: InputDecoration(
+                  hintText: 'Share your thoughts (optional)',
+                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFA8A29E)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _amber),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  counterStyle: const TextStyle(fontSize: 11, color: Color(0xFFA8A29E)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: (_selectedRating == 0 || _submittingRating) ? null : _submitRating,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _amber,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFFDE68A),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _submittingRating
+                      ? const SizedBox(
+                          height: 18, width: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Submit Rating', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ]),
     );
   }
 
@@ -684,6 +804,12 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                 }),
               ]),
             ),
+          ],
+
+          // Rating card — shown when delivered
+          if (_status == 'delivered') ...[
+            const SizedBox(height: 20),
+            _buildRatingCard(),
           ],
 
           const SizedBox(height: 28),

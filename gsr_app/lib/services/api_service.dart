@@ -1067,6 +1067,19 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Reject failed');
   }
 
+  // ── Customer: Order Rating ────────────────────────────────────────────────
+
+  static Future<void> rateOrder(String orderId, int rating, {String? comment}) async {
+    final res = await http.post(
+      Uri.parse('$_base/orders/$orderId/rate'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'rating': rating, 'comment': comment ?? ''}),
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Rating failed');
+  }
+
   // ── Admin: Owner Profile Update Requests ─────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> adminGetOwnerProfileUpdates() async {

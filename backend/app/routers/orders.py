@@ -57,6 +57,8 @@ def _order_to_response(order: Order) -> OrderResponse:
         created_at=order.created_at,
         delivery_pin=order.delivery_pin,
         assigned_rider_id=order.assigned_rider_id,
+        rating=order.rating,
+        rating_comment=order.rating_comment,
     )
 
 
@@ -295,6 +297,25 @@ def get_order_status(order_id: str, db: Session = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
     return _order_to_response(order)
+
+
+@router.post("/{order_id}/rate")
+def rate_order(order_id: str, body: dict, db: Session = Depends(get_db)):
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    if order.status != "delivered":
+        raise HTTPException(status_code=400, detail="Only delivered orders can be rated.")
+    if order.rating is not None:
+        raise HTTPException(status_code=400, detail="Order already rated.")
+    rating = body.get("rating")
+    if not isinstance(rating, int) or rating < 1 or rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be 1–5.")
+    order.rating = rating
+    comment = (body.get("comment") or "").strip()
+    order.rating_comment = comment if comment else None
+    db.commit()
+    return {"message": "Thank you for your feedback!"}
 
 
 @router.get("/{order_id}/rider-location")

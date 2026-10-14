@@ -106,6 +106,8 @@ class Order(Base):
     notes              = Column(Text, nullable=True)
     assigned_rider_id  = Column(UUID(as_uuid=False), ForeignKey("rider.id"), nullable=True)
     delivery_pin       = Column(String(4), nullable=True)
+    rating             = Column(Integer, nullable=True)
+    rating_comment     = Column(String(300), nullable=True)
     created_at         = Column(DateTime, default=datetime.utcnow)
     updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     restaurant         = relationship("Restaurant", back_populates="orders")

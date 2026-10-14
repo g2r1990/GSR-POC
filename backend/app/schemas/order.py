@@ -49,4 +49,6 @@ class OrderResponse(BaseModel):
     notes: Optional[str] = None
     delivery_pin: Optional[str] = None
     assigned_rider_id: Optional[str] = None
+    rating: Optional[int] = None
+    rating_comment: Optional[str] = None
     created_at: datetime

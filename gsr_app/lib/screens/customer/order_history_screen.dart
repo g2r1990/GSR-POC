@@ -399,6 +399,12 @@ class _OrderCardState extends State<_OrderCard> {
               ),
             ],
 
+            // Rating display / prompt for delivered orders
+            if (status == 'delivered') ...[
+              const SizedBox(height: 8),
+              _buildRatingSection(order),
+            ],
+
             // Track Order button (active only)
             if (!isDone) ...[
               const SizedBox(height: 10),
@@ -430,6 +436,46 @@ class _OrderCardState extends State<_OrderCard> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRatingSection(Map<String, dynamic> order) {
+    final rating = order['rating'] as int?;
+    if (rating != null) {
+      return Row(children: [
+        ...List.generate(5, (i) => Icon(
+          i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+          color: const Color(0xFFD97706), size: 16,
+        )),
+        const SizedBox(width: 6),
+        Text('$rating / 5',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF78716C))),
+      ]);
+    }
+    // Not yet rated — tap to open order status screen where rating is available
+    return GestureDetector(
+      onTap: () async {
+        final items = (order['items'] as List<dynamic>?) ?? [];
+        final discountAmt = (order['discount_amount'] as num?)?.toDouble() ?? 0.0;
+        final itemTotal = items.fold<double>(0.0, (s, i) =>
+            s + ((i['price'] as num).toDouble() * (i['qty'] as num).toDouble()));
+        final gst = double.parse(((itemTotal - discountAmt) * 0.05).toStringAsFixed(2));
+        final grandTotal = (itemTotal - discountAmt) + 20.0 + gst;
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => OrderStatusScreen(
+            orderId: order['order_id'] as String,
+            shortId: order['short_id'] as String? ?? '',
+            total: grandTotal,
+          ),
+        ));
+        widget.onRefresh?.call();
+      },
+      child: const Row(children: [
+        Icon(Icons.star_outline_rounded, color: Color(0xFFD97706), size: 16),
+        SizedBox(width: 4),
+        Text('Rate this order',
+            style: TextStyle(fontSize: 12, color: Color(0xFFD97706), fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 }
