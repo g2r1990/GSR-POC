@@ -1067,6 +1067,43 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Reject failed');
   }
 
+  // ── Admin: Owner Profile Update Requests ─────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminGetOwnerProfileUpdates() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/profile-update-requests'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body));
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to fetch owner updates');
+  }
+
+  static Future<void> adminApproveOwnerProfileUpdate(String ownerId) async {
+    final token = await getToken();
+    final res = await http.post(
+      Uri.parse('$_base/admin/profile-update-requests/$ownerId/approve'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Approve failed');
+  }
+
+  static Future<void> adminRejectOwnerProfileUpdate(String ownerId) async {
+    final token = await getToken();
+    final res = await http.post(
+      Uri.parse('$_base/admin/profile-update-requests/$ownerId/reject'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Reject failed');
+  }
+
   // ── Rider: Live GPS location ──────────────────────────────────────────────
 
   static Future<void> riderSendLocation(double lat, double lng) async {

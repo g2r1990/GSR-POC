@@ -34,14 +34,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   bool _updatesLoading = true;
   String? _updatesError;
 
+  // Owner profile update tab
+  List<Map<String, dynamic>> _ownerUpdates = [];
+  bool _ownerUpdatesLoading = true;
+  String? _ownerUpdatesError;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadKyc();
     _loadRiders();
     _loadDeletions();
     _loadRiderUpdates();
+    _loadOwnerUpdates();
   }
 
   @override
@@ -98,11 +104,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Future<void> _loadOwnerUpdates() async {
+    setState(() { _ownerUpdatesLoading = true; _ownerUpdatesError = null; });
+    try {
+      final list = await ApiService.adminGetOwnerProfileUpdates();
+      if (mounted) setState(() { _ownerUpdates = list; _ownerUpdatesLoading = false; });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _ownerUpdatesError = e.message; _ownerUpdatesLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _ownerUpdatesError = 'Cannot reach server.'; _ownerUpdatesLoading = false; });
+    }
+  }
+
   void _loadAll() {
     _loadKyc();
     _loadRiders();
     _loadDeletions();
     _loadRiderUpdates();
+    _loadOwnerUpdates();
   }
 
   Future<void> _approveDeletion(String id, String name) async {
@@ -216,6 +235,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Future<void> _approveOwnerUpdate(String id, String name) async {
+    final ok = await _confirmDialog(
+      'Apply changes for "$name"?',
+      'The owner\'s profile changes will be applied immediately.',
+    );
+    if (!ok) return;
+    try {
+      await ApiService.adminApproveOwnerProfileUpdate(id);
+      _showSnack('$name profile updated', Colors.green);
+      _loadOwnerUpdates();
+    } on ApiException catch (e) {
+      _showSnack(e.message, Colors.red);
+    }
+  }
+
+  Future<void> _rejectOwnerUpdate(String id, String name) async {
+    final ok = await _confirmDialog(
+      'Reject update for "$name"?',
+      'The pending profile changes will be discarded.',
+    );
+    if (!ok) return;
+    try {
+      await ApiService.adminRejectOwnerProfileUpdate(id);
+      _showSnack('Update request for $name rejected', Colors.orange);
+      _loadOwnerUpdates();
+    } on ApiException catch (e) {
+      _showSnack(e.message, Colors.red);
+    }
+  }
+
   Future<bool> _confirmDialog(String title, String msg) async {
     return await showDialog<bool>(
           context: context,
@@ -301,7 +350,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Tab(child: _tabLabel('Owner KYC', _kycPending.length)),
             Tab(child: _tabLabel('Rider Approvals', _pendingRiders.length)),
             Tab(child: _tabLabel('Removals', _deletionRequests.length)),
-            Tab(child: _tabLabel('Profile Updates', _riderUpdates.length)),
+            Tab(child: _tabLabel('Rider Updates', _riderUpdates.length)),
+            Tab(child: _tabLabel('Owner Updates', _ownerUpdates.length)),
           ],
         ),
       ),
@@ -312,6 +362,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _buildRiderTab(),
           _buildDeletionsTab(),
           _buildRiderUpdatesTab(),
+          _buildOwnerUpdatesTab(),
         ],
       ),
     );
@@ -601,6 +652,134 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         },
       ),
     );
+  }
+
+  Widget _buildOwnerUpdatesTab() {
+    if (_ownerUpdatesLoading) return const Center(child: CircularProgressIndicator());
+    if (_ownerUpdatesError != null) return _ErrorView(message: _ownerUpdatesError!, onRetry: _loadOwnerUpdates);
+    if (_ownerUpdates.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.store_outlined, size: 64, color: Color(0xFFD1D5DB)),
+            SizedBox(height: 16),
+            Text('No owner profile update requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Owner-submitted profile changes appear here.', style: TextStyle(color: Color(0xFF64748B))),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadOwnerUpdates,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _ownerUpdates.length,
+        itemBuilder: (ctx, i) {
+          final o = _ownerUpdates[i];
+          final id             = o['owner_id']?.toString() ?? '';
+          final name           = o['owner_name']?.toString() ?? '';
+          final mobile         = o['mobile']?.toString() ?? '';
+          final restaurantName = o['restaurant_name']?.toString() ?? '';
+          final currentEmail   = o['email']?.toString();
+          final currentArea    = o['area']?.toString();
+          final currentAddress = o['address']?.toString();
+          final currentFoodType= o['food_type']?.toString();
+          final changes        = (o['requested_changes'] as Map?)?.cast<String, dynamic>() ?? {};
+          final submittedAt    = o['submitted_at']?.toString();
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Color(0xFFEFF6FF),
+                    child: Icon(Icons.store, color: Color(0xFF1E40AF), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    Text(mobile, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    if (restaurantName.isNotEmpty)
+                      Text(restaurantName, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                  ])),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: const Text('Pending\nReview',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                  ),
+                ]),
+                if (submittedAt != null) ...[
+                  const SizedBox(height: 6),
+                  Text('Submitted: ${_fmtDate(submittedAt)}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                ],
+                const SizedBox(height: 12),
+                const Text('Requested Changes',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                const SizedBox(height: 6),
+                if (changes.containsKey('owner_name'))
+                  _changeRow('Owner Name', name, changes['owner_name']?.toString() ?? ''),
+                if (changes.containsKey('email'))
+                  _changeRow('Email', currentEmail ?? '—', changes['email']?.toString() ?? ''),
+                if (changes.containsKey('restaurant_name'))
+                  _changeRow('Restaurant', restaurantName, changes['restaurant_name']?.toString() ?? ''),
+                if (changes.containsKey('area'))
+                  _changeRow('Area', currentArea ?? '—', changes['area']?.toString() ?? ''),
+                if (changes.containsKey('address'))
+                  _changeRow('Address', currentAddress ?? '—', changes['address']?.toString() ?? ''),
+                if (changes.containsKey('food_type'))
+                  _changeRow('Food Type', currentFoodType ?? '—', changes['food_type']?.toString() ?? ''),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _rejectOwnerUpdate(id, name),
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Reject'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red, side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _approveOwnerUpdate(id, name),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text('Apply Update'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669), foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _fmtDate(String iso) {
+    try {
+      final dt = DateTime.parse(iso.endsWith('Z') ? iso : '${iso}Z').toLocal();
+      return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+    } catch (_) { return iso; }
   }
 
   Widget _changeRow(String field, String current, String proposed) {

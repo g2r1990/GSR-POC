@@ -166,8 +166,12 @@ def list_profile_update_requests(
         result.append({
             "owner_id": o.id,
             "owner_name": o.name,
+            "email": o.email,
             "mobile": o.mobile,
             "restaurant_name": restaurant.name if restaurant else None,
+            "area": restaurant.area if restaurant else None,
+            "address": restaurant.address if restaurant else None,
+            "food_type": restaurant.food_type if restaurant else None,
             "submitted_at": o.pending_update_submitted_at.isoformat() if o.pending_update_submitted_at else None,
             "requested_changes": _json.loads(o.pending_profile_update),
         })
@@ -318,6 +322,70 @@ def reject_rider_deletion(
     return {"message": "Deletion request rejected. Rider remains active."}
 
 
+# ── Admin: Rider Update Requests ──────────────────────────────────────────────
+
+@router.get("/rider-updates")
+def get_rider_update_requests(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    riders = db.query(Rider).filter(
+        Rider.update_status == "pending_admin",
+    ).order_by(Rider.update_submitted_at.asc()).all()
+    return [_rider_dict(r) for r in riders]
+
+
+@router.patch("/rider-updates/{rider_id}/approve")
+def approve_rider_update(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    rider = db.get(Rider, rider_id)
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    if getattr(rider, 'update_status', None) != "pending_admin":
+        raise HTTPException(status_code=400, detail="No pending admin-level update request.")
+
+    if rider.pending_phone:
+        existing = db.query(Rider).filter(
+            Rider.phone == rider.pending_phone, Rider.id != rider.id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Phone already used by another rider.")
+        rider.phone = rider.pending_phone
+
+    if rider.pending_vehicle:
+        rider.vehicle_number = rider.pending_vehicle
+
+    rider.pending_phone   = None
+    rider.pending_vehicle = None
+    rider.update_status   = None
+    rider.update_submitted_at = None
+    db.commit()
+    return {"message": f"Rider '{rider.name}' profile updated successfully."}
+
+
+@router.patch("/rider-updates/{rider_id}/reject")
+def reject_rider_update(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    rider = db.get(Rider, rider_id)
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    rider.pending_phone   = None
+    rider.pending_vehicle = None
+    rider.update_status   = None
+    rider.update_submitted_at = None
+    db.commit()
+    return {"message": "Update request rejected."}
+
+
 def _rider_dict(r: Rider) -> dict:
     return {
         "id": r.id,
@@ -326,6 +394,10 @@ def _rider_dict(r: Rider) -> dict:
         "vehicle_number": r.vehicle_number,
         "approval_status": r.approval_status,
         "deletion_requested": getattr(r, 'deletion_requested', False) or False,
+        "pending_phone": getattr(r, 'pending_phone', None),
+        "pending_vehicle": getattr(r, 'pending_vehicle', None),
+        "update_status": getattr(r, 'update_status', None),
+        "update_submitted_at": r.update_submitted_at.isoformat() if getattr(r, 'update_submitted_at', None) else None,
         "restaurant_id": r.restaurant_id,
         "restaurant_name": r.restaurant.name if r.restaurant else None,
         "created_at": r.created_at.isoformat() if r.created_at else None,
