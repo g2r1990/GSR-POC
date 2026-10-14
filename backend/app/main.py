@@ -11,7 +11,7 @@ from app.routers import owner, admin, menu, customer, orders, rider
 app = FastAPI(
     title="BossBite API",
     description="Food ordering API — BossBite Phase 1, Chhatrapati Sambhajinagar POC",
-    version="0.8.0"
+    version="0.9.0"
 )
 
 app.add_middleware(
@@ -162,7 +162,7 @@ def health_check():
         db.close()
     except Exception as e:
         db_status = f"error: {str(e)}"
-    return {"status": "ok", "db": db_status, "version": "0.8.0"}
+    return {"status": "ok", "db": db_status, "version": "0.9.0"}
 
 
 @app.get("/")

@@ -1117,6 +1117,53 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Reject failed');
   }
 
+  // ── Admin: Dashboard Stats & Views ───────────────────────────────────────
+
+  static Future<Map<String, dynamic>> adminGetStats() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/stats'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load stats');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetAllOrders({String status = ''}) async {
+    final token = await getToken();
+    final url = status.isEmpty ? '$_base/admin/all-orders' : '$_base/admin/all-orders?status=$status';
+    final res = await http.get(
+      Uri.parse(url),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetAllRiders() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/riders'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load riders');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetCustomers() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/customers'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load customers');
+  }
+
   // ── Rider: Live GPS location ──────────────────────────────────────────────
 
   static Future<void> riderSendLocation(double lat, double lng) async {

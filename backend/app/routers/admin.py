@@ -5,7 +5,7 @@ from jose import JWTError
 from typing import List
 
 from app.database import get_db
-from app.models import Owner, Restaurant, Inspection, Rider
+from app.models import Owner, Restaurant, Inspection, Rider, Customer, Order
 from app.core.security import decode_token
 from app.schemas.owner import KycItemResponse, KycRestaurantInfo, RejectRequest
 
@@ -384,6 +384,84 @@ def reject_rider_update(
     rider.update_submitted_at = None
     db.commit()
     return {"message": "Update request rejected."}
+
+
+# ── Admin: Dashboard Stats ────────────────────────────────────────────────────
+
+@router.get("/stats")
+def admin_stats(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime
+    _require_admin(credentials)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    total_today = db.query(Order).filter(Order.created_at >= today_start).count()
+    total_all = db.query(Order).count()
+    active_restaurants = db.query(Restaurant).filter(Restaurant.status == "active").count()
+    total_customers = db.query(Customer).count()
+    pending_kyc = db.query(Owner).filter(Owner.status == "pending").count()
+    pending_riders = db.query(Rider).filter(Rider.approval_status == "pending_admin").count()
+    pending_deletions = db.query(Rider).filter(
+        Rider.deletion_requested == True, Rider.deleted_at == None
+    ).count()
+    pending_rider_upd = db.query(Rider).filter(Rider.update_status == "pending_admin").count()
+    pending_owner_upd = db.query(Owner).filter(Owner.pending_profile_update.isnot(None)).count()
+    return {
+        "total_orders_today": total_today,
+        "total_orders_all": total_all,
+        "active_restaurants": active_restaurants,
+        "total_customers": total_customers,
+        "pending_kyc": pending_kyc,
+        "pending_riders": pending_riders,
+        "pending_updates": pending_rider_upd + pending_owner_upd + pending_deletions,
+    }
+
+
+# ── Admin: All Orders ─────────────────────────────────────────────────────────
+
+@router.get("/all-orders")
+def admin_all_orders(
+    status: str = "",
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    q = db.query(Order)
+    if status:
+        q = q.filter(Order.status == status)
+    orders = q.order_by(Order.created_at.desc()).limit(200).all()
+    return [
+        {
+            "order_id": o.id,
+            "short_id": o.id[:8].upper(),
+            "restaurant_name": o.restaurant.name if o.restaurant else "",
+            "customer_name": o.customer_name or "",
+            "customer_mobile": o.customer_mobile or "",
+            "total": float(o.total),
+            "status": o.status,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+        }
+        for o in orders
+    ]
+
+
+# ── Admin: Customers ──────────────────────────────────────────────────────────
+
+@router.get("/customers")
+def admin_customers(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    customers = db.query(Customer).order_by(Customer.mobile.asc()).all()
+    return [
+        {
+            "mobile": c.mobile,
+            "device_registered": bool(c.device_id),
+        }
+        for c in customers
+    ]
 
 
 def _rider_dict(r: Rider) -> dict:
