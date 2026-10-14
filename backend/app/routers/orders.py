@@ -55,6 +55,8 @@ def _order_to_response(order: Order) -> OrderResponse:
         status=order.status,
         notes=order.notes,
         created_at=order.created_at,
+        delivery_pin=order.delivery_pin,
+        assigned_rider_id=order.assigned_rider_id,
     )
 
 

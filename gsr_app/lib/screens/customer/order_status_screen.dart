@@ -37,6 +37,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     'accepted': 'Accepted',
     'ready': 'Ready',
     'out_for_delivery': 'Out for Delivery',
+    'rider_assigned': 'Rider On The Way',
     'delivered': 'Delivered',
   };
 
@@ -45,6 +46,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     'accepted': Icons.thumb_up_outlined,
     'ready': Icons.restaurant_outlined,
     'out_for_delivery': Icons.delivery_dining,
+    'rider_assigned': Icons.delivery_dining,
     'delivered': Icons.check_circle_outline,
   };
 
@@ -53,6 +55,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     'accepted': 'The restaurant has accepted your order and is preparing it.',
     'ready': 'Your order is ready and waiting for pickup by the delivery person.',
     'out_for_delivery': 'Your order is on its way to you!',
+    'rider_assigned': 'A rider has been assigned and is on their way to you!',
     'delivered': 'Your order has been delivered. Enjoy your meal!',
   };
 
@@ -228,7 +231,9 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
 
   Widget _body() {
     final isCancelled = _status == 'cancelled';
-    final currentIdx = _steps.indexOf(_status);
+    // rider_assigned maps to the out_for_delivery step position in the stepper
+    final stepStatus = _status == 'rider_assigned' ? 'out_for_delivery' : _status;
+    final currentIdx = _steps.indexOf(stepStatus);
 
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scrollbar(
@@ -341,6 +346,54 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                       borderRadius: BorderRadius.circular(10)),
                 ),
               ),
+            ),
+          ],
+
+          // Delivery PIN — show once order is ready or rider assigned
+          if (_order != null &&
+              (_status == 'ready' || _status == 'rider_assigned') &&
+              (_order!['delivery_pin'] as String?)?.isNotEmpty == true) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3CD),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+              ),
+              child: Column(children: [
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.lock_outline, size: 18, color: Color(0xFF92400E)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Your Delivery PIN',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF92400E)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _order!['delivery_pin'] as String,
+                  style: const TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1C1917),
+                    letterSpacing: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Share this PIN with your rider to confirm delivery.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: Color(0xFF78716C)),
+                ),
+              ]),
             ),
           ],
 
