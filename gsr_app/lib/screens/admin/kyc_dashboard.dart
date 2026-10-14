@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
@@ -14,6 +15,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   // ── Bottom nav ─────────────────────────────────────────────────────────────
   int _selectedIndex = 0;
+  Timer? _autoRefreshTimer;
 
   // ── Home / Stats ──────────────────────────────────────────────────────────
   Map<String, dynamic>? _stats;
@@ -71,10 +73,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     _loadDeletions();
     _loadRiderUpdates();
     _loadOwnerUpdates();
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!mounted) return;
+      _loadKyc();
+      _loadRiders();
+      _loadDeletions();
+      _loadRiderUpdates();
+      _loadOwnerUpdates();
+      if (_selectedIndex == 0) _loadStats();
+    });
   }
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }

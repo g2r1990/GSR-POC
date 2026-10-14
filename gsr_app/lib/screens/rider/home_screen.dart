@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 
@@ -337,6 +339,9 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
     final customerName = order['customer_name'] as String? ?? '';
     final paid = (order['customer_paid'] as num?)?.toStringAsFixed(0) ?? '0';
     final orderId = (order['id'] as String).substring(0, 8).toUpperCase();
+    final deliveryLat = (order['delivery_lat'] as num?)?.toDouble();
+    final deliveryLng = (order['delivery_lng'] as num?)?.toDouble();
+    final hasMap = active && deliveryLat != null && deliveryLng != null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -412,6 +417,48 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
               Text('+${items.length - 3} more items',
                   style:
                       const TextStyle(fontSize: 12, color: Colors.black38)),
+            if (hasMap) ...[
+              const SizedBox(height: 10),
+              Row(children: const [
+                Icon(Icons.location_on, size: 14, color: _amber),
+                SizedBox(width: 4),
+                Text('Drop Location',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _amber)),
+              ]),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  height: 160,
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(deliveryLat!, deliveryLng!),
+                      initialZoom: 15,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.bossbite.gsr_app',
+                      ),
+                      MarkerLayer(markers: [
+                        Marker(
+                          point: LatLng(deliveryLat, deliveryLng),
+                          width: 48,
+                          height: 56,
+                          child: const Column(children: [
+                            Icon(Icons.home_rounded, color: Colors.red, size: 32),
+                            Icon(Icons.location_on, color: Colors.red, size: 14),
+                          ]),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

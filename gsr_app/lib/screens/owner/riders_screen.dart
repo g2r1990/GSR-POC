@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
@@ -12,6 +13,7 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
   static const _green = Color(0xFF166534);
 
   late TabController _tabController;
+  Timer? _timer;
   List<Map<String, dynamic>> _pending = [];
   List<Map<String, dynamic>> _active = [];
   List<Map<String, dynamic>> _updates = [];
@@ -24,6 +26,9 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadAll();
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) _loadPending();
+    });
   }
 
   Future<void> _loadAll() async {
@@ -131,6 +136,7 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
 
   @override
   void dispose() {
+    _timer?.cancel();
     _tabController.dispose();
     super.dispose();
   }

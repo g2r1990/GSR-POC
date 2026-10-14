@@ -255,6 +255,8 @@ def _order_dict(o) -> dict:
         "customer_name": o.customer_name,
         "customer_mobile": o.customer_mobile,
         "delivery_address": o.delivery_address,
+        "delivery_lat": o.delivery_lat,
+        "delivery_lng": o.delivery_lng,
         "customer_area": o.customer_area,
         "total_food_cost": total_food,
         "discount_amount": discount,

@@ -120,6 +120,12 @@ def _auto_migrate():
         conn.execute(text(
             'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS rating_comment VARCHAR(300)'
         ))
+        conn.execute(text(
+            'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS delivery_lat FLOAT'
+        ))
+        conn.execute(text(
+            'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS delivery_lng FLOAT'
+        ))
         conn.commit()
 
 

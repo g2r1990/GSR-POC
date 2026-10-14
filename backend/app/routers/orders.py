@@ -149,6 +149,8 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
         customer_mobile=body.customer_phone,
         customer_area=body.customer_area,
         delivery_address=body.delivery_address,
+        delivery_lat=body.delivery_lat,
+        delivery_lng=body.delivery_lng,
         notes=body.notes,
         items_snapshot={
             "items": snapshot_items,

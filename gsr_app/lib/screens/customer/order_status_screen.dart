@@ -487,10 +487,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status banner
+          // Status banner — compact pill design
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: isCancelled
                   ? const Color(0xFFFEF2F2)
@@ -505,58 +505,42 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                           ? const Color(0xFFBBF7D0)
                           : const Color(0xFFFDE68A)),
             ),
-            child: Column(children: [
+            child: Row(children: [
               Icon(
                 isCancelled
                     ? Icons.cancel_outlined
                     : (_stepIcons[_status] ?? Icons.hourglass_empty),
-                size: 48,
+                size: 32,
                 color: isCancelled
                     ? const Color(0xFFDC2626)
                     : _status == 'delivered'
                         ? _green
                         : _amber,
               ),
-              const SizedBox(height: 10),
-              Text(
-                isCancelled
-                    ? 'Order Cancelled'
-                    : (_stepLabels[_status] ?? _status),
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isCancelled
-                        ? const Color(0xFFDC2626)
-                        : _status == 'delivered'
-                            ? _green
-                            : const Color(0xFF1C1917)),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isCancelled
-                    ? 'Your order was cancelled.'
-                    : (_stepMessages[_status] ?? ''),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    fontSize: 13, color: Color(0xFF78716C), height: 1.4),
-              ),
-              if (_status != 'delivered' && !isCancelled) ...[
-                const SizedBox(height: 12),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: _amber)),
-                    SizedBox(width: 8),
-                    Text('Live updates every 10s',
-                        style: TextStyle(
-                            fontSize: 11, color: Color(0xFFA8A29E))),
-                  ],
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  isCancelled ? 'Order Cancelled' : (_stepLabels[_status] ?? _status),
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isCancelled
+                          ? const Color(0xFFDC2626)
+                          : _status == 'delivered'
+                              ? _green
+                              : const Color(0xFF1C1917)),
                 ),
-              ],
+                const SizedBox(height: 3),
+                Text(
+                  isCancelled ? 'Your order was cancelled.' : (_stepMessages[_status] ?? ''),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF78716C), height: 1.3),
+                ),
+              ])),
+              if (_status != 'delivered' && !isCancelled)
+                const SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: _amber),
+                ),
             ]),
           ),
 
@@ -593,50 +577,38 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
             ),
           ],
 
-          // Delivery PIN — show once order is ready or rider assigned
+          // Delivery PIN — compact single-row strip
           if (_order != null &&
               (_status == 'ready' || _status == 'rider_assigned') &&
               (_order!['delivery_pin'] as String?)?.isNotEmpty == true) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFFD700)),
               ),
-              child: Column(children: [
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.lock_outline, size: 18, color: Color(0xFF92400E)),
-                    SizedBox(width: 6),
-                    Text(
-                      'Your Delivery PIN',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF92400E)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
+              child: Row(children: [
+                const Icon(Icons.lock_outline, size: 16, color: Color(0xFF92400E)),
+                const SizedBox(width: 8),
+                const Text('PIN',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF92400E))),
+                const SizedBox(width: 10),
                 Text(
-                  _order!['delivery_pin'] as String,
+                  (_order!['delivery_pin'] as String).split('').join('  '),
                   style: const TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1C1917),
-                    letterSpacing: 12,
-                  ),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1C1917),
+                      letterSpacing: 2),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Share this PIN with your rider to confirm delivery.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Color(0xFF78716C)),
-                ),
+                const Spacer(),
+                const Text('Share with rider',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF78716C))),
               ]),
             ),
           ],

@@ -37,6 +37,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   String? _error;
   String _customerArea = '';
   bool _shouldPopOnResume = false;
+  double? _deliveryLat;
+  double? _deliveryLng;
 
   double get _itemTotal => CartService.total;
 
@@ -155,6 +157,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 10)),
       );
+      _deliveryLat = pos.latitude;
+      _deliveryLng = pos.longitude;
       final address =
           await ApiService.getFullAddressFromCoords(pos.latitude, pos.longitude);
       if (address != null && address.isNotEmpty && mounted) {
@@ -214,6 +218,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         'delivery_address': _addressCtr.text.trim(),
         'notes': _notesCtr.text.trim().isEmpty ? null : _notesCtr.text.trim(),
         'customer_area': _customerArea.isNotEmpty ? _customerArea : null,
+        if (_deliveryLat != null) 'delivery_lat': _deliveryLat,
+        if (_deliveryLng != null) 'delivery_lng': _deliveryLng,
         'offer_code': _offerApplied && OfferService.offerCode.isNotEmpty
             ? OfferService.offerCode
             : null,
