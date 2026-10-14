@@ -14,28 +14,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   late TabController _tabController;
 
-  // KYC tab state
+  // KYC tab
   List<Map<String, dynamic>> _kycPending = [];
   bool _kycLoading = true;
   String? _kycError;
 
-  // Rider approval tab state
+  // Rider approval tab
   List<Map<String, dynamic>> _pendingRiders = [];
   bool _ridersLoading = true;
   String? _ridersError;
 
-  // Rider deletion tab state
+  // Rider deletion tab
   List<Map<String, dynamic>> _deletionRequests = [];
   bool _deletionsLoading = true;
   String? _deletionsError;
 
+  // Rider profile update tab
+  List<Map<String, dynamic>> _riderUpdates = [];
+  bool _updatesLoading = true;
+  String? _updatesError;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadKyc();
     _loadRiders();
     _loadDeletions();
+    _loadRiderUpdates();
   }
 
   @override
@@ -78,6 +84,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (_) {
       if (mounted) setState(() { _deletionsError = 'Cannot reach server.'; _deletionsLoading = false; });
     }
+  }
+
+  Future<void> _loadRiderUpdates() async {
+    setState(() { _updatesLoading = true; _updatesError = null; });
+    try {
+      final list = await ApiService.adminGetRiderUpdates();
+      if (mounted) setState(() { _riderUpdates = list; _updatesLoading = false; });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _updatesError = e.message; _updatesLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _updatesError = 'Cannot reach server.'; _updatesLoading = false; });
+    }
+  }
+
+  void _loadAll() {
+    _loadKyc();
+    _loadRiders();
+    _loadDeletions();
+    _loadRiderUpdates();
   }
 
   Future<void> _approveDeletion(String id, String name) async {
@@ -161,6 +186,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Future<void> _approveRiderUpdate(String id, String name) async {
+    final ok = await _confirmDialog(
+      'Apply update for "$name"?',
+      'The rider\'s profile changes will be applied immediately.',
+    );
+    if (!ok) return;
+    try {
+      await ApiService.adminApproveRiderUpdate(id);
+      _showSnack('$name profile updated', Colors.green);
+      _loadRiderUpdates();
+    } on ApiException catch (e) {
+      _showSnack(e.message, Colors.red);
+    }
+  }
+
+  Future<void> _rejectRiderUpdate(String id, String name) async {
+    final ok = await _confirmDialog(
+      'Reject update for "$name"?',
+      'The pending profile changes will be discarded.',
+    );
+    if (!ok) return;
+    try {
+      await ApiService.adminRejectRiderUpdate(id);
+      _showSnack('Update request for $name rejected', Colors.orange);
+      _loadRiderUpdates();
+    } on ApiException catch (e) {
+      _showSnack(e.message, Colors.red);
+    }
+  }
+
   Future<bool> _confirmDialog(String title, String msg) async {
     return await showDialog<bool>(
           context: context,
@@ -210,6 +265,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   void _showSnack(String msg, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: color),
     );
@@ -217,9 +273,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _logout() async {
     await ApiService.clearToken();
-    if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/roles', (_) => false);
-    }
+    if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/roles', (_) => false);
   }
 
   @override
@@ -233,59 +287,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () { _loadKyc(); _loadRiders(); _loadDeletions(); },
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAll, tooltip: 'Refresh'),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout, tooltip: 'Logout'),
         ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
           indicatorColor: Colors.white,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Owner KYC'),
-                  if (_kycPending.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    _Badge(_kycPending.length),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Rider Approvals'),
-                  if (_pendingRiders.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    _Badge(_pendingRiders.length),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Removals'),
-                  if (_deletionRequests.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    _Badge(_deletionRequests.length),
-                  ],
-                ],
-              ),
-            ),
+            Tab(child: _tabLabel('Owner KYC', _kycPending.length)),
+            Tab(child: _tabLabel('Rider Approvals', _pendingRiders.length)),
+            Tab(child: _tabLabel('Removals', _deletionRequests.length)),
+            Tab(child: _tabLabel('Profile Updates', _riderUpdates.length)),
           ],
         ),
       ),
@@ -295,8 +311,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _buildKycTab(),
           _buildRiderTab(),
           _buildDeletionsTab(),
+          _buildRiderUpdatesTab(),
         ],
       ),
+    );
+  }
+
+  Widget _tabLabel(String text, int count) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(text),
+        if (count > 0) ...[
+          const SizedBox(width: 6),
+          _Badge(count),
+        ],
+      ],
     );
   }
 
@@ -370,10 +400,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           final restaurant = r['restaurant_name']?.toString() ?? '';
           final id = r['id']?.toString() ?? '';
           return _RiderCard(
-            name: name,
-            phone: phone,
-            vehicle: vehicle,
-            restaurant: restaurant,
+            name: name, phone: phone, vehicle: vehicle, restaurant: restaurant,
             onApprove: () => _approveRider(id, name),
             onReject: () => _rejectRider(id, name),
           );
@@ -381,7 +408,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       ),
     );
   }
-}
 
   Widget _buildDeletionsTab() {
     if (_deletionsLoading) return const Center(child: CircularProgressIndicator());
@@ -465,8 +491,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       icon: const Icon(Icons.person_remove, size: 16),
                       label: const Text('Remove'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.red, foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
@@ -480,6 +505,127 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
+  Widget _buildRiderUpdatesTab() {
+    if (_updatesLoading) return const Center(child: CircularProgressIndicator());
+    if (_updatesError != null) return _ErrorView(message: _updatesError!, onRetry: _loadRiderUpdates);
+    if (_riderUpdates.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.manage_accounts_outlined, size: 64, color: Color(0xFFD1D5DB)),
+            SizedBox(height: 16),
+            Text('No profile update requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Owner-approved rider profile changes appear here.', style: TextStyle(color: Color(0xFF64748B))),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadRiderUpdates,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _riderUpdates.length,
+        itemBuilder: (ctx, i) {
+          final r = _riderUpdates[i];
+          final name    = r['name']?.toString() ?? '';
+          final phone   = r['phone']?.toString() ?? '';
+          final vehicle = r['vehicle_number']?.toString() ?? '';
+          final restaurant = r['restaurant_name']?.toString() ?? '';
+          final id      = r['id']?.toString() ?? '';
+          final pendingPhone   = r['pending_phone'] as String?;
+          final pendingVehicle = r['pending_vehicle'] as String?;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Color(0xFFFEF3C7),
+                    child: Icon(Icons.manage_accounts, color: Color(0xFFD97706), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    Text(restaurant, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                  ])),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: const Text('Final\nApproval',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                if (pendingPhone != null) _changeRow('Phone', phone, pendingPhone),
+                if (pendingVehicle != null) _changeRow('Vehicle', vehicle, pendingVehicle),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _rejectRiderUpdate(id, name),
+                      icon: const Icon(Icons.close, size: 16),
+                      label: const Text('Reject'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red, side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _approveRiderUpdate(id, name),
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text('Apply Update'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E40AF), foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _changeRow(String field, String current, String proposed) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(field, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+          Text(current, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B),
+              decoration: TextDecoration.lineThrough)),
+        ])),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 6),
+          child: Icon(Icons.arrow_forward, size: 16, color: Color(0xFF94A3B8)),
+        ),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('New $field', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+          Text(proposed, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold,
+              color: Color(0xFF059669))),
+        ])),
+      ]),
+    );
+  }
+}
+
 class _Badge extends StatelessWidget {
   final int count;
   const _Badge(this.count);
@@ -488,14 +634,9 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.orange,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        '$count',
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-      ),
+      decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(10)),
+      child: Text('$count',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
     );
   }
 }
@@ -505,11 +646,8 @@ class _KycCard extends StatelessWidget {
   final VoidCallback onApprove, onReject;
 
   const _KycCard({
-    required this.name,
-    required this.mobile,
-    required this.gstin,
-    required this.onApprove,
-    required this.onReject,
+    required this.name, required this.mobile, required this.gstin,
+    required this.onApprove, required this.onReject,
   });
 
   @override
@@ -519,58 +657,50 @@ class _KycCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const Icon(Icons.store, color: Color(0xFF1E40AF)),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Text(name,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: const Text('Pending', style: TextStyle(fontSize: 12, color: Colors.orange)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.store, color: Color(0xFF1E40AF)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
               ),
-            ]),
-            const SizedBox(height: 8),
-            _Info(label: 'Mobile', value: mobile),
-            _Info(label: 'GSTIN', value: gstin),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onReject,
-                  icon: const Icon(Icons.close, size: 18),
-                  label: const Text('Reject'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+              child: const Text('Pending', style: TextStyle(fontSize: 12, color: Colors.orange)),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          _Info(label: 'Mobile', value: mobile),
+          _Info(label: 'GSTIN', value: gstin),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onReject,
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red, side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onApprove,
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Approve'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF059669),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onApprove,
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Approve'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF059669), foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-            ]),
-          ],
-        ),
+            ),
+          ]),
+        ]),
       ),
     );
   }
@@ -581,12 +711,8 @@ class _RiderCard extends StatelessWidget {
   final VoidCallback onApprove, onReject;
 
   const _RiderCard({
-    required this.name,
-    required this.phone,
-    required this.vehicle,
-    required this.restaurant,
-    required this.onApprove,
-    required this.onReject,
+    required this.name, required this.phone, required this.vehicle,
+    required this.restaurant, required this.onApprove, required this.onReject,
   });
 
   @override
@@ -596,65 +722,57 @@ class _RiderCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const CircleAvatar(
-                radius: 22,
-                backgroundColor: Color(0xFFFEF3C7),
-                child: Icon(Icons.delivery_dining, color: Color(0xFFD97706), size: 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const CircleAvatar(
+              radius: 22,
+              backgroundColor: Color(0xFFFEF3C7),
+              child: Icon(Icons.delivery_dining, color: Color(0xFFD97706), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                  Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                ]),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: const Text('New', style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold)),
-              ),
-            ]),
-            const SizedBox(height: 10),
-            _Info(label: 'Restaurant', value: restaurant),
-            _Info(label: 'Vehicle', value: vehicle),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onReject,
-                  icon: const Icon(Icons.close, size: 18),
-                  label: const Text('Reject'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+              child: const Text('New', style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold)),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          _Info(label: 'Restaurant', value: restaurant),
+          _Info(label: 'Vehicle', value: vehicle),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onReject,
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red, side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onApprove,
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Send to Owner'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E40AF),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: onApprove,
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Send to Owner'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E40AF), foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-            ]),
-          ],
-        ),
+            ),
+          ]),
+        ]),
       ),
     );
   }
@@ -691,8 +809,7 @@ class _ErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, size: 56, color: Colors.grey),
             const SizedBox(height: 16),
-            Text(message,
-                textAlign: TextAlign.center,
+            Text(message, textAlign: TextAlign.center,
                 style: const TextStyle(color: Color(0xFF64748B))),
             const SizedBox(height: 24),
             ElevatedButton.icon(

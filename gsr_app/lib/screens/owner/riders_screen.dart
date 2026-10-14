@@ -14,19 +14,22 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
   late TabController _tabController;
   List<Map<String, dynamic>> _pending = [];
   List<Map<String, dynamic>> _active = [];
+  List<Map<String, dynamic>> _updates = [];
   bool _loadingPending = true;
   bool _loadingActive = true;
+  bool _loadingUpdates = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadAll();
   }
 
   Future<void> _loadAll() async {
     _loadPending();
     _loadActive();
+    _loadUpdates();
   }
 
   Future<void> _loadPending() async {
@@ -46,6 +49,16 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
       if (mounted) setState(() { _active = data; _loadingActive = false; });
     } catch (_) {
       if (mounted) setState(() => _loadingActive = false);
+    }
+  }
+
+  Future<void> _loadUpdates() async {
+    setState(() => _loadingUpdates = true);
+    try {
+      final data = await ApiService.ownerGetRiderUpdates();
+      if (mounted) setState(() { _updates = data; _loadingUpdates = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingUpdates = false);
     }
   }
 
@@ -143,7 +156,7 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Pending Approval'),
+                  const Text('Pending'),
                   if (_pending.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -165,7 +178,7 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Active Riders'),
+                  const Text('Active'),
                   if (_active.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -183,6 +196,28 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
                 ],
               ),
             ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Updates'),
+                  if (_updates.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade700,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_updates.length}',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -191,6 +226,7 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
         children: [
           _buildPendingTab(),
           _buildActiveTab(),
+          _buildUpdatesTab(),
         ],
       ),
     );
@@ -324,6 +360,175 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
         ),
       ),
     );
+  }
+
+  Widget _buildUpdatesTab() {
+    if (_loadingUpdates) return const Center(child: CircularProgressIndicator());
+    if (_updates.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.edit_off, size: 64, color: Color(0xFFD1D5DB)),
+            SizedBox(height: 12),
+            Text('No pending update requests', style: TextStyle(color: Color(0xFF64748B), fontSize: 15)),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      color: _green,
+      onRefresh: _loadUpdates,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _updates.length,
+        itemBuilder: (_, i) => _buildUpdateCard(_updates[i]),
+      ),
+    );
+  }
+
+  Widget _buildUpdateCard(Map<String, dynamic> rider) {
+    final name    = rider['name'] as String? ?? '';
+    final phone   = rider['phone'] as String? ?? '';
+    final vehicle = rider['vehicle_number'] as String? ?? '';
+    final id      = rider['id'] as String;
+    final pendingPhone   = rider['pending_phone'] as String?;
+    final pendingVehicle = rider['pending_vehicle'] as String?;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: Color(0xFFFEF3C7),
+                child: Icon(Icons.edit, color: Color(0xFFD97706), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text(phone, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                ]),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: const Text('Review', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            if (pendingPhone != null)
+              _changeRow('Phone', phone, pendingPhone),
+            if (pendingVehicle != null)
+              _changeRow('Vehicle', vehicle, pendingVehicle),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onPressed: () => _handleUpdateDecision(id, name, false),
+                  child: const Text('Reject'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _green,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  onPressed: () => _handleUpdateDecision(id, name, true),
+                  child: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _changeRow(String field, String current, String proposed) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(field, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+            Text(current, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B),
+                decoration: TextDecoration.lineThrough)),
+          ]),
+        ),
+        const Icon(Icons.arrow_forward, size: 16, color: Color(0xFF94A3B8)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('New $field', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+            Text(proposed, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold,
+                color: Color(0xFF166534))),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _handleUpdateDecision(String riderId, String name, bool approve) async {
+    final verb = approve ? 'Approve' : 'Reject';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('$verb Update Request'),
+        content: Text('$verb $name\'s profile update request?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: approve ? _green : Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(verb),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      if (approve) {
+        await ApiService.ownerApproveRiderUpdate(riderId);
+      } else {
+        await ApiService.ownerRejectRiderUpdate(riderId);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(approve ? 'Sent to admin for final approval.' : 'Request rejected.'),
+            backgroundColor: approve ? _green : Colors.red,
+          ),
+        );
+        _loadUpdates();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _requestRemoval(String riderId, String name) async {

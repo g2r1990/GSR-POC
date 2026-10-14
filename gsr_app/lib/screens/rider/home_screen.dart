@@ -218,6 +218,11 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
               ),
             ),
           IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'My Profile',
+            onPressed: () => Navigator.pushNamed(context, '/rider/profile'),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
             onPressed: _logout,

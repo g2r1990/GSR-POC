@@ -18,6 +18,7 @@ import 'screens/rider/register_screen.dart';
 import 'screens/rider/pending_screen.dart';
 import 'screens/rider/login_screen.dart';
 import 'screens/rider/home_screen.dart';
+import 'screens/rider/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +61,7 @@ class BossBiteApp extends StatelessWidget {
         '/rider/pending': (ctx) => const RiderPendingScreen(),
         '/rider/login': (ctx) => const RiderLoginScreen(),
         '/rider/home': (ctx) => const RiderHomeScreen(),
+        '/rider/profile': (ctx) => const RiderProfileScreen(),
       },
     );
   }
