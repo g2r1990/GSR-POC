@@ -677,6 +677,72 @@ class ApiService {
     } catch (_) {}
   }
 
+  // ── Owner: Rider management ───────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> ownerGetPendingRiders() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/riders/pending'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    return [];
+  }
+
+  static Future<List<Map<String, dynamic>>> ownerGetActiveRiders() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/owner/riders'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    return [];
+  }
+
+  static Future<void> ownerConfirmRider(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/owner/riders/$riderId/confirm'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(body['detail']?.toString() ?? 'Confirm failed');
+    }
+  }
+
+  static Future<void> ownerRejectRider(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/owner/riders/$riderId/reject'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(body['detail']?.toString() ?? 'Reject failed');
+    }
+  }
+
+  static Future<void> ownerAssignRider(String orderId, String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/owner/orders/$orderId/assign-rider'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'rider_id': riderId}),
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw ApiException(body['detail']?.toString() ?? 'Assign rider failed');
+    }
+  }
+
   // ── Rider ─────────────────────────────────────────────────────────────────
 
   static Future<String?> _getRiderToken() async {

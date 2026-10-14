@@ -8,6 +8,7 @@ import 'billing_screen.dart';
 import 'reports_screen.dart';
 import 'stats_screen.dart';
 import 'owner_profile_screen.dart';
+import 'riders_screen.dart';
 
 class OwnerDashboardScreen extends StatefulWidget {
   final String ownerName;
@@ -20,6 +21,7 @@ class OwnerDashboardScreen extends StatefulWidget {
 class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   int _menuCount = 0;
   int _activeOrders = 0;
+  int _pendingRiders = 0;
   bool _loading = true;
   Timer? _refreshTimer;
 
@@ -83,18 +85,20 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
       final results = await Future.wait([
         ApiService.getMenu(),
         ApiService.getOwnerOrders(),
+        ApiService.ownerGetPendingRiders(),
       ]);
       final items = results[0] as List<Map<String, dynamic>>;
       final orders = results[1] as List<Map<String, dynamic>>;
+      final pendingRiders = results[2] as List<Map<String, dynamic>>;
       final active = orders
-          .where((o) =>
-              ['placed', 'accepted', 'ready', 'out_for_delivery']
-                  .contains(o['status']))
+          .where((o) => ['placed', 'accepted', 'ready', 'rider_assigned', 'out_for_delivery']
+              .contains(o['status']))
           .length;
       if (mounted) {
         setState(() {
           _menuCount = items.length;
           _activeOrders = active;
+          _pendingRiders = pendingRiders.length;
           _loading = false;
         });
       }
@@ -236,6 +240,22 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                       await Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (_) => const OwnerOrdersScreen()),
+                      );
+                      _loadStats();
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _ActionTile(
+                    icon: Icons.delivery_dining,
+                    title: 'Manage Riders',
+                    subtitle: _pendingRiders > 0
+                        ? '$_pendingRiders rider${_pendingRiders == 1 ? '' : 's'} awaiting your confirmation'
+                        : 'Approve delivery riders for your restaurant',
+                    color: const Color(0xFF0891B2),
+                    badgeCount: _pendingRiders,
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const OwnerRidersScreen()),
                       );
                       _loadStats();
                     },
@@ -443,6 +463,7 @@ class _ActionTile extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final bool enabled;
+  final int badgeCount;
 
   const _ActionTile({
     required this.icon,
@@ -451,6 +472,7 @@ class _ActionTile extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.enabled = true,
+    this.badgeCount = 0,
   });
 
   @override
@@ -488,10 +510,26 @@ class _ActionTile extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title,
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600,
-                        color: enabled ? const Color(0xFF0F172A) : const Color(0xFF94A3B8))),
+                Row(children: [
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600,
+                          color: enabled ? const Color(0xFF0F172A) : const Color(0xFF94A3B8))),
+                  if (badgeCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ]),
                 Text(subtitle,
                     style: const TextStyle(
                         fontSize: 13, color: Color(0xFF64748B))),

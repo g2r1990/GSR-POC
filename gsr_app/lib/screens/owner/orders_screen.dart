@@ -27,6 +27,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     'placed',
     'accepted',
     'ready',
+    'rider_assigned',
     'out_for_delivery',
     'delivered',
     'cancelled',
@@ -37,6 +38,7 @@ class _OwnerOrdersScreenState extends State<OwnerOrdersScreen> {
     'placed': 'New',
     'accepted': 'Accepted',
     'ready': 'Ready',
+    'rider_assigned': 'Rider Assigned',
     'out_for_delivery': 'Out-for-Delivery',
     'delivered': 'Delivered',
     'cancelled': 'Cancelled',
@@ -526,14 +528,13 @@ class _OrderCardState extends State<_OrderCard> {
   static const _nextStatus = {
     'placed': 'accepted',
     'accepted': 'ready',
-    'ready': 'out_for_delivery',
+    // 'ready' handled by Assign Rider button, not auto-advance
     'out_for_delivery': 'delivered',
   };
 
   static const _nextLabel = {
     'placed': 'Accept',
     'accepted': 'Mark Ready',
-    'ready': 'Out for Delivery',
     'out_for_delivery': 'Mark Delivered',
   };
 
@@ -542,6 +543,7 @@ class _OrderCardState extends State<_OrderCard> {
       case 'placed':           return const Color(0xFF2563EB);
       case 'accepted':         return const Color(0xFF166534);
       case 'ready':            return const Color(0xFFD97706);
+      case 'rider_assigned':   return const Color(0xFF0891B2);
       case 'out_for_delivery': return const Color(0xFF7C3AED);
       case 'delivered':        return const Color(0xFF15803D);
       case 'cancelled':        return const Color(0xFFDC2626);
@@ -551,6 +553,7 @@ class _OrderCardState extends State<_OrderCard> {
 
   static String _statusLabel(String s) {
     switch (s) {
+      case 'rider_assigned':   return 'Rider Assigned';
       case 'out_for_delivery': return 'Out for Delivery';
       default: return s[0].toUpperCase() + s.substring(1);
     }
@@ -591,6 +594,118 @@ class _OrderCardState extends State<_OrderCard> {
     if (confirm == true && mounted) {
       await _advance(orderId, 'cancelled');
     }
+  }
+
+  Future<void> _showAssignRiderSheet(String orderId) async {
+    List<Map<String, dynamic>> riders = [];
+    bool loading = true;
+    String? selectedRiderId;
+    bool assigning = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          if (loading) {
+            ApiService.ownerGetActiveRiders().then((data) {
+              if (ctx.mounted) setSheet(() { riders = data; loading = false; });
+            }).catchError((_) {
+              if (ctx.mounted) setSheet(() => loading = false);
+            });
+          }
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16, right: 16, top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Assign Rider',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                const SizedBox(height: 4),
+                const Text('Select an active rider to deliver this order.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                const SizedBox(height: 16),
+                if (loading)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ))
+                else if (riders.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('No active riders available.\nConfirm riders in Manage Riders first.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF64748B))),
+                    ),
+                  )
+                else ...[
+                  ...riders.map((r) {
+                    final id = r['id'] as String;
+                    final name = r['name'] as String? ?? '';
+                    final phone = r['phone'] as String? ?? '';
+                    final vehicle = r['vehicle_number'] as String? ?? '';
+                    return RadioListTile<String>(
+                      value: id,
+                      groupValue: selectedRiderId,
+                      onChanged: (v) => setSheet(() => selectedRiderId = v),
+                      activeColor: const Color(0xFF166534),
+                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text('$phone · $vehicle', style: const TextStyle(fontSize: 12)),
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF166534),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: (selectedRiderId == null || assigning) ? null : () async {
+                        setSheet(() => assigning = true);
+                        try {
+                          await ApiService.ownerAssignRider(orderId, selectedRiderId!);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          widget.onStatusChanged();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Rider assigned successfully.'),
+                                backgroundColor: Color(0xFF166534),
+                              ),
+                            );
+                          }
+                        } on ApiException catch (e) {
+                          setSheet(() => assigning = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                      child: assigning
+                          ? const SizedBox(height: 18, width: 18,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Assign Rider', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -731,6 +846,27 @@ class _OrderCardState extends State<_OrderCard> {
                     ),
                   );
                 }),
+              ),
+            ),
+
+          // ── Assign Rider (when order is Ready) ────────────────────
+          if (status == 'ready')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.delivery_dining, size: 18),
+                  label: const Text('Assign Rider',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  onPressed: () => _showAssignRiderSheet(id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0891B2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
               ),
             ),
 
