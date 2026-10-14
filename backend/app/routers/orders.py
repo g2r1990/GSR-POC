@@ -297,6 +297,24 @@ def get_order_status(order_id: str, db: Session = Depends(get_db)):
     return _order_to_response(order)
 
 
+@router.get("/{order_id}/rider-location")
+def get_rider_location(order_id: str, db: Session = Depends(get_db)):
+    from app.models import Rider
+    order = db.get(Order, order_id)
+    if not order or order.status != "rider_assigned":
+        raise HTTPException(status_code=404, detail="Location not available.")
+    if not order.assigned_rider_id:
+        raise HTTPException(status_code=404, detail="No rider assigned.")
+    rider = db.get(Rider, order.assigned_rider_id)
+    if not rider or rider.current_lat is None or rider.current_lng is None:
+        raise HTTPException(status_code=404, detail="Rider location not yet available.")
+    return {
+        "lat": rider.current_lat,
+        "lng": rider.current_lng,
+        "updated_at": rider.location_updated_at.isoformat() if rider.location_updated_at else None,
+    }
+
+
 # ── Owner: store FCM token ─────────────────────────────────────────────────────
 
 @router.post("/owner/fcm-token", status_code=200)

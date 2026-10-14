@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Text, ForeignKey, Integer
+from sqlalchemy import Column, String, Numeric, Boolean, DateTime, Text, ForeignKey, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -174,5 +174,12 @@ class Rider(Base):
     approval_status     = Column(String(20), default="pending_admin", nullable=False)
     deletion_requested  = Column(Boolean, default=False, nullable=True)
     deleted_at          = Column(DateTime, nullable=True)
+    pending_phone       = Column(String(15), nullable=True)
+    pending_vehicle     = Column(String(20), nullable=True)
+    update_status       = Column(String(20), nullable=True)   # pending_owner | pending_admin
+    update_submitted_at = Column(DateTime, nullable=True)
+    current_lat         = Column(Float, nullable=True)
+    current_lng         = Column(Float, nullable=True)
+    location_updated_at = Column(DateTime, nullable=True)
     created_at          = Column(DateTime, default=datetime.utcnow)
     restaurant          = relationship("Restaurant")

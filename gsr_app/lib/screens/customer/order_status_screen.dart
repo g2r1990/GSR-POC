@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
@@ -70,12 +72,19 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   Timer? _cancelTimer;
   bool _cancelling = false;
 
+  // Rider live location
+  double? _riderLat;
+  double? _riderLng;
+  String? _riderLocationUpdatedAt;
+  final MapController _mapController = MapController();
+
   @override
   void initState() {
     super.initState();
     _fetch();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (_status != 'delivered' && _status != 'cancelled') _fetch();
+      if (_status == 'rider_assigned') _fetchRiderLocation();
     });
   }
 
@@ -178,10 +187,29 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
           _removeFromActiveOrders();
           if (_status == 'cancelled') _restoreOfferCode();
         }
+        if (_status == 'rider_assigned') _fetchRiderLocation();
       }
     } catch (_) {
       if (mounted && _loading) {
         setState(() { _loading = false; _error = 'Could not fetch status.'; });
+      }
+    }
+  }
+
+  Future<void> _fetchRiderLocation() async {
+    final loc = await ApiService.getOrderRiderLocation(widget.orderId);
+    if (loc != null && mounted) {
+      final lat = (loc['lat'] as num?)?.toDouble();
+      final lng = (loc['lng'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        setState(() {
+          _riderLat = lat;
+          _riderLng = lng;
+          _riderLocationUpdatedAt = loc['updated_at'] as String?;
+        });
+        try {
+          _mapController.move(LatLng(lat, lng), 15);
+        } catch (_) {}
       }
     }
   }
@@ -210,6 +238,102 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
               ? _errorBody()
               : _body(),
     );
+  }
+
+  Widget _buildRiderMap() {
+    final hasLocation = _riderLat != null && _riderLng != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.location_on, size: 16, color: _amber),
+            const SizedBox(width: 6),
+            const Text('Rider Location',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF92400E))),
+            if (hasLocation && _riderLocationUpdatedAt != null) ...[
+              const Spacer(),
+              Text(
+                _formatUpdatedAt(_riderLocationUpdatedAt!),
+                style: const TextStyle(fontSize: 11, color: Color(0xFFA8A29E)),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 220,
+            child: hasLocation
+                ? FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: LatLng(_riderLat!, _riderLng!),
+                      initialZoom: 15,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all,
+                      ),
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.bossbite.gsr_app',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(_riderLat!, _riderLng!),
+                            width: 48,
+                            height: 56,
+                            child: const Column(
+                              children: [
+                                Icon(Icons.delivery_dining,
+                                    color: _amber, size: 36),
+                                Icon(Icons.location_on,
+                                    color: _amber, size: 14),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Container(
+                    color: const Color(0xFFFAFAF9),
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: _amber),
+                          SizedBox(height: 10),
+                          Text('Waiting for rider location…',
+                              style: TextStyle(
+                                  fontSize: 13, color: Color(0xFF78716C))),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatUpdatedAt(String iso) {
+    try {
+      final dt = DateTime.parse(iso.endsWith('Z') ? iso : '${iso}Z').toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(dt).inSeconds;
+      if (diff < 60) return 'Updated ${diff}s ago';
+      return 'Updated ${(diff / 60).round()}m ago';
+    } catch (_) {
+      return '';
+    }
   }
 
   Widget _errorBody() {
@@ -395,6 +519,12 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                 ),
               ]),
             ),
+          ],
+
+          // Live rider location map
+          if (_status == 'rider_assigned') ...[
+            const SizedBox(height: 16),
+            _buildRiderMap(),
           ],
 
           // Progress stepper

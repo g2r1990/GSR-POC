@@ -1066,6 +1066,32 @@ class ApiService {
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     throw ApiException(body['detail']?.toString() ?? 'Reject failed');
   }
+
+  // ── Rider: Live GPS location ──────────────────────────────────────────────
+
+  static Future<void> riderSendLocation(double lat, double lng) async {
+    final token = await _getRiderToken();
+    await http.post(
+      Uri.parse('$_base/rider/location'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'lat': lat, 'lng': lng}),
+    ).timeout(const Duration(seconds: 8));
+  }
+
+  static Future<Map<String, dynamic>?> getOrderRiderLocation(String orderId) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$_base/orders/$orderId/rider-location'),
+      ).timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(res.body) as Map);
+      }
+    } catch (_) {}
+    return null;
+  }
 }
 
 class ApiException implements Exception {

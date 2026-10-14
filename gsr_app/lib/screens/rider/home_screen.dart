@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 
@@ -30,7 +31,10 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
     _loadPrefs();
     _refreshActive();
     _refreshHistory();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) => _refreshActive());
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _refreshActive();
+      _maybeSendLocation();
+    });
   }
 
   Future<void> _loadPrefs() async {
@@ -59,6 +63,22 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
     } catch (_) {
       if (mounted) setState(() => _loadingHistory = false);
     }
+  }
+
+  Future<void> _maybeSendLocation() async {
+    if (_activeOrders.isEmpty) return;
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) return;
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      );
+      await ApiService.riderSendLocation(pos.latitude, pos.longitude);
+    } catch (_) {}
   }
 
   Future<void> _logout() async {

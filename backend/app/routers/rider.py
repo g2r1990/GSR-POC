@@ -143,6 +143,75 @@ def verify_otp(body: dict, db: Session = Depends(get_db)):
     }
 
 
+# ── Rider: Profile ────────────────────────────────────────────────────────────
+
+@router.get("/profile")
+def get_rider_profile(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    rider = _get_rider(credentials, db)
+    return {
+        "id": rider.id,
+        "name": rider.name,
+        "phone": rider.phone,
+        "vehicle_number": rider.vehicle_number,
+        "pending_phone": getattr(rider, 'pending_phone', None),
+        "pending_vehicle": getattr(rider, 'pending_vehicle', None),
+        "update_status": getattr(rider, 'update_status', None),
+        "update_submitted_at": rider.update_submitted_at.isoformat() if getattr(rider, 'update_submitted_at', None) else None,
+    }
+
+
+@router.post("/profile/update-request")
+def request_profile_update(
+    body: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime as _dt
+    rider = _get_rider(credentials, db)
+    if getattr(rider, 'update_status', None) is not None:
+        raise HTTPException(status_code=400, detail="You already have a pending update request.")
+
+    new_phone   = (body.get("phone") or "").strip()
+    new_vehicle = (body.get("vehicle_number") or "").strip()
+
+    if not new_phone and not new_vehicle:
+        raise HTTPException(status_code=400, detail="Provide at least one field to update.")
+
+    if new_phone and new_phone == rider.phone:
+        raise HTTPException(status_code=400, detail="New phone is the same as the current one.")
+    if new_vehicle and new_vehicle == rider.vehicle_number:
+        raise HTTPException(status_code=400, detail="New vehicle number is the same as the current one.")
+
+    if new_phone:
+        existing = db.query(Rider).filter(Rider.phone == new_phone, Rider.id != rider.id).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Phone number already in use by another rider.")
+
+    rider.pending_phone   = new_phone or None
+    rider.pending_vehicle = new_vehicle or None
+    rider.update_status   = "pending_owner"
+    rider.update_submitted_at = _dt.utcnow()
+    db.commit()
+    return {"message": "Update request submitted. Awaiting owner review."}
+
+
+@router.delete("/profile/update-request")
+def cancel_profile_update(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    rider = _get_rider(credentials, db)
+    rider.pending_phone   = None
+    rider.pending_vehicle = None
+    rider.update_status   = None
+    rider.update_submitted_at = None
+    db.commit()
+    return {"message": "Update request cancelled."}
+
+
 # ── Rider: Home screen data ────────────────────────────────────────────────────
 
 @router.get("/orders/active")
@@ -226,5 +295,38 @@ def confirm_delivery(
     order.status = "delivered"
     from datetime import datetime
     order.updated_at = datetime.utcnow()
+    # Clear rider location when delivery is done
+    rider.current_lat = None
+    rider.current_lng = None
+    rider.location_updated_at = None
     db.commit()
     return {"message": "Delivery confirmed. Order marked as delivered."}
+
+
+# ── Rider: Live location update ────────────────────────────────────────────────
+
+@router.post("/location")
+def update_rider_location(
+    body: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    from datetime import datetime
+    from app.models import Order
+    rider = _get_rider(credentials, db)
+    lat = body.get("lat")
+    lng = body.get("lng")
+    if lat is None or lng is None:
+        raise HTTPException(status_code=400, detail="lat and lng are required.")
+    # Only accept location when rider has an active delivery
+    active = db.query(Order).filter(
+        Order.assigned_rider_id == rider.id,
+        Order.status == "rider_assigned",
+    ).first()
+    if not active:
+        raise HTTPException(status_code=400, detail="No active delivery.")
+    rider.current_lat = float(lat)
+    rider.current_lng = float(lng)
+    rider.location_updated_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True}
