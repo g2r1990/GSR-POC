@@ -27,6 +27,8 @@ def _get_rider(credentials: HTTPAuthorizationCredentials, db: Session) -> Rider:
     rider = db.query(Rider).filter(Rider.id == payload["sub"]).first()
     if not rider or rider.approval_status != "active":
         raise HTTPException(status_code=403, detail="Rider account not active.")
+    if getattr(rider, 'deleted_at', None) is not None:
+        raise HTTPException(status_code=403, detail="Rider account has been removed.")
     return rider
 
 

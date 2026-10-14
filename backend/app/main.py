@@ -83,6 +83,14 @@ def _auto_migrate():
             'ALTER TABLE "order" ADD COLUMN IF NOT EXISTS '
             "delivery_pin VARCHAR(4)"
         ))
+        conn.execute(text(
+            "ALTER TABLE rider ADD COLUMN IF NOT EXISTS "
+            "deletion_requested BOOLEAN DEFAULT FALSE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE rider ADD COLUMN IF NOT EXISTS "
+            "deleted_at TIMESTAMP WITHOUT TIME ZONE"
+        ))
         conn.commit()
 
 

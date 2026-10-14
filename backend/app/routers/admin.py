@@ -272,6 +272,52 @@ def reject_rider(
     return {"message": "Rider registration rejected.", "approval_status": "rejected"}
 
 
+@router.get("/riders/deletion-requests")
+def get_deletion_requests(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    riders = db.query(Rider).filter(
+        Rider.deletion_requested == True,
+        Rider.deleted_at == None,
+    ).order_by(Rider.created_at.desc()).all()
+    return [_rider_dict(r) for r in riders]
+
+
+@router.patch("/riders/{rider_id}/approve-deletion")
+def approve_rider_deletion(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    import datetime as _dt
+    _require_admin(credentials)
+    rider = db.get(Rider, rider_id)
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    rider.deleted_at = _dt.datetime.utcnow()
+    rider.deletion_requested = False
+    rider.approval_status = "rejected"
+    db.commit()
+    return {"message": f"Rider '{rider.name}' has been removed."}
+
+
+@router.patch("/riders/{rider_id}/reject-deletion")
+def reject_rider_deletion(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    rider = db.get(Rider, rider_id)
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    rider.deletion_requested = False
+    db.commit()
+    return {"message": "Deletion request rejected. Rider remains active."}
+
+
 def _rider_dict(r: Rider) -> dict:
     return {
         "id": r.id,
@@ -279,6 +325,7 @@ def _rider_dict(r: Rider) -> dict:
         "phone": r.phone,
         "vehicle_number": r.vehicle_number,
         "approval_status": r.approval_status,
+        "deletion_requested": getattr(r, 'deletion_requested', False) or False,
         "restaurant_id": r.restaurant_id,
         "restaurant_name": r.restaurant.name if r.restaurant else None,
         "created_at": r.created_at.isoformat() if r.created_at else None,

@@ -326,10 +326,48 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
     );
   }
 
+  Future<void> _requestRemoval(String riderId, String name) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remove Rider'),
+        content: Text('Request removal of $name?\n\nAdmin will review and process the request.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Submit Request', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ApiService.ownerRequestRiderDeletion(riderId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Removal request submitted. Admin will review shortly.'),
+            backgroundColor: Color(0xFFD97706),
+          ),
+        );
+        _loadActive();
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildActiveCard(Map<String, dynamic> rider) {
     final name = rider['name'] as String? ?? '';
     final phone = rider['phone'] as String? ?? '';
     final vehicle = rider['vehicle_number'] as String? ?? '';
+    final id = rider['id'] as String;
+    final deletionRequested = rider['deletion_requested'] as bool? ?? false;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -337,34 +375,68 @@ class _OwnerRidersScreenState extends State<OwnerRidersScreen>
       elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(children: [
-          const CircleAvatar(
-            radius: 22,
-            backgroundColor: Color(0xFFDCFCE7),
-            child: Icon(Icons.delivery_dining, color: Color(0xFF166534), size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-              Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-              const SizedBox(height: 2),
-              Row(children: [
-                const Icon(Icons.two_wheeler, size: 13, color: Color(0xFF94A3B8)),
-                const SizedBox(width: 4),
-                Text(vehicle, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
-              ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const CircleAvatar(
+                radius: 22,
+                backgroundColor: Color(0xFFDCFCE7),
+                child: Icon(Icons.delivery_dining, color: Color(0xFF166534), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    const Icon(Icons.two_wheeler, size: 13, color: Color(0xFF94A3B8)),
+                    const SizedBox(width: 4),
+                    Text(vehicle, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                  ]),
+                ]),
+              ),
+              deletionRequested
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade300),
+                      ),
+                      child: const Text('Removal\nPending',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange)),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Active',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+                    ),
             ]),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text('Active', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
-          ),
-        ]),
+            if (!deletionRequested) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _requestRemoval(id, name),
+                  icon: const Icon(Icons.person_remove, size: 16, color: Colors.red),
+                  label: const Text('Request Removal', style: TextStyle(color: Colors.red)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

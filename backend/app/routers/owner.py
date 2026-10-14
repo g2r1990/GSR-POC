@@ -669,6 +669,30 @@ def reject_rider(
     return {"message": "Rider rejected.", "approval_status": "rejected"}
 
 
+# ── Request Rider Deletion ─────────────────────────────────────────────────────
+
+@router.patch("/riders/{rider_id}/request-deletion")
+def request_rider_deletion(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    rider = db.query(Rider).filter(
+        Rider.id == rider_id,
+        Rider.restaurant_id == restaurant.id,
+        Rider.approval_status == "active",
+    ).first()
+    if not rider:
+        raise HTTPException(status_code=404, detail="Active rider not found.")
+    rider.deletion_requested = True
+    db.commit()
+    return {"message": "Deletion request submitted. Admin will review and process it."}
+
+
 # ── Assign Rider to Order ──────────────────────────────────────────────────────
 
 @router.patch("/orders/{order_id}/assign-rider")

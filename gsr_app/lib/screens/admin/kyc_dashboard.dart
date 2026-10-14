@@ -19,17 +19,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   bool _kycLoading = true;
   String? _kycError;
 
-  // Rider tab state
+  // Rider approval tab state
   List<Map<String, dynamic>> _pendingRiders = [];
   bool _ridersLoading = true;
   String? _ridersError;
 
+  // Rider deletion tab state
+  List<Map<String, dynamic>> _deletionRequests = [];
+  bool _deletionsLoading = true;
+  String? _deletionsError;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadKyc();
     _loadRiders();
+    _loadDeletions();
   }
 
   @override
@@ -59,6 +65,44 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       if (mounted) setState(() { _ridersError = e.message; _ridersLoading = false; });
     } catch (_) {
       if (mounted) setState(() { _ridersError = 'Cannot reach server.'; _ridersLoading = false; });
+    }
+  }
+
+  Future<void> _loadDeletions() async {
+    setState(() { _deletionsLoading = true; _deletionsError = null; });
+    try {
+      final list = await ApiService.adminGetDeletionRequests();
+      if (mounted) setState(() { _deletionRequests = list; _deletionsLoading = false; });
+    } on ApiException catch (e) {
+      if (mounted) setState(() { _deletionsError = e.message; _deletionsLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _deletionsError = 'Cannot reach server.'; _deletionsLoading = false; });
+    }
+  }
+
+  Future<void> _approveDeletion(String id, String name) async {
+    final ok = await _confirmDialog('Remove "$name"?',
+        'This will permanently deactivate the rider. They will no longer be able to log in.');
+    if (!ok) return;
+    try {
+      await ApiService.adminApproveDeletion(id);
+      _showSnack('$name has been removed', Colors.red);
+      _loadDeletions();
+    } on ApiException catch (e) {
+      _showSnack(e.message, Colors.red);
+    }
+  }
+
+  Future<void> _rejectDeletion(String id, String name) async {
+    final ok = await _confirmDialog('Keep "$name"?',
+        'The removal request will be cancelled and the rider will remain active.');
+    if (!ok) return;
+    try {
+      await ApiService.adminRejectDeletion(id);
+      _showSnack('Removal request for $name rejected', Colors.green);
+      _loadDeletions();
+    } on ApiException catch (e) {
+      _showSnack(e.message, Colors.red);
     }
   }
 
@@ -191,7 +235,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () { _loadKyc(); _loadRiders(); },
+            onPressed: () { _loadKyc(); _loadRiders(); _loadDeletions(); },
             tooltip: 'Refresh',
           ),
           IconButton(
@@ -230,6 +274,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ],
               ),
             ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Removals'),
+                  if (_deletionRequests.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    _Badge(_deletionRequests.length),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -238,6 +294,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           _buildKycTab(),
           _buildRiderTab(),
+          _buildDeletionsTab(),
         ],
       ),
     );
@@ -325,6 +382,103 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 }
+
+  Widget _buildDeletionsTab() {
+    if (_deletionsLoading) return const Center(child: CircularProgressIndicator());
+    if (_deletionsError != null) return _ErrorView(message: _deletionsError!, onRetry: _loadDeletions);
+    if (_deletionRequests.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_remove_outlined, size: 64, color: Color(0xFFD1D5DB)),
+            SizedBox(height: 16),
+            Text('No removal requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Owner-requested rider removals appear here.', style: TextStyle(color: Color(0xFF64748B))),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadDeletions,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _deletionRequests.length,
+        itemBuilder: (ctx, i) {
+          final r = _deletionRequests[i];
+          final name = r['name']?.toString() ?? '';
+          final phone = r['phone']?.toString() ?? '';
+          final vehicle = r['vehicle_number']?.toString() ?? '';
+          final restaurant = r['restaurant_name']?.toString() ?? '';
+          final id = r['id']?.toString() ?? '';
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Color(0xFFFEE2E2),
+                    child: Icon(Icons.person_remove, color: Colors.red, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    Text(phone, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                  ])),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: const Text('Removal\nRequested',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                _Info(label: 'Restaurant', value: restaurant),
+                _Info(label: 'Vehicle', value: vehicle),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _rejectDeletion(id, name),
+                      icon: const Icon(Icons.undo, size: 16),
+                      label: const Text('Keep Rider'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green,
+                        side: const BorderSide(color: Colors.green),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _approveDeletion(id, name),
+                      icon: const Icon(Icons.person_remove, size: 16),
+                      label: const Text('Remove'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
 class _Badge extends StatelessWidget {
   final int count;

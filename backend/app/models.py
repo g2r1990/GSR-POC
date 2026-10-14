@@ -165,12 +165,14 @@ class CustomerNotification(Base):
 
 class Rider(Base):
     __tablename__ = "rider"
-    id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
-    name            = Column(String(100), nullable=False)
-    phone           = Column(String(15), unique=True, nullable=False)
-    restaurant_id   = Column(UUID(as_uuid=False), ForeignKey("restaurant.id"), nullable=False)
-    vehicle_number  = Column(String(20), nullable=False)
+    id                  = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    name                = Column(String(100), nullable=False)
+    phone               = Column(String(15), unique=True, nullable=False)
+    restaurant_id       = Column(UUID(as_uuid=False), ForeignKey("restaurant.id"), nullable=False)
+    vehicle_number      = Column(String(20), nullable=False)
     # pending_admin | pending_owner | active | rejected
-    approval_status = Column(String(20), default="pending_admin", nullable=False)
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    restaurant      = relationship("Restaurant")
+    approval_status     = Column(String(20), default="pending_admin", nullable=False)
+    deletion_requested  = Column(Boolean, default=False, nullable=True)
+    deleted_at          = Column(DateTime, nullable=True)
+    created_at          = Column(DateTime, default=datetime.utcnow)
+    restaurant          = relationship("Restaurant")

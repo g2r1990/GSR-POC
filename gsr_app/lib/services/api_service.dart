@@ -860,6 +860,19 @@ class ApiService {
     throw ApiException(body['detail']?.toString() ?? 'Delivery confirmation failed');
   }
 
+  // ── Owner: Rider Deletion Request ───────────────────────────────────────
+
+  static Future<void> ownerRequestRiderDeletion(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/owner/riders/$riderId/request-deletion'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Request failed');
+  }
+
   // ── Admin: Rider Management ──────────────────────────────────────────────
 
   static Future<List<Map<String, dynamic>>> adminGetRiders(String status) async {
@@ -890,6 +903,43 @@ class ApiService {
     final token = await getToken();
     final res = await http.patch(
       Uri.parse('$_base/admin/riders/$riderId/reject'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Rejection failed');
+  }
+
+  // ── Admin: Rider Deletion Requests ──────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminGetDeletionRequests() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/riders/deletion-requests'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body));
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to fetch deletion requests');
+  }
+
+  static Future<void> adminApproveDeletion(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/admin/riders/$riderId/approve-deletion'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Approval failed');
+  }
+
+  static Future<void> adminRejectDeletion(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/admin/riders/$riderId/reject-deletion'),
       headers: {'Authorization': 'Bearer $token'},
     ).timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) return;
