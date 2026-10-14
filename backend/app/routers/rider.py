@@ -35,7 +35,7 @@ def _get_rider(credentials: HTTPAuthorizationCredentials, db: Session) -> Rider:
 @router.get("/restaurants")
 def list_restaurants(db: Session = Depends(get_db)):
     restaurants = db.query(Restaurant).filter(Restaurant.status == "active").all()
-    return [{"id": r.id, "name": r.name} for r in restaurants]
+    return [{"id": r.id, "name": r.name, "area": r.area} for r in restaurants]
 
 
 # ── Public: Registration ───────────────────────────────────────────────────────
