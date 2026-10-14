@@ -859,6 +859,43 @@ class ApiService {
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     throw ApiException(body['detail']?.toString() ?? 'Delivery confirmation failed');
   }
+
+  // ── Admin: Rider Management ──────────────────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminGetRiders(String status) async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/riders?status=$status'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body));
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to fetch riders');
+  }
+
+  static Future<void> adminApproveRider(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/admin/riders/$riderId/approve'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Approval failed');
+  }
+
+  static Future<void> adminRejectRider(String riderId) async {
+    final token = await getToken();
+    final res = await http.patch(
+      Uri.parse('$_base/admin/riders/$riderId/reject'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Rejection failed');
+  }
 }
 
 class ApiException implements Exception {
