@@ -99,3 +99,23 @@ jobs:
           name: BossBite-ApplicationUsers-${{ github.run_number }}
           path: gsr_app/build/app/outputs/flutter-apk/BossBite-ApplicationUsers.apk
           retention-days: 3
+
+      # ── Rider APK (delivery partner app) ────────────────────────────────────
+      - name: Build Rider APK
+        working-directory: gsr_app
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/bossbite-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build apk --release --flavor rider --dart-define=APP_FLAVOR=rider
+
+      - name: Rename Rider APK
+        run: cp gsr_app/build/app/outputs/flutter-apk/app-rider-release.apk gsr_app/build/app/outputs/flutter-apk/BossBite-Rider.apk
+
+      - name: Upload Rider APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BossBite-Rider-${{ github.run_number }}
+          path: gsr_app/build/app/outputs/flutter-apk/BossBite-Rider.apk
+          retention-days: 3

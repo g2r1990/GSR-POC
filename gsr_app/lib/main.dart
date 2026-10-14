@@ -14,6 +14,10 @@ import 'screens/customer/home_screen.dart';
 import 'screens/customer/onboarding_screen.dart';
 import 'screens/customer/profile_screen.dart';
 import 'screens/customer/order_history_screen.dart';
+import 'screens/rider/register_screen.dart';
+import 'screens/rider/pending_screen.dart';
+import 'screens/rider/login_screen.dart';
+import 'screens/rider/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,9 +55,61 @@ class BossBiteApp extends StatelessWidget {
         '/customer/home': (ctx) => const CustomerHomeScreen(),
         '/customer/profile': (ctx) => const CustomerProfileScreen(),
         '/customer/orders': (ctx) => const CustomerOrderHistoryScreen(),
+        '/rider/root': (ctx) => const _RiderRootScreen(),
+        '/rider/register': (ctx) => const RiderRegisterScreen(),
+        '/rider/pending': (ctx) => const RiderPendingScreen(),
+        '/rider/login': (ctx) => const RiderLoginScreen(),
+        '/rider/home': (ctx) => const RiderHomeScreen(),
       },
     );
   }
+}
+
+// Routes rider to the right screen based on their stored state.
+class _RiderRootScreen extends StatefulWidget {
+  const _RiderRootScreen();
+  @override
+  State<_RiderRootScreen> createState() => _RiderRootScreenState();
+}
+
+class _RiderRootScreenState extends State<_RiderRootScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('rider_token') ?? '';
+    if (token.isNotEmpty) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/rider/home');
+      return;
+    }
+    final phone = prefs.getString('rider_phone') ?? '';
+    if (phone.isEmpty) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/rider/register');
+      return;
+    }
+    try {
+      final data = await ApiService.riderCheckStatus(phone);
+      final status = data['approval_status'] as String? ?? 'pending_admin';
+      if (!mounted) return;
+      if (status == 'active') {
+        Navigator.pushReplacementNamed(context, '/rider/login');
+      } else {
+        Navigator.pushReplacementNamed(context, '/rider/pending');
+      }
+    } catch (_) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/rider/register');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+        backgroundColor: Color(0xFFFFF7ED),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFD97706))),
+      );
 }
 
 // Checks if customer has completed onboarding; routes accordingly.

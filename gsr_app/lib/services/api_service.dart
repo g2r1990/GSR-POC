@@ -676,6 +676,123 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
     } catch (_) {}
   }
+
+  // ── Rider ─────────────────────────────────────────────────────────────────
+
+  static Future<String?> _getRiderToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('rider_token');
+  }
+
+  static Future<List<Map<String, dynamic>>> riderGetRestaurants() async {
+    final res = await http.get(
+      Uri.parse('$_base/rider/restaurants'),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load restaurants');
+  }
+
+  static Future<void> riderRegister({
+    required String name,
+    required String phone,
+    required String restaurantId,
+    required String vehicleNumber,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_base/rider/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        'phone': phone,
+        'restaurant_id': restaurantId,
+        'vehicle_number': vehicleNumber,
+      }),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Registration failed');
+  }
+
+  static Future<Map<String, dynamic>> riderCheckStatus(String phone) async {
+    final res = await http.get(
+      Uri.parse('$_base/rider/registration-status?phone=$phone'),
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Status check failed');
+  }
+
+  static Future<Map<String, dynamic>> riderSendOtp(String phone) async {
+    final res = await http.post(
+      Uri.parse('$_base/rider/send-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone': phone}),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to send OTP');
+  }
+
+  static Future<Map<String, dynamic>> riderVerifyOtp(String phone, String otp) async {
+    final res = await http.post(
+      Uri.parse('$_base/rider/verify-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone': phone, 'otp': otp}),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'OTP verification failed');
+  }
+
+  static Future<List<Map<String, dynamic>>> riderGetActiveOrders() async {
+    final token = await _getRiderToken();
+    final res = await http.get(
+      Uri.parse('$_base/rider/orders/active'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
+  }
+
+  static Future<List<Map<String, dynamic>>> riderGetHistory() async {
+    final token = await _getRiderToken();
+    final res = await http.get(
+      Uri.parse('$_base/rider/orders/history'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load history');
+  }
+
+  static Future<void> riderConfirmDelivery(String orderId, String pin) async {
+    final token = await _getRiderToken();
+    final res = await http.post(
+      Uri.parse('$_base/rider/orders/$orderId/deliver'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'delivery_pin': pin}),
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Delivery confirmation failed');
+  }
 }
 
 class ApiException implements Exception {

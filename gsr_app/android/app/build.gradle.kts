@@ -50,6 +50,11 @@ android {
             applicationIdSuffix = ".admin"
             manifestPlaceholders["appLabel"] = "BossBite Admin"
         }
+        create("rider") {
+            dimension = "app"
+            applicationIdSuffix = ".rider"
+            manifestPlaceholders["appLabel"] = "BossBite Rider"
+        }
     }
 
     buildTypes {
