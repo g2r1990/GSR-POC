@@ -5,7 +5,7 @@ from jose import JWTError
 from typing import List
 
 from app.database import get_db
-from app.models import Owner, Restaurant, Inspection
+from app.models import Owner, Restaurant, Inspection, Rider
 from app.core.security import decode_token
 from app.schemas.owner import KycItemResponse, KycRestaurantInfo, RejectRequest
 
@@ -222,3 +222,64 @@ def reject_profile_update(
     owner.pending_update_submitted_at = None
     db.commit()
     return {"message": "Profile update request rejected."}
+
+
+# ── Rider Management ───────────────────────────────────────────────────────────
+
+@router.get("/riders")
+def list_riders(
+    status: str = None,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    q = db.query(Rider)
+    if status:
+        q = q.filter(Rider.approval_status == status)
+    riders = q.order_by(Rider.created_at.desc()).all()
+    return [_rider_dict(r) for r in riders]
+
+
+@router.patch("/riders/{rider_id}/approve")
+def approve_rider(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    rider = db.query(Rider).filter(Rider.id == rider_id).first()
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    if rider.approval_status != "pending_admin":
+        raise HTTPException(status_code=400, detail=f"Rider is in status '{rider.approval_status}', not pending_admin.")
+    rider.approval_status = "pending_owner"
+    db.commit()
+    return {"message": "Rider approved by admin. Awaiting restaurant owner confirmation.", "approval_status": "pending_owner"}
+
+
+@router.patch("/riders/{rider_id}/reject")
+def reject_rider(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    _require_admin(credentials)
+    rider = db.query(Rider).filter(Rider.id == rider_id).first()
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    rider.approval_status = "rejected"
+    db.commit()
+    return {"message": "Rider registration rejected.", "approval_status": "rejected"}
+
+
+def _rider_dict(r: Rider) -> dict:
+    return {
+        "id": r.id,
+        "name": r.name,
+        "phone": r.phone,
+        "vehicle_number": r.vehicle_number,
+        "approval_status": r.approval_status,
+        "restaurant_id": r.restaurant_id,
+        "restaurant_name": r.restaurant.name if r.restaurant else None,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    }

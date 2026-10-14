@@ -17,6 +17,7 @@ class PlaceOrderRequest(BaseModel):
     notes: Optional[str] = None
     customer_area: Optional[str] = None   # stored for Food Stat by Area
     offer_code: Optional[str] = None      # offer code applied at checkout
+    discount_amount: Optional[float] = 0.0  # pre-computed discount from Flutter
 
 
 class OrderStatusUpdate(BaseModel):
@@ -42,6 +43,10 @@ class OrderResponse(BaseModel):
     delivery_address: str
     items: List[OrderItemSnapshot]
     total: float
+    discount_amount: float = 0.0
+    offer_code: str = ""
     status: str
     notes: Optional[str] = None
+    delivery_pin: Optional[str] = None
+    assigned_rider_id: Optional[str] = None
     created_at: datetime

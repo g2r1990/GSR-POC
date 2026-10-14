@@ -103,11 +103,13 @@ class Order(Base):
     total           = Column(Numeric(10, 2), nullable=False)
     customer_area   = Column(String(100), nullable=True)
     delivery_address= Column(Text, nullable=True)
-    notes           = Column(Text, nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
-    updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    restaurant      = relationship("Restaurant", back_populates="orders")
-    customer        = relationship("Customer", back_populates="orders")
+    notes              = Column(Text, nullable=True)
+    assigned_rider_id  = Column(UUID(as_uuid=False), ForeignKey("rider.id"), nullable=True)
+    delivery_pin       = Column(String(4), nullable=True)
+    created_at         = Column(DateTime, default=datetime.utcnow)
+    updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    restaurant         = relationship("Restaurant", back_populates="orders")
+    customer           = relationship("Customer", back_populates="orders")
 
 
 class Offer(Base):
@@ -117,7 +119,7 @@ class Offer(Base):
     title          = Column(String(200), nullable=False)
     description    = Column(Text, nullable=True)
     offer_type     = Column(String(20), nullable=False, default='order')  # order | item | bogo
-    offer_code     = Column(String(10), nullable=True)
+    offer_code     = Column(String(10), nullable=True, unique=True)
     discount_pct   = Column(Numeric(5, 2), nullable=True)
     menu_item_id   = Column(String(36), nullable=True)   # FK to menu_item.id (soft ref)
     menu_item_name = Column(String(150), nullable=True)
@@ -140,3 +142,35 @@ class Inspection(Base):
     inspected_at  = Column(DateTime, nullable=True)
     created_at    = Column(DateTime, default=datetime.utcnow)
     restaurant    = relationship("Restaurant", back_populates="inspections")
+
+
+class NotificationRequest(Base):
+    __tablename__ = "notification_request"
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    restaurant_id   = Column(UUID(as_uuid=False), ForeignKey("restaurant.id", ondelete="CASCADE"), nullable=False)
+    customer_mobile = Column(String(15), nullable=False)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+
+
+class CustomerNotification(Base):
+    __tablename__ = "customer_notification"
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    restaurant_id   = Column(UUID(as_uuid=False), nullable=False)
+    restaurant_name = Column(String(200), nullable=False)
+    customer_mobile = Column(String(15), nullable=False)
+    message         = Column(String(500), nullable=False)
+    is_read         = Column(Boolean, default=False)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+
+
+class Rider(Base):
+    __tablename__ = "rider"
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    name            = Column(String(100), nullable=False)
+    phone           = Column(String(15), unique=True, nullable=False)
+    restaurant_id   = Column(UUID(as_uuid=False), ForeignKey("restaurant.id"), nullable=False)
+    vehicle_number  = Column(String(20), nullable=False)
+    # pending_admin | pending_owner | active | rejected
+    approval_status = Column(String(20), default="pending_admin", nullable=False)
+    created_at      = Column(DateTime, default=datetime.utcnow)
+    restaurant      = relationship("Restaurant")

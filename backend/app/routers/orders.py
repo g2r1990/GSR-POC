@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -6,7 +7,7 @@ from jose import JWTError
 from typing import List
 
 from app.database import get_db
-from app.models import Owner, Restaurant, MenuItem, Order
+from app.models import Owner, Restaurant, MenuItem, Order, CustomerNotification
 from app.core.security import decode_token
 from app.core.fcm import send_new_order_notification
 from app.schemas.order import (
@@ -49,6 +50,8 @@ def _order_to_response(order: Order) -> OrderResponse:
         delivery_address=order.delivery_address or "",
         items=items,
         total=float(order.total),
+        discount_amount=float(snapshot.get("discount_amount", 0)),
+        offer_code=snapshot.get("offer_code", ""),
         status=order.status,
         notes=order.notes,
         created_at=order.created_at,
@@ -75,6 +78,25 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
 
     if not body.items:
         raise HTTPException(status_code=400, detail="Order must have at least one item.")
+
+    # One-use-per-customer: reject if this mobile already used the same offer code
+    if body.offer_code:
+        from sqlalchemy import text as _text
+        already_used = db.execute(
+            _text(
+                "SELECT id FROM \"order\" "
+                "WHERE customer_mobile = :mobile "
+                "  AND status != 'cancelled' "
+                "  AND items_snapshot->>'offer_code' = :code "
+                "LIMIT 1"
+            ),
+            {"mobile": body.customer_phone, "code": body.offer_code},
+        ).fetchone()
+        if already_used:
+            raise HTTPException(
+                status_code=400,
+                detail="You have already used this offer. Each offer code can only be used once.",
+            )
 
     snapshot_items = []
     total = 0.0
@@ -112,6 +134,11 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
     if not snapshot_items:
         raise HTTPException(status_code=400, detail="No valid items in order.")
 
+    # Apply offer discount (sent pre-computed from Flutter checkout)
+    discount = round(min(float(body.discount_amount or 0), total), 2)
+    discounted_total = round(total - discount, 2)
+
+    delivery_pin = str(random.randint(1000, 9999))
     order = Order(
         restaurant_id=body.restaurant_id,
         customer_name=body.customer_name,
@@ -119,9 +146,14 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
         customer_area=body.customer_area,
         delivery_address=body.delivery_address,
         notes=body.notes,
-        items_snapshot={"items": snapshot_items},
-        total=round(total, 2),
+        items_snapshot={
+            "items": snapshot_items,
+            "discount_amount": discount,
+            "offer_code": body.offer_code or "",
+        },
+        total=discounted_total,
         status="placed",
+        delivery_pin=delivery_pin,
     )
     db.add(order)
     db.commit()
@@ -137,6 +169,7 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
         "short_id": order.id[:8].upper(),
         "total": float(order.total),
         "status": order.status,
+        "delivery_pin": order.delivery_pin,
         "created_at": order.created_at.isoformat(),
         "message": "Order placed successfully!",
     }
@@ -207,6 +240,28 @@ def owner_update_status(
     order.status = body.status
     db.commit()
     db.refresh(order)
+
+    # In-app notification to customer for key status transitions
+    if order.customer_mobile:
+        short_id = order.id[:8].upper()
+        rest_name = order.restaurant.name if order.restaurant else "The restaurant"
+        _notif_messages = {
+            "accepted":         f"Your order #{short_id} from {rest_name} is being prepared! 🍽️",
+            "ready":            f"Your order #{short_id} from {rest_name} is ready!",
+            "out_for_delivery": f"Your order #{short_id} is out for delivery! 🛵",
+            "delivered":        f"Your order #{short_id} from {rest_name} has been delivered. Enjoy! 🎉",
+            "cancelled":        f"We're sorry! 🙏 Your order #{short_id} from {rest_name} couldn't be accepted this time. We hope to see you again soon!",
+        }
+        msg = _notif_messages.get(body.status)
+        if msg:
+            db.add(CustomerNotification(
+                restaurant_id=order.restaurant_id,
+                restaurant_name=rest_name,
+                customer_mobile=order.customer_mobile,
+                message=msg,
+            ))
+            db.commit()
+
     return {"order_id": order.id, "status": order.status, "message": "Status updated."}
 
 

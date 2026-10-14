@@ -10,7 +10,7 @@ from jose import JWTError
 
 from app.database import get_db
 from datetime import datetime as _dt
-from app.models import Owner, Restaurant, Offer, NotificationRequest, CustomerNotification, Order
+from app.models import Owner, Restaurant, Offer, NotificationRequest, CustomerNotification, Order, Rider
 from app.core.security import decode_token, hash_password, verify_password, create_access_token
 from app.schemas.owner import (
     OwnerRegisterRequest, OwnerRegisterResponse,
@@ -588,4 +588,138 @@ def get_restaurant_availability(
     return {
         "is_accepting_orders": restaurant.is_accepting_orders if restaurant.is_accepting_orders is not None else True,
         "back_online_at": restaurant.back_online_at.isoformat() if restaurant.back_online_at else None,
+    }
+
+
+# ── Rider Management ───────────────────────────────────────────────────────────
+
+@router.get("/riders/pending")
+def get_pending_riders(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    riders = db.query(Rider).filter(
+        Rider.restaurant_id == restaurant.id,
+        Rider.approval_status == "pending_owner",
+    ).order_by(Rider.created_at.asc()).all()
+    return [_rider_dict(r) for r in riders]
+
+
+@router.get("/riders")
+def get_active_riders(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    riders = db.query(Rider).filter(
+        Rider.restaurant_id == restaurant.id,
+        Rider.approval_status == "active",
+    ).order_by(Rider.name.asc()).all()
+    return [_rider_dict(r) for r in riders]
+
+
+@router.patch("/riders/{rider_id}/confirm")
+def confirm_rider(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    rider = db.query(Rider).filter(
+        Rider.id == rider_id,
+        Rider.restaurant_id == restaurant.id,
+    ).first()
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    if rider.approval_status != "pending_owner":
+        raise HTTPException(status_code=400, detail=f"Rider is in status '{rider.approval_status}', not pending_owner.")
+    rider.approval_status = "active"
+    db.commit()
+    return {"message": "Rider confirmed and activated.", "approval_status": "active"}
+
+
+@router.patch("/riders/{rider_id}/reject")
+def reject_rider(
+    rider_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+    rider = db.query(Rider).filter(
+        Rider.id == rider_id,
+        Rider.restaurant_id == restaurant.id,
+    ).first()
+    if not rider:
+        raise HTTPException(status_code=404, detail="Rider not found.")
+    rider.approval_status = "rejected"
+    db.commit()
+    return {"message": "Rider rejected.", "approval_status": "rejected"}
+
+
+# ── Assign Rider to Order ──────────────────────────────────────────────────────
+
+@router.patch("/orders/{order_id}/assign-rider")
+def assign_rider(
+    order_id: str,
+    body: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    owner_id = _get_owner_id(credentials)
+    restaurant = db.query(Restaurant).filter(Restaurant.owner_id == owner_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found.")
+
+    order = db.query(Order).filter(
+        Order.id == order_id,
+        Order.restaurant_id == restaurant.id,
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    if order.status != "ready":
+        raise HTTPException(status_code=400, detail="Order must be in 'ready' status to assign a rider.")
+
+    rider_id = (body.get("rider_id") or "").strip()
+    rider = db.query(Rider).filter(
+        Rider.id == rider_id,
+        Rider.restaurant_id == restaurant.id,
+        Rider.approval_status == "active",
+    ).first()
+    if not rider:
+        raise HTTPException(status_code=404, detail="Active rider not found for this restaurant.")
+
+    order.assigned_rider_id = rider_id
+    order.status = "rider_assigned"
+    order.updated_at = _dt.utcnow()
+    db.commit()
+    return {
+        "message": f"Rider {rider.name} assigned to order.",
+        "order_id": order_id,
+        "rider_name": rider.name,
+        "status": "rider_assigned",
+    }
+
+
+def _rider_dict(r: Rider) -> dict:
+    return {
+        "id": r.id,
+        "name": r.name,
+        "phone": r.phone,
+        "vehicle_number": r.vehicle_number,
+        "approval_status": r.approval_status,
+        "restaurant_id": r.restaurant_id,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
     }
