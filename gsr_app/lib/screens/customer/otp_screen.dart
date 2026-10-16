@@ -13,6 +13,7 @@ class CustomerOtpScreen extends StatefulWidget {
   final String? state;
   final String? country;
   final String? area;
+  final String? city;
   final String? devOtp;
   final bool isLogin;
 
@@ -26,6 +27,7 @@ class CustomerOtpScreen extends StatefulWidget {
     this.state,
     this.country,
     this.area,
+    this.city,
     this.devOtp,
     this.isLogin = false,
   });
@@ -102,6 +104,7 @@ class _CustomerOtpScreenState extends State<CustomerOtpScreen> {
         widget.mobile, otp, deviceId,
         email: widget.email,
         name: widget.name,
+        city: widget.city ?? '',
       );
       // Server returns name/email — prefer server values (existing user may have stored data)
       final serverName = (result['name'] as String? ?? '').trim();

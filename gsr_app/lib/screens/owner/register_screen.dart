@@ -31,6 +31,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
   final _areaCtr = TextEditingController();
   final _pincodeCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
+  final _cityCtr = TextEditingController();
   final _gstinCtr = TextEditingController();
   String _foodType = 'both';
 
@@ -47,7 +48,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
   @override
   void dispose() {
     for (final c in [_nameCtr, _mobileCtr, _passCtr, _confirmPassCtr,
-        _restNameCtr, _addressCtr, _areaCtr, _pincodeCtrl, _stateCtrl, _gstinCtr]) {
+        _restNameCtr, _addressCtr, _areaCtr, _pincodeCtrl, _stateCtrl, _cityCtr, _gstinCtr]) {
       c.dispose();
     }
     super.dispose();
@@ -76,6 +77,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
         setState(() {
           if (loc['pincode'] != null) _pincodeCtrl.text = loc['pincode']!;
           if (loc['state'] != null) _stateCtrl.text = loc['state']!;
+          if (loc['city'] != null && _cityCtr.text.isEmpty) _cityCtr.text = loc['city']!;
           _detecting = false;
         });
       }
@@ -97,6 +99,7 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
         area: _areaCtr.text.trim(),
         pincode: _pincodeCtrl.text.trim(),
         state: _stateCtrl.text.trim(),
+        city: _cityCtr.text.trim().isEmpty ? 'Chhatrapati Sambhajinagar' : _cityCtr.text.trim(),
         foodType: _foodType,
         gstin: _gstinCtr.text.trim().isEmpty ? null : _gstinCtr.text.trim(),
       );
@@ -235,6 +238,13 @@ class _OwnerRegisterScreenState extends State<OwnerRegisterScreen> {
                   ),
                 ),
               ]),
+              const SizedBox(height: 12),
+              _field(
+                label: 'City',
+                hint: 'e.g. Chhatrapati Sambhajinagar',
+                controller: _cityCtr,
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'City is required' : null,
+              ),
 
               const SizedBox(height: 28),
               _sectionHeader('Legal (Optional for now)'),

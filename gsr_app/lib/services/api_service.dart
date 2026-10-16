@@ -104,6 +104,7 @@ class ApiService {
     required String state,
     required String foodType,
     String? gstin,
+    String? city,
   }) async {
     final res = await http
         .post(
@@ -120,6 +121,7 @@ class ApiService {
             'state': state,
             'food_type': foodType,
             if (gstin != null) 'gstin': gstin,
+            if (city != null && city.isNotEmpty) 'city': city,
           }),
         )
         .timeout(const Duration(seconds: 20));
@@ -331,7 +333,8 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> customerVerifyOtp(
-      String mobile, String otp, String deviceId, {String email = '', String name = ''}) async {
+      String mobile, String otp, String deviceId,
+      {String email = '', String name = '', String city = ''}) async {
     final uri = Uri.parse(_base).replace(
       path: '/customer/verify-otp',
       queryParameters: {
@@ -340,6 +343,7 @@ class ApiService {
         'device_id': deviceId,
         if (email.isNotEmpty) 'email': email,
         if (name.isNotEmpty) 'name': name,
+        if (city.isNotEmpty) 'city': city,
       },
     );
     final res = await http.post(uri).timeout(const Duration(seconds: 15));
@@ -491,12 +495,16 @@ class ApiService {
         final area = addr['suburb'] as String? ??
             addr['neighbourhood'] as String? ??
             addr['quarter'] as String?;
+        final city = addr['city'] as String? ??
+            addr['town'] as String? ??
+            addr['municipality'] as String?;
         return {
           'pincode': addr['postcode'] as String?,
           'district': district,
           'state': addr['state'] as String?,
           'country': addr['country'] as String?,
           'area': area,
+          'city': city,
         };
       }
     } catch (_) {}
@@ -1188,6 +1196,121 @@ class ApiService {
       }
     } catch (_) {}
     return null;
+  }
+
+  // ── Admin: City drill-downs (Build #99) ───────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> adminGetCities() async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/cities'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load cities');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetCityRestaurants(String city) async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/cities/${Uri.encodeComponent(city)}/restaurants'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load restaurants');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetCityOrders(String city, {String status = ''}) async {
+    final token = await getToken();
+    final url = status.isEmpty
+        ? '$_base/admin/cities/${Uri.encodeComponent(city)}/orders'
+        : '$_base/admin/cities/${Uri.encodeComponent(city)}/orders?status=$status';
+    final res = await http.get(
+      Uri.parse(url),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load orders');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetCityRiders(String city) async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/cities/${Uri.encodeComponent(city)}/riders'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load riders');
+  }
+
+  static Future<List<Map<String, dynamic>>> adminGetCityCustomers(String city) async {
+    final token = await getToken();
+    final res = await http.get(
+      Uri.parse('$_base/admin/cities/${Uri.encodeComponent(city)}/customers'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(res.body) as List);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load customers');
+  }
+
+  // ── Admin: Reports (Build #100) ───────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> adminGetReport({
+    String fromDate = '',
+    String toDate = '',
+    String city = '',
+    String reportType = 'full',
+  }) async {
+    final token = await getToken();
+    final params = <String, String>{};
+    if (fromDate.isNotEmpty) params['from_date'] = fromDate;
+    if (toDate.isNotEmpty) params['to_date'] = toDate;
+    if (city.isNotEmpty) params['city'] = city;
+    if (reportType.isNotEmpty) params['report_type'] = reportType;
+    final uri = Uri.parse('$_base/admin/reports').replace(queryParameters: params);
+    final res = await http.get(uri, headers: {'Authorization': 'Bearer $token'})
+        .timeout(const Duration(seconds: 30));
+    if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load report');
+  }
+
+  // ── Admin: Finance — GST & Payout (Build #101) ───────────────────────────
+
+  static Future<Map<String, dynamic>> adminGetGstReport({
+    String period = 'month',
+    String city = '',
+  }) async {
+    final token = await getToken();
+    final params = <String, String>{'period': period};
+    if (city.isNotEmpty) params['city'] = city;
+    final uri = Uri.parse('$_base/admin/gst-report').replace(queryParameters: params);
+    final res = await http.get(uri, headers: {'Authorization': 'Bearer $token'})
+        .timeout(const Duration(seconds: 20));
+    if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load GST report');
+  }
+
+  static Future<Map<String, dynamic>> adminGetPayoutReport({
+    String city = '',
+    String date = '',
+  }) async {
+    final token = await getToken();
+    final params = <String, String>{};
+    if (city.isNotEmpty) params['city'] = city;
+    if (date.isNotEmpty) params['date'] = date;
+    final uri = Uri.parse('$_base/admin/payout-report').replace(queryParameters: params);
+    final res = await http.get(uri, headers: {'Authorization': 'Bearer $token'})
+        .timeout(const Duration(seconds: 20));
+    if (res.statusCode == 200) return jsonDecode(res.body) as Map<String, dynamic>;
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    throw ApiException(body['detail']?.toString() ?? 'Failed to load payout report');
   }
 }
 

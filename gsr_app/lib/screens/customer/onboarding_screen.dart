@@ -24,7 +24,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
   final _phoneCtr = TextEditingController();
   final _pincodeCtr = TextEditingController();
 
-  String? _district, _state, _country, _area;
+  String? _district, _state, _country, _area, _city;
   bool _detecting = false;
   bool _saving = false;
 
@@ -44,7 +44,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
   }
 
   Future<void> _autoDetect() async {
-    setState(() { _detecting = true; _district = null; _state = null; _country = null; _area = null; });
+    setState(() { _detecting = true; _district = null; _state = null; _country = null; _area = null; _city = null; });
     try {
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -71,6 +71,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
           _state = loc['state'];
           _country = loc['country'];
           _area = loc['area'];
+          _city = loc['city'];
           _detecting = false;
         });
       }
@@ -115,6 +116,7 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
           state: _state,
           country: _country,
           area: _area,
+          city: _city,
           devOtp: result['dev_otp'] as String?,
           isLogin: isExisting,
         ),
@@ -283,6 +285,10 @@ class _CustomerOnboardingScreenState extends State<CustomerOnboardingScreen> {
                     if (_state != null)
                       Expanded(child: _InfoBox(label: 'State', value: _state!)),
                   ]),
+                  if (_city != null) ...[
+                    const SizedBox(height: 8),
+                    _InfoBox(label: 'City', value: _city!),
+                  ],
                   if (_area != null) ...[
                     const SizedBox(height: 8),
                     _InfoBox(label: 'Area', value: _area!),
