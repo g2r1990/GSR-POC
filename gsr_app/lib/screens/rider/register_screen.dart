@@ -26,6 +26,9 @@ class _RiderRegisterScreenState extends State<RiderRegisterScreen> {
   final _vSeriesFocus = FocusNode();
   final _vNumFocus    = FocusNode();
 
+  // Rider type
+  String _riderType = 'restaurant_owned'; // 'restaurant_owned' | 'individual'
+
   // Restaurants
   List<Map<String, dynamic>> _restaurants = [];
   List<Map<String, dynamic>> _allRestaurants = [];
@@ -133,7 +136,7 @@ class _RiderRegisterScreenState extends State<RiderRegisterScreen> {
   Future<void> _register() async {
     setState(() => _error = null);
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_selectedRestaurantId == null) {
+    if (_riderType == 'restaurant_owned' && _selectedRestaurantId == null) {
       setState(() => _error = 'Please select your restaurant.');
       return;
     }
@@ -144,7 +147,8 @@ class _RiderRegisterScreenState extends State<RiderRegisterScreen> {
       await ApiService.riderRegister(
         name: _nameCtrl.text.trim(),
         phone: phone,
-        restaurantId: _selectedRestaurantId!,
+        riderType: _riderType,
+        restaurantId: _riderType == 'restaurant_owned' ? _selectedRestaurantId : null,
         vehicleNumber: _vehicleNumber,
       );
       final prefs = await SharedPreferences.getInstance();
@@ -197,6 +201,24 @@ class _RiderRegisterScreenState extends State<RiderRegisterScreen> {
               _buildLocationChip(),
               const SizedBox(height: 20),
 
+              // Rider type
+              const Text('Rider Type',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF374151), fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Row(children: [
+                _typeChip('restaurant_owned', Icons.store, 'Restaurant-Owned'),
+                const SizedBox(width: 10),
+                _typeChip('individual', Icons.person, 'Independent'),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                _riderType == 'restaurant_owned'
+                    ? 'Linked to one restaurant. Owner approves first, then admin.'
+                    : 'Works independently. Admin approves directly.',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 20),
+
               // Full name
               TextFormField(
                 controller: _nameCtrl,
@@ -240,8 +262,8 @@ class _RiderRegisterScreenState extends State<RiderRegisterScreen> {
                   style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
               const SizedBox(height: 16),
 
-              // Restaurant dropdown
-              _buildRestaurantSection(),
+              // Restaurant dropdown (restaurant_owned only)
+              if (_riderType == 'restaurant_owned') _buildRestaurantSection(),
 
               if (_error != null) ...[
                 const SizedBox(height: 16),
@@ -282,6 +304,31 @@ class _RiderRegisterScreenState extends State<RiderRegisterScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _typeChip(String value, IconData icon, String label) {
+    final active = _riderType == value;
+    return GestureDetector(
+      onTap: () => setState(() {
+        _riderType = value;
+        if (value == 'individual') _selectedRestaurantId = null;
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? _amber : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: active ? _amber : const Color(0xFFD1D5DB)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 16, color: active ? Colors.white : const Color(0xFF78716C)),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w600,
+              color: active ? Colors.white : const Color(0xFF374151))),
+        ]),
       ),
     );
   }

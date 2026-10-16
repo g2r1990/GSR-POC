@@ -12,6 +12,10 @@ class OrderConfirmScreen extends StatefulWidget {
   final String? createdAt;
   final String offerCode;
   final double discountAmount;
+  final String orderType;
+  final String paymentMethod;
+  final String? pickupCode;
+  final int cancellationWindowMins;
 
   const OrderConfirmScreen({
     super.key,
@@ -23,6 +27,10 @@ class OrderConfirmScreen extends StatefulWidget {
     this.createdAt,
     this.offerCode = '',
     this.discountAmount = 0.0,
+    this.orderType = 'delivery',
+    this.paymentMethod = 'online',
+    this.pickupCode,
+    this.cancellationWindowMins = 1,
   });
 
   @override
@@ -32,27 +40,29 @@ class OrderConfirmScreen extends StatefulWidget {
 class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
   static const _amber = Color(0xFFD97706);
 
-  int _cancelSecondsLeft = 30;
+  int _cancelSecondsLeft = 60;
   Timer? _cancelTimer;
   bool _cancelling = false;
   bool _cancelled = false;
 
-  double get _grandTotal => widget.total + widget.deliveryFee + widget.gst;
+  double get _grandTotal => widget.total;
 
   @override
   void initState() {
     super.initState();
-    // Compute remaining seconds from server's created_at so timer matches owner screen
+    final windowSecs = widget.cancellationWindowMins * 60;
     if (widget.createdAt != null) {
       try {
         final raw = widget.createdAt!;
         final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
         final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
-        final remaining = 30 - elapsed;
+        final remaining = windowSecs - elapsed;
         _cancelSecondsLeft = remaining > 0 ? remaining : 0;
       } catch (_) {
-        _cancelSecondsLeft = 60;
+        _cancelSecondsLeft = windowSecs;
       }
+    } else {
+      _cancelSecondsLeft = windowSecs;
     }
     if (_cancelSecondsLeft > 0) {
       _cancelTimer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -137,9 +147,27 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
               Text(
                   _cancelSecondsLeft > 0
                       ? 'Order is in queue — waiting for restaurant to confirm'
-                      : 'Your order has been confirmed',
+                      : widget.orderType == 'takeaway'
+                          ? 'Your takeaway order is confirmed'
+                          : 'Your order has been confirmed',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 14, color: Color(0xFF78716C))),
+              if (widget.paymentMethod == 'cod') ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.money, size: 14, color: Color(0xFFD97706)),
+                    SizedBox(width: 6),
+                    Text('Cash on Delivery — pay rider at your door',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF92400E), fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ],
               const SizedBox(height: 28),
               Container(
                 padding: const EdgeInsets.all(20),
@@ -158,60 +186,75 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                           fontWeight: FontWeight.bold,
                           color: Color(0xFFD97706),
                           letterSpacing: 2)),
+                  if (widget.orderType == 'takeaway' && widget.pickupCode != null) ...[
+                    const SizedBox(height: 8),
+                    const Text('Pickup Code',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF78716C))),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Text(widget.pickupCode!,
+                          style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF166534),
+                              letterSpacing: 4)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text('Show this code to collect your order',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF78716C))),
+                  ],
                   const Divider(height: 24),
                   if (widget.offerCode.isNotEmpty && widget.discountAmount > 0) ...[
-                    _BillRow('Item Subtotal', '₹${(widget.total + widget.discountAmount).toStringAsFixed(0)}'),
                     const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.check_circle,
-                              size: 12, color: Color(0xFF166534)),
+                          const Icon(Icons.check_circle, size: 12, color: Color(0xFF166534)),
                           const SizedBox(width: 4),
-                          Text('Offer Discount (${widget.offerCode})',
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF166534),
-                                  fontWeight: FontWeight.w600)),
+                          Text('Offer (${widget.offerCode})',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w600)),
                         ]),
                         Text('-₹${widget.discountAmount.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF166534),
-                                fontWeight: FontWeight.w600)),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w600)),
                       ],
                     ),
                     const Divider(height: 14),
                   ],
-                  _BillRow('Total Food Cost', '₹${widget.total.toStringAsFixed(0)}', bold: true),
-                  const SizedBox(height: 6),
-                  _BillRow('Delivery fee', '₹${widget.deliveryFee.toStringAsFixed(0)}'),
-                  const SizedBox(height: 6),
-                  _BillRow(
-                    'GST (5% of Total Food Cost)',
-                    '₹${widget.gst.toStringAsFixed(2)}',
-                  ),
+                  if (widget.deliveryFee > 0) ...[
+                    _BillRow('Delivery Fee', '₹${widget.deliveryFee.toStringAsFixed(0)}'),
+                    const SizedBox(height: 6),
+                  ],
+                  if (widget.gst > 0) ...[
+                    _BillRow('GST', '₹${widget.gst.toStringAsFixed(2)}'),
+                    const SizedBox(height: 6),
+                  ],
+                  if (widget.orderType == 'takeaway')
+                    const _BillRow('Delivery Fee / GST', '₹0 (Takeaway)'),
                   const Divider(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Paid',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Text('Total Paid', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       Text('₹${_grandTotal.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF166534))),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
                     ],
                   ),
                 ]),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'The restaurant will prepare your order.\nPlease wait for delivery.',
+              Text(
+                widget.orderType == 'takeaway'
+                    ? 'The restaurant will prepare your order.\nCome to collect when it\'s ready.'
+                    : 'The restaurant will prepare your order.\nPlease wait for delivery.',
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 13, color: Color(0xFF78716C), height: 1.5),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF78716C), height: 1.5),
               ),
               const SizedBox(height: 24),
               SizedBox(

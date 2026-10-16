@@ -772,18 +772,23 @@ class ApiService {
   static Future<void> riderRegister({
     required String name,
     required String phone,
-    required String restaurantId,
+    required String riderType,
+    String? restaurantId,
     required String vehicleNumber,
   }) async {
+    final payload = <String, dynamic>{
+      'name': name,
+      'phone': phone,
+      'rider_type': riderType,
+      'vehicle_number': vehicleNumber,
+    };
+    if (restaurantId != null && restaurantId.isNotEmpty) {
+      payload['restaurant_id'] = restaurantId;
+    }
     final res = await http.post(
       Uri.parse('$_base/rider/register'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': name,
-        'phone': phone,
-        'restaurant_id': restaurantId,
-        'vehicle_number': vehicleNumber,
-      }),
+      body: jsonEncode(payload),
     ).timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) return;
     final body = jsonDecode(res.body) as Map<String, dynamic>;
