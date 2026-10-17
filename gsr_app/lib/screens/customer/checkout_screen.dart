@@ -17,8 +17,7 @@ class CheckoutScreen extends StatefulWidget {
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutScreenState extends State<CheckoutScreen>
-    with WidgetsBindingObserver {
+class _CheckoutScreenState extends State<CheckoutScreen> {
   static const _amber = Color(0xFFD97706);
 
   // Restaurant capabilities (loaded from API at init)
@@ -54,7 +53,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   bool _detectingAddress = false;
   String? _error;
   String _customerArea = '';
-  bool _shouldPopOnResume = false;
   double? _deliveryLat;
   double? _deliveryLng;
 
@@ -116,7 +114,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _idempotencyKey = _uuid();
     _prefillFromOnboarding();
     _loadRestaurantInfo();
@@ -151,14 +148,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      _shouldPopOnResume = true;
-    } else if (state == AppLifecycleState.resumed && _shouldPopOnResume) {
-      _shouldPopOnResume = false;
-      if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/customer/home', (_) => false);
-    }
-  }
 
   Future<void> _prefillFromOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
@@ -207,7 +196,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _nameCtr.dispose();
     _phoneCtr.dispose();
     _addressCtr.dispose();
@@ -445,7 +433,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                     border: Border.all(color: const Color(0xFFFDE68A)),
                   ),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 140),
+                    constraints: const BoxConstraints(maxHeight: 220),
                     child: Scrollbar(
                       thumbVisibility: CartService.items.length > 3,
                       child: ListView(

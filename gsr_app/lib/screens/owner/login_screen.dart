@@ -190,8 +190,7 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
                 const SizedBox(height: 20),
                 Center(
                   child: TextButton(
-                    onPressed: () => Navigator.pushReplacementNamed(
-                        context, '/owner/landing'),
+                    onPressed: () => Navigator.pop(context),
                     child: const Text(
                       'New to BossBite? Register your restaurant',
                       style: TextStyle(

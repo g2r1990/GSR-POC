@@ -112,6 +112,16 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7ED),
+      appBar: AppBar(
+        backgroundColor: _amber,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          widget.orderType == 'takeaway' ? 'Takeaway Confirmed' : 'Order Confirmed',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -262,7 +272,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).pushReplacement(MaterialPageRoute(
+                    Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => OrderStatusScreen(
                         orderId: widget.orderId,
                         shortId: widget.shortId,
@@ -330,6 +340,13 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
   Widget _cancelledBody(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7ED),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFDC2626),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Order Cancelled', style: TextStyle(fontWeight: FontWeight.w600)),
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
         child: Center(
           child: Padding(
