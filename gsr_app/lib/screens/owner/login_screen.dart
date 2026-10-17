@@ -57,8 +57,8 @@ class _OwnerLoginScreenState extends State<OwnerLoginScreen> {
         return;
       }
       setState(() => _error = e.message);
-    } catch (_) {
-      setState(() => _error = 'Connection error. Is EC2 running?');
+    } catch (e) {
+      setState(() => _error = 'Login error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
