@@ -50,7 +50,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    final windowSecs = widget.cancellationWindowMins * 60;
+    final windowSecs = widget.cancellationWindowMins > 0 ? widget.cancellationWindowMins * 60 : 30;
     if (widget.createdAt != null) {
       try {
         final raw = widget.createdAt!;

@@ -18,13 +18,20 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 bearer = HTTPBearer()
 
 _VALID_TRANSITIONS = {
-    "placed":            {"accepted", "cancelled"},
-    "accepted":          {"ready", "cancelled"},
-    "ready":             {"out_for_delivery"},
-    "out_for_delivery":  {"delivered"},
-    "delivered":         set(),
-    "cancelled":         set(),
+    # delivery flow
+    "placed":           {"accepted", "cancelled"},
+    "accepted":         {"ready", "cancelled"},
+    "ready":            {"rider_assigned", "ready_for_pickup"},
+    "rider_assigned":   {"out_for_delivery"},
+    "out_for_delivery": {"delivered"},
+    "delivered":        set(),
+    # takeaway flow
+    "ready_for_pickup": {"collected", "cancelled"},
+    "collected":        set(),
+    "cancelled":        set(),
 }
+
+DELIVERY_FEE = 20.00   # flat fee; replace with distance-based later
 
 
 def _get_owner_id(credentials: HTTPAuthorizationCredentials) -> str:
@@ -39,7 +46,21 @@ def _get_owner_id(credentials: HTTPAuthorizationCredentials) -> str:
 
 def _order_to_response(order: Order) -> OrderResponse:
     snapshot = order.items_snapshot or {}
-    items = [OrderItemSnapshot(**i) for i in snapshot.get("items", [])]
+    raw_items = snapshot.get("items", [])
+    items = []
+    for i in raw_items:
+        items.append(OrderItemSnapshot(
+            item_id=i.get("item_id", ""),
+            name=i.get("name", ""),
+            category=i.get("category", ""),
+            price=float(i.get("price", 0)),
+            qty=int(i.get("qty", 1)),
+            subtotal=float(i.get("subtotal", 0)),
+            spice_level=i.get("spice_level"),
+            item_notes=i.get("item_notes"),
+        ))
+    food_total     = float(order.food_total or order.total or 0)
+    customer_pays  = float(order.customer_pays or order.total or 0)
     return OrderResponse(
         id=order.id,
         short_id=order.id[:8].upper(),
@@ -47,18 +68,36 @@ def _order_to_response(order: Order) -> OrderResponse:
         customer_name=order.customer_name or "",
         customer_phone=order.customer_mobile or "",
         customer_area=order.customer_area,
+        order_type=getattr(order, "order_type", "delivery") or "delivery",
         delivery_address=order.delivery_address or "",
         items=items,
+        food_total=food_total,
+        restaurant_discount=float(getattr(order, "restaurant_discount", 0) or 0),
+        bossbite_discount=float(getattr(order, "bossbite_discount", 0) or 0),
+        taxable_amount=float(getattr(order, "taxable_amount", food_total) or food_total),
+        gst_rate=float(getattr(order, "gst_rate", 0) or 0),
+        gst_amount=float(getattr(order, "gst_amount", 0) or 0),
+        delivery_fee=float(getattr(order, "delivery_fee", 0) or 0),
+        cutlery_fee_amt=float(getattr(order, "cutlery_fee_amt", 0) or 0),
+        rider_tip=float(getattr(order, "rider_tip", 0) or 0),
+        cod_convenience_fee=float(getattr(order, "cod_convenience_fee", 0) or 0),
+        customer_pays=customer_pays,
         total=float(order.total),
         discount_amount=float(snapshot.get("discount_amount", 0)),
         offer_code=snapshot.get("offer_code", ""),
+        payment_method=getattr(order, "payment_method", "online") or "online",
+        payment_status=getattr(order, "payment_status", "pending") or "pending",
+        spice_level=getattr(order, "spice_level", None),
+        special_instructions=getattr(order, "special_instructions", None),
+        cutlery_requested=bool(getattr(order, "cutlery_requested", False)),
         status=order.status,
         notes=order.notes,
-        created_at=order.created_at,
         delivery_pin=order.delivery_pin,
+        pickup_code=getattr(order, "pickup_code", None),
         assigned_rider_id=order.assigned_rider_id,
         rating=order.rating,
         rating_comment=order.rating_comment,
+        created_at=order.created_at,
     )
 
 
@@ -74,36 +113,45 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found.")
 
-    if not getattr(restaurant, 'is_accepting_orders', True):
-        raise HTTPException(
-            status_code=400,
-            detail="This restaurant is not currently accepting orders. Please try again later."
-        )
+    if not getattr(restaurant, "is_accepting_orders", True):
+        raise HTTPException(status_code=400, detail="This restaurant is not currently accepting orders.")
+
+    if getattr(restaurant, "closed_until", None) and restaurant.closed_until > datetime.utcnow():
+        raise HTTPException(status_code=400, detail="This restaurant is temporarily closed.")
+
+    order_type = body.order_type if body.order_type in ("delivery", "takeaway") else "delivery"
+
+    if order_type == "delivery" and not body.delivery_address:
+        raise HTTPException(status_code=400, detail="delivery_address is required for delivery orders.")
+    if order_type == "takeaway" and not getattr(restaurant, "allows_takeaway", False):
+        raise HTTPException(status_code=400, detail="This restaurant does not offer takeaway.")
+
+    payment_method = body.payment_method if body.payment_method in ("online", "cod") else "online"
+    if payment_method == "cod" and not getattr(restaurant, "cod_enabled", True):
+        raise HTTPException(status_code=400, detail="Cash on delivery is not available at this restaurant.")
 
     if not body.items:
         raise HTTPException(status_code=400, detail="Order must have at least one item.")
 
-    # One-use-per-customer: reject if this mobile already used the same offer code
-    if body.offer_code:
-        from sqlalchemy import text as _text
-        already_used = db.execute(
-            _text(
-                "SELECT id FROM \"order\" "
-                "WHERE customer_mobile = :mobile "
-                "  AND status != 'cancelled' "
-                "  AND items_snapshot->>'offer_code' = :code "
-                "LIMIT 1"
-            ),
-            {"mobile": body.customer_phone, "code": body.offer_code},
-        ).fetchone()
-        if already_used:
-            raise HTTPException(
-                status_code=400,
-                detail="You have already used this offer. Each offer code can only be used once.",
-            )
+    # idempotency guard
+    if body.idempotency_key:
+        existing = db.query(Order).filter(Order.idempotency_key == body.idempotency_key).first()
+        if existing:
+            return {
+                "order_id": existing.id,
+                "short_id": existing.id[:8].upper(),
+                "customer_pays": float(existing.customer_pays or existing.total),
+                "total": float(existing.total),
+                "status": existing.status,
+                "delivery_pin": existing.delivery_pin,
+                "pickup_code": existing.pickup_code,
+                "created_at": existing.created_at.isoformat(),
+                "message": "Duplicate request — returning existing order.",
+            }
 
+    # ── Build items snapshot ────────────────────────────────────────────────────
     snapshot_items = []
-    total = 0.0
+    food_total = 0.0
 
     for line in body.items:
         if line.qty < 1:
@@ -119,13 +167,10 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
             .first()
         )
         if not item:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Item {line.item_id} is not available.",
-            )
+            raise HTTPException(status_code=400, detail=f"Item {line.item_id} is not available.")
         price = float(item.price)
-        subtotal = price * line.qty
-        total += subtotal
+        subtotal = round(price * line.qty, 2)
+        food_total += subtotal
         snapshot_items.append({
             "item_id": item.id,
             "name": item.name,
@@ -133,33 +178,113 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
             "price": price,
             "qty": line.qty,
             "subtotal": subtotal,
+            "spice_level": line.spice_level,
+            "item_notes": line.item_notes,
         })
 
     if not snapshot_items:
         raise HTTPException(status_code=400, detail="No valid items in order.")
 
-    # Apply offer discount (sent pre-computed from Flutter checkout)
-    discount = round(min(float(body.discount_amount or 0), total), 2)
-    discounted_total = round(total - discount, 2)
+    food_total = round(food_total, 2)
 
-    delivery_pin = str(random.randint(1000, 9999))
+    # ── Minimum order check ─────────────────────────────────────────────────────
+    min_order = float(getattr(restaurant, "min_order_value", 0) or 0)
+    if food_total < min_order:
+        raise HTTPException(status_code=400, detail=f"Minimum order value is ₹{min_order:.0f}.")
+
+    # COD max order check
+    if payment_method == "cod":
+        cod_max = getattr(restaurant, "cod_max_order_value", None)
+        if cod_max and food_total > float(cod_max):
+            raise HTTPException(status_code=400, detail=f"COD not available for orders above ₹{float(cod_max):.0f}.")
+
+    # ── Legacy offer discount (backward compat) ─────────────────────────────────
+    restaurant_discount = 0.0
+    bossbite_discount = 0.0
+
+    if body.offer_code:
+        from sqlalchemy import text as _text
+        already_used = db.execute(
+            _text(
+                'SELECT id FROM "order" '
+                "WHERE customer_mobile = :mobile "
+                "  AND status != 'cancelled' "
+                "  AND items_snapshot->>'offer_code' = :code "
+                "LIMIT 1"
+            ),
+            {"mobile": body.customer_phone, "code": body.offer_code},
+        ).fetchone()
+        if already_used:
+            raise HTTPException(status_code=400, detail="You have already used this offer code.")
+        restaurant_discount = round(min(float(body.discount_amount or 0), food_total), 2)
+
+    # ── Billing formula ─────────────────────────────────────────────────────────
+    taxable_amount = round(food_total - restaurant_discount - bossbite_discount, 2)
+    taxable_amount = max(taxable_amount, 0)
+
+    gst_rate = 0.0
+    gst_amount = 0.0
+    delivery_fee = 0.0
+    rider_tip = 0.0
+
+    if order_type == "delivery":
+        gst_rate = float(getattr(restaurant, "gst_rate", 5) or 5)
+        gst_amount = round(taxable_amount * gst_rate / 100, 2)
+        delivery_fee = DELIVERY_FEE
+        # tip only for online payment
+        if payment_method == "online":
+            rider_tip = round(max(float(body.rider_tip or 0), 0), 2)
+    # takeaway: gst=0, delivery_fee=0, rider_tip=0
+
+    cutlery_fee_amt = 0.0
+    if body.cutlery_requested:
+        if not getattr(restaurant, "provides_cutlery", False):
+            raise HTTPException(status_code=400, detail="This restaurant does not offer cutlery.")
+        cutlery_fee_amt = float(getattr(restaurant, "cutlery_fee", 0) or 0)
+
+    customer_pays = round(taxable_amount + gst_amount + delivery_fee + cutlery_fee_amt + rider_tip, 2)
+
+    # ── Generate pin / code ─────────────────────────────────────────────────────
+    delivery_pin = str(random.randint(100000, 999999)) if order_type == "delivery" else None
+    pickup_code  = str(random.randint(1000, 9999))    if order_type == "takeaway" else None
+
+    from app.models import new_uuid
     order = Order(
+        id=new_uuid(),
+        idempotency_key=body.idempotency_key or None,
         restaurant_id=body.restaurant_id,
         customer_name=body.customer_name,
         customer_mobile=body.customer_phone,
         customer_area=body.customer_area,
+        order_type=order_type,
         delivery_address=body.delivery_address,
         delivery_lat=body.delivery_lat,
         delivery_lng=body.delivery_lng,
+        spice_level=body.spice_level,
+        special_instructions=body.special_instructions,
+        cutlery_requested=body.cutlery_requested,
         notes=body.notes,
         items_snapshot={
             "items": snapshot_items,
-            "discount_amount": discount,
+            "discount_amount": restaurant_discount + bossbite_discount,
             "offer_code": body.offer_code or "",
         },
-        total=discounted_total,
-        status="placed",
+        food_total=food_total,
+        restaurant_discount=restaurant_discount,
+        bossbite_discount=bossbite_discount,
+        taxable_amount=taxable_amount,
+        gst_rate=gst_rate,
+        gst_amount=gst_amount,
+        delivery_fee=delivery_fee,
+        cutlery_fee_amt=cutlery_fee_amt,
+        rider_tip=rider_tip,
+        customer_pays=customer_pays,
+        total=customer_pays,      # keep total = customer_pays for backward compat
+        payment_method=payment_method,
+        payment_status="pending",
         delivery_pin=delivery_pin,
+        pickup_code=pickup_code,
+        status="placed",
     )
     db.add(order)
     db.commit()
@@ -168,14 +293,23 @@ def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
     # Notify owner via FCM (fire and forget)
     owner = restaurant.owner
     if owner and owner.fcm_token:
-        send_new_order_notification(owner.fcm_token, order.id[:8].upper(), total)
+        send_new_order_notification(owner.fcm_token, order.id[:8].upper(), food_total)
 
     return {
         "order_id": order.id,
         "short_id": order.id[:8].upper(),
+        "order_type": order.order_type,
+        "food_total": food_total,
+        "gst_amount": gst_amount,
+        "delivery_fee": delivery_fee,
+        "rider_tip": rider_tip,
+        "cutlery_fee": cutlery_fee_amt,
+        "customer_pays": customer_pays,
         "total": float(order.total),
+        "payment_method": payment_method,
         "status": order.status,
-        "delivery_pin": order.delivery_pin,
+        "delivery_pin": delivery_pin,
+        "pickup_code": pickup_code,
         "created_at": order.created_at.isoformat(),
         "message": "Order placed successfully!",
     }
@@ -234,15 +368,6 @@ def owner_update_status(
             detail=f"Cannot move from '{order.status}' to '{body.status}'.",
         )
 
-    if order.status == "placed" and body.status == "accepted":
-        elapsed = (datetime.utcnow() - order.created_at).total_seconds()
-        remaining = int(30 - elapsed)
-        if remaining > 0:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Customer cancel window active. Please wait {remaining}s.",
-            )
-
     order.status = body.status
     db.commit()
     db.refresh(order)
@@ -252,11 +377,14 @@ def owner_update_status(
         short_id = order.id[:8].upper()
         rest_name = order.restaurant.name if order.restaurant else "The restaurant"
         _notif_messages = {
-            "accepted":         f"Your order #{short_id} from {rest_name} is being prepared! 🍽️",
-            "ready":            f"Your order #{short_id} from {rest_name} is ready!",
+            "accepted":         f"Your order #{short_id} from {rest_name} is accepted! 🍽️",
+            "ready":            f"Your order #{short_id} from {rest_name} is ready and being dispatched!",
+            "ready_for_pickup": f"Your order #{short_id} is ready for pickup!",
+            "rider_assigned":   f"A rider is on the way with your order #{short_id}! 🛵",
             "out_for_delivery": f"Your order #{short_id} is out for delivery! 🛵",
             "delivered":        f"Your order #{short_id} from {rest_name} has been delivered. Enjoy! 🎉",
-            "cancelled":        f"We're sorry! 🙏 Your order #{short_id} from {rest_name} couldn't be accepted this time. We hope to see you again soon!",
+            "collected":        f"Enjoy your meal! Order #{short_id} marked as collected.",
+            "cancelled":        f"Your order #{short_id} from {rest_name} was cancelled. We're sorry!",
         }
         msg = _notif_messages.get(body.status)
         if msg:
@@ -284,9 +412,11 @@ def customer_cancel_order(order_id: str, db: Session = Depends(get_db)):
     if elapsed > 30:
         raise HTTPException(
             status_code=400,
-            detail="Cancellation window has expired. Orders can only be cancelled within 30 seconds of placing.",
+            detail="Cancellation window has expired (30 seconds).",
         )
     order.status = "cancelled"
+    order.cancelled_at = datetime.utcnow()
+    order.cancellation_reason = "Customer cancelled"
     db.commit()
     return {"order_id": order.id, "status": "cancelled", "message": "Order cancelled."}
 
