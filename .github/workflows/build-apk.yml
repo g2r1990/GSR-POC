@@ -32,6 +32,14 @@ jobs:
         working-directory: gsr_app
         run: flutter pub get
 
+      - name: Show resolved dependency versions
+        working-directory: gsr_app
+        run: |
+          echo "=== shared_preferences versions ==="
+          grep -A3 "shared_preferences" pubspec.lock || echo "(not in lock file)"
+          echo "=== full pubspec.lock ==="
+          cat pubspec.lock
+
       - name: Generate launcher icons
         working-directory: gsr_app
         run: dart run flutter_launcher_icons
