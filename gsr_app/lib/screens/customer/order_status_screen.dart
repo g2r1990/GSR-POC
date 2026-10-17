@@ -732,8 +732,14 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                   final _discount = (_order!['discount_amount'] as num?)?.toDouble() ?? 0.0;
                   final _offerCode = (_order!['offer_code'] as String?) ?? '';
                   final _discountedSub = _sub - _discount;
-                  final _gst = double.parse((_discountedSub * 0.05).toStringAsFixed(2));
-                  final _grand = _discountedSub + 20.0 + _gst;
+                  // Use pre-computed values from API (Build 102+)
+                  final _gstRate = (_order!['gst_rate'] as num?)?.toDouble() ?? 5.0;
+                  final _gst = (_order!['gst_amount'] as num?)?.toDouble()
+                      ?? double.parse((_discountedSub * _gstRate / 100).toStringAsFixed(2));
+                  final _delivFee = (_order!['delivery_fee'] as num?)?.toDouble() ?? 20.0;
+                  final _custPays = (_order!['customer_pays'] as num?)?.toDouble();
+                  final _grand = _custPays
+                      ?? double.parse((_discountedSub + _delivFee + _gst).toStringAsFixed(2));
                   return Column(children: [
                     if (_discount > 0) ...[
                       _BillRow('Item Subtotal', '₹${_sub.toStringAsFixed(0)}'),
@@ -752,20 +758,24 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                       const Divider(height: 12),
                     ],
                     _BillRow('Total Food Cost', '₹${_discountedSub.toStringAsFixed(0)}', bold: true),
-                    const SizedBox(height: 4),
-                    _BillRow('Delivery Fee', '₹20'),
-                    const SizedBox(height: 4),
-                    _BillRow(
-                      'GST (5% of Total Food Cost)',
-                      '₹${_gst.toStringAsFixed(2)}',
-                    ),
+                    if (_delivFee > 0) ...[
+                      const SizedBox(height: 4),
+                      _BillRow('Delivery Fee', '₹${_delivFee.toStringAsFixed(0)}'),
+                    ],
+                    if (_gst > 0) ...[
+                      const SizedBox(height: 4),
+                      _BillRow(
+                        'GST (${_gstRate.toStringAsFixed(0)}%)',
+                        '₹${_gst.toStringAsFixed(2)}',
+                      ),
+                    ],
                     const Divider(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Total',
                             style: TextStyle(fontWeight: FontWeight.bold)),
-                        Text('₹${_grand.toStringAsFixed(0)}',
+                        Text('₹${_grand.round()}',
                             style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

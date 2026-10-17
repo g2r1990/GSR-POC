@@ -97,7 +97,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   double get _cutleryFeeAmt  => (_cutleryRequested && _providesCutlery) ? _cutleryFee : 0.0;
   double get _effectiveTip   => (_paymentMethod == 'cod' || _orderType == 'takeaway') ? 0.0 : _riderTip;
   double get _customerPays   =>
-      _taxableAmount + _gstAmount + _deliveryFee + _cutleryFeeAmt + _effectiveTip;
+      double.parse((_taxableAmount + _gstAmount + _deliveryFee + _cutleryFeeAmt + _effectiveTip).toStringAsFixed(2));
 
   String _offerBannerText() {
     final type = OfferService.offerType;
@@ -382,7 +382,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                       ? const SizedBox(width: 22, height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : Text(
-                          '${_orderType == "takeaway" ? "Place Takeaway" : "Place Order"}  •  ₹${_customerPays.toStringAsFixed(0)}',
+                          '${_orderType == "takeaway" ? "Place Takeaway" : "Place Order"}  •  ₹${_customerPays.round()}',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
@@ -613,7 +613,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
                     const Divider(height: 20),
                     _BillRow(
                       label: 'To Pay',
-                      value: '₹${_customerPays.toStringAsFixed(0)}',
+                      value: '₹${_customerPays.round()}',
                       bold: true,
                       valueColor: _amber,
                     ),

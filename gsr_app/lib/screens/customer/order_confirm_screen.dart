@@ -242,7 +242,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Total Paid', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('₹${_grandTotal.toStringAsFixed(0)}',
+                      Text('₹${_grandTotal.round()}',
                           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
                     ],
                   ),
