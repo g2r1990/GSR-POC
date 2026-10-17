@@ -136,7 +136,7 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
       final items = (order['items'] as List?) ?? [];
       for (final item in items) {
         final name = item['name'] as String? ?? 'Unknown';
-        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+        final qty = (item['qty'] as num?)?.toInt() ?? 0;
         map[name] = (map[name] ?? 0) + qty;
       }
     }
@@ -178,7 +178,7 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
       double sub = 0;
       for (final item in items) {
         final price = (item['price'] as num?)?.toDouble() ?? 0;
-        final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+        final qty = (item['qty'] as num?)?.toInt() ?? 0;
         sub += price * qty;
       }
       total += sub + 20 + sub * 0.05;
@@ -228,7 +228,7 @@ class _OwnerStatsScreenState extends State<OwnerStatsScreen> {
 
   Widget _body() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 32 + MediaQuery.of(context).padding.bottom),
       children: [
         // ── Date filter chips ─────────────────────────────────────────────────
         SingleChildScrollView(

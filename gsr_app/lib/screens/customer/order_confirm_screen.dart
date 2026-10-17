@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../constants.dart';
 import '../../services/api_service.dart';
 import 'order_status_screen.dart';
 
@@ -50,7 +51,7 @@ class _OrderConfirmScreenState extends State<OrderConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    final windowSecs = widget.cancellationWindowMins > 0 ? widget.cancellationWindowMins * 60 : 30;
+    final windowSecs = widget.cancellationWindowMins > 0 ? widget.cancellationWindowMins * 60 : kCancelWindowSecs;
     if (widget.createdAt != null) {
       try {
         final raw = widget.createdAt!;

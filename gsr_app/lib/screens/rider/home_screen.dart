@@ -127,14 +127,14 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Ask the customer for their 4-digit delivery PIN to confirm delivery.',
+                  'Ask the customer for their 6-digit delivery PIN to confirm delivery.',
                   style: TextStyle(color: Colors.black54, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: pinCtrl,
                   keyboardType: TextInputType.number,
-                  maxLength: 4,
+                  maxLength: 6,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 28,
@@ -142,7 +142,7 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
                     letterSpacing: 12,
                   ),
                   decoration: InputDecoration(
-                    hintText: '0000',
+                    hintText: '000000',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     counterText: '',
                     errorText: pinError,
@@ -162,8 +162,8 @@ class _RiderHomeScreenState extends State<RiderHomeScreen>
                       ? null
                       : () async {
                           final pin = pinCtrl.text.trim();
-                          if (pin.length != 4) {
-                            setDialogState(() => pinError = 'Enter 4-digit PIN');
+                          if (pin.length != 6) {
+                            setDialogState(() => pinError = 'Enter 6-digit PIN');
                             return;
                           }
                           setBtn(() => confirming = true);

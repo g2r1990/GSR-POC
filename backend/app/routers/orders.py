@@ -31,7 +31,9 @@ _VALID_TRANSITIONS = {
     "cancelled":        set(),
 }
 
-DELIVERY_FEE = 20.00   # flat fee; replace with distance-based later
+DELIVERY_FEE        = 20.00  # flat fee; replace with distance-based later
+CANCEL_WINDOW_SECS  = 15    # customer cancel window (aligned with owner accept-lock)
+DELIVERY_PIN_DIGITS = 6     # PIN length — must match rider dialog in Flutter
 
 
 def _get_owner_id(credentials: HTTPAuthorizationCredentials) -> str:
@@ -409,7 +411,7 @@ def customer_cancel_order(order_id: str, db: Session = Depends(get_db)):
     if order.status != "placed":
         raise HTTPException(status_code=400, detail="Order cannot be cancelled at this stage.")
     elapsed = (datetime.utcnow() - order.created_at).total_seconds()
-    if elapsed > 30:
+    if elapsed > CANCEL_WINDOW_SECS:
         raise HTTPException(
             status_code=400,
             detail="Cancellation window has expired (30 seconds).",

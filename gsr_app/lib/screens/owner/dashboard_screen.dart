@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import 'menu_list_screen.dart';
 import 'orders_screen.dart';
@@ -116,6 +117,9 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) SystemNavigator.pop();
+      },
       child: Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
@@ -145,7 +149,7 @@ class _OwnerDashboardScreenState extends State<OwnerDashboardScreen> {
                 await Future.wait([_loadStats(), _loadAvailability()]);
               },
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + MediaQuery.of(context).padding.bottom),
                 children: [
                   // Greeting
                   Text('Hello, ${widget.ownerName.split(' ').first}!',

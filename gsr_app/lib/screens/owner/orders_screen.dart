@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../constants.dart';
 import '../../services/api_service.dart';
 
 class OwnerOrdersScreen extends StatefulWidget {
@@ -512,7 +513,7 @@ class _OrderCardState extends State<_OrderCard> {
     try {
       final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
       final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
-      final remaining = 30 - elapsed;
+      final remaining = kCancelWindowSecs - elapsed;
       if (remaining <= 0) return;
       setState(() => _cancelSecondsLeft = remaining);
       _cancelTimer = Timer.periodic(const Duration(seconds: 1), (t) {

@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../constants.dart';
 import '../../services/api_service.dart';
 
 class OrderStatusScreen extends StatefulWidget {
@@ -110,7 +111,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
     try {
       final createdAt = DateTime.parse(raw.endsWith('Z') ? raw : '${raw}Z');
       final elapsed = DateTime.now().toUtc().difference(createdAt).inSeconds;
-      final remaining = 30 - elapsed;
+      final remaining = kCancelWindowSecs - elapsed;
       if (remaining <= 0) return;
       if (mounted) setState(() => _cancelSecondsLeft = remaining);
       _cancelTimer?.cancel();
